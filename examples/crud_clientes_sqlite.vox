@@ -115,10 +115,9 @@ println("==================================================================");
 // Utiliza banco em arquivo real 'clientes_vox.db'
 let repo = new ClienteRepository("clientes_vox.db");
 repo.conectar();
+// Recria a tabela para que a demonstração sempre inicie com IDs 1, 2, 3, 4
+sqlite_exec(repo.db, "DROP TABLE IF EXISTS clientes;");
 repo.inicializar_tabela();
-
-// Limpa dados de testes anteriores para demonstração limpa
-sqlite_exec(repo.db, "DELETE FROM clientes;");
 
 println("");
 println("--- 1. [CREATE] Cadastrando Clientes ---");
