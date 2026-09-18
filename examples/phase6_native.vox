@@ -1,0 +1,115 @@
+// ============================================================
+// phase6_native.vox — Exemplo Demonstrativo da Fase 6 (Nativo C99)
+// Transpila para ANSI C99 e compila diretamente em binário .exe nativo
+// ============================================================
+
+class Vector2D {
+    pub x: float;
+    pub y: float;
+
+    pub new(x: float, y: float) {
+        self.x = x;
+        self.y = y;
+    }
+
+    pub fn length_squared() -> float {
+        return self.x * self.x + self.y * self.y;
+    }
+
+    pub fn scale(factor: float) -> void {
+        self.x = self.x * factor;
+        self.y = self.y * factor;
+    }
+}
+
+class Entity {
+    pub name: str;
+    pub health: int;
+
+    pub new(name: str, health: int) {
+        self.name = name;
+        self.health = health;
+    }
+
+    pub fn take_damage(dmg: int) -> int {
+        self.health = self.health - dmg;
+        if self.health < 0 {
+            self.health = 0;
+        }
+        return self.health;
+    }
+
+    pub fn is_alive() -> bool {
+        return self.health > 0;
+    }
+}
+
+fn compute_fibonacci(n: int) -> int {
+    if n <= 1 {
+        return n;
+    }
+    let a = 0;
+    let b = 1;
+    let i = 2;
+    while i <= n {
+        let temp = a + b;
+        a = b;
+        b = temp;
+        i = i + 1;
+    }
+    return b;
+}
+
+fn categorize_level(level: int) -> str {
+    return match level {
+        1..10 => "Iniciante",
+        11..30 => "Intermediario",
+        31..50 => "Avancado",
+        _ => "Mestre"
+    };
+}
+
+println("=== VOX FASE 6: COMPILACAO NATIVA C99 ===");
+
+// 1. Orientação a Objetos Nativa
+let v = new Vector2D(3.0, 4.0);
+println("Vector2D criado: x=" + float(v.x) + ", y=" + float(v.y));
+println("Comprimento ao quadrado: " + float(v.length_squared()));
+v.scale(2.0);
+println("Vector apos scale(2.0): x=" + float(v.x) + ", y=" + float(v.y));
+
+let hero = new Entity("Kaelen", 100);
+println("Heroi: " + hero.name + ", HP Inicial: " + int(hero.health));
+hero.take_damage(35);
+println("Heroi apos dano: HP=" + int(hero.health) + ", Vivo: " + bool(hero.is_alive()));
+
+// 2. Calculo Iterativo de Fibonacci
+let fib10 = compute_fibonacci(10);
+println("Fibonacci(10) iterativo = " + int(fib10));
+assert!(fib10 == 55, "Fibonacci de 10 deve ser 55");
+
+// 3. Pattern Matching de Niveis
+let tier1 = categorize_level(5);
+let tier2 = categorize_level(25);
+let tier3 = categorize_level(42);
+let tier4 = categorize_level(99);
+println("Level 5  -> " + tier1);
+println("Level 25 -> " + tier2);
+println("Level 42 -> " + tier3);
+println("Level 99 -> " + tier4);
+
+// 4. Concorrência CSP (Canais Ring-Buffer)
+let ch = chan_new(4);
+ch.send(400);
+ch.send(800);
+let r1 = ch.recv();
+let r2 = ch.recv();
+ch.close();
+println("CSP Channel Recv: r1=" + int(r1) + ", r2=" + int(r2));
+assert!(r1 == 400 && r2 == 800, "Valores do canal devem ser 400 e 800");
+
+// 5. Macros format! e dbg!
+let final_msg = format!("Status Final: Heroi {} com HP={}", hero.name, hero.health);
+println(final_msg);
+
+println("=== SUCCESSO: PROGRAMA VOX EXECUTADO NATIVAMENTE EM C99! ===");

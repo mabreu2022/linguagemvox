@@ -1,0 +1,94 @@
+// ============================================================
+// modern.kael -- Features modernas da linguagem Kael
+// ============================================================
+
+// Pattern matching
+fn descrever_numero(n: int) -> str {
+    match n {
+        0        => "zero",
+        1..10    => "pequeno (" + str(n) + ")",
+        11..100  => "medio (" + str(n) + ")",
+        n if n < 0 => "negativo",
+        _        => "grande",
+    }
+}
+
+// Option type com pattern matching
+fn dividir(a: float, b: float) -> str {
+    if b == 0.0 {
+        return "Erro: divisao por zero"
+    }
+    return "Resultado: " + str(a / b)
+}
+
+// Funcoes de alta ordem
+fn aplicar_operacoes(nums: Array<int>) -> void {
+    let dobros  = nums.map(|x| => x * 2)
+    let pares   = nums.filter(|x| => x % 2 == 0)
+    let soma    = nums.reduce(|acc, x| => acc + x, 0)
+
+    println("Original: " + str(nums))
+    println("Dobros:   " + str(dobros))
+    println("Pares:    " + str(pares))
+    println("Soma:     " + str(soma))
+}
+
+// Pipe operator
+fn processar(x: int) -> str {
+    let resultado = x
+        |> |n| => n * 2
+        |> |n| => n + 10
+        |> str
+    return resultado
+}
+
+// Closures
+fn contador(inicio: int) -> fn() -> int {
+    let n = inicio
+    return || => {
+        n = n + 1
+        return n
+    }
+}
+
+// Execucao
+println("=== Pattern Matching ===")
+println(descrever_numero(0))
+println(descrever_numero(5))
+println(descrever_numero(50))
+println(descrever_numero(-3))
+println(descrever_numero(999))
+
+println("\n=== Operacoes Funcionais ===")
+let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+aplicar_operacoes(nums)
+
+println("\n=== Pipe Operator ===")
+println("processar(5) = " + processar(5))
+
+println("\n=== Closures ===")
+let contar = contador(0)
+println(str(contar()))
+println(str(contar()))
+println(str(contar()))
+
+println("\n=== Divisao ===")
+println(dividir(10.0, 3.0))
+println(dividir(5.0, 0.0))
+
+println("\n=== Fibonacci com memoizacao ===")
+fn fib_memo(n: int) -> int {
+    let cache = #{}
+    fn fib(k: int) -> int {
+        if k <= 1 { return k }
+        if map_get(cache, k) != null { return map_get(cache, k) }
+        let result = fib(k-1) + fib(k-2)
+        map_set(cache, k, result)
+        return result
+    }
+    return fib(n)
+}
+
+for i in [0, 1, 2, 5, 10, 15, 20] {
+    println("fib(" + str(i) + ") = " + str(fib_memo(i)))
+}

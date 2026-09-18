@@ -1,0 +1,49 @@
+// ============================================================
+// hello.kael -- Primeiro programa em Kael!
+// ============================================================
+
+fn main() -> void {
+    println("Ola, Mundo! Bem-vindo a linguagem Kael!")
+
+    let nome = "Kael"
+    let versao = 0.1
+    let ativo = true
+
+    println("Linguagem: " + nome)
+    println("Versao: " + float(versao))
+
+    let x = 10
+    let y = 20
+    let soma = x + y
+    println("Soma: " + int(soma))
+
+    if soma > 25 {
+        println("Soma e maior que 25!")
+    } else {
+        println("Soma e menor ou igual a 25.")
+    }
+
+    let nums = [1, 2, 3, 4, 5]
+    println("Contando:")
+    for n in nums {
+        print(int(n) + " ")
+    }
+    println("")
+
+    let dobros = nums.map(|x| => x * 2)
+    println("Dobros: " + dobros)
+
+    let pares = nums.filter(|x| => x % 2 == 0)
+    println("Pares: " + pares)
+
+    println("Fibonacci(10) = " + fibonacci(10))
+}
+
+fn fibonacci(n: int) -> int {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+main()

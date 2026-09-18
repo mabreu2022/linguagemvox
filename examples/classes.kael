@@ -1,0 +1,94 @@
+// ============================================================
+// classes.kael -- Orientacao a Objetos em Kael
+// ============================================================
+
+// Interface
+interface Animal {
+    pub fn speak() -> void
+    pub fn name() -> str
+}
+
+// Mixin de logging
+mixin Logging {
+    pub fn log(msg: str) -> void {
+        println("[LOG] " + msg)
+    }
+}
+
+// Classe base
+class Criatura implements Animal with Logging {
+    priv nome: str
+    priv energia: int
+
+    new(nome: str, energia: int) {
+        self.nome = nome
+        self.energia = energia
+    }
+
+    pub fn speak() -> void {
+        println("...")
+    }
+
+    pub fn name() -> str => self.nome
+
+    pub fn energia() -> int => self.energia
+
+    pub fn comer(qtd: int) -> void {
+        self.energia = self.energia + qtd
+        self.log(self.nome + " comeu e tem " + str(self.energia) + " de energia.")
+    }
+
+    operator ==(outro: Criatura) -> bool {
+        return self.nome == outro.nome
+    }
+}
+
+// Heranca
+class Cachorro extends Criatura {
+    priv raca: str
+
+    new(nome: str, raca: str) {
+        super(nome, 100)
+        self.raca = raca
+    }
+
+    pub fn speak() -> void {
+        println(self.name() + " diz: Au Au!")
+    }
+
+    pub fn raca() -> str => self.raca
+}
+
+class Gato extends Criatura {
+    new(nome: str) {
+        super(nome, 80)
+    }
+
+    pub fn speak() -> void {
+        println(self.name() + " diz: Miau!")
+    }
+}
+
+// Funcao generica que aceita qualquer Animal
+fn apresentar(animal: Animal) -> void {
+    println("Apresentando: " + animal.name())
+    animal.speak()
+}
+
+// Programa principal
+let rex = new Cachorro("Rex", "Labrador")
+let mimi = new Gato("Mimi")
+
+apresentar(rex)
+apresentar(mimi)
+
+rex.comer(50)
+mimi.comer(30)
+
+println("Rex == Rex: " + str(rex == rex))
+
+let animais = [rex, mimi]
+println("\nTodos os animais:")
+for a in animais {
+    a.speak()
+}

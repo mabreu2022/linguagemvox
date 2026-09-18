@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vox — Linguagem de Programação Moderna v0.7.0</title>
+  <meta name="description" content="Documentação completa da linguagem Vox v0.7.0 — OOP, tipagem gradual, ownership, concorrência CSP e compilação nativa C99." />
+  <meta property="og:title" content="Vox Language — Documentação Oficial" />
+  <meta property="og:description" content="Linguagem moderna com OOP, ownership, concorrência CSP e compilação nativa via C99." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#0c0e14; --bg2:#121520; --bg3:#1a1e2e; --bg4:#222740; --surface:#1e2235;
+      --border:rgba(120,140,255,0.12); --border2:rgba(120,140,255,0.22);
+      --accent:#7c6ff7; --accent2:#a78bfa; --accent3:#c4b5fd;
+      --teal:#2dd4bf; --pink:#f472b6; --amber:#fbbf24; --green:#34d399; --red:#f87171; --blue:#60a5fa;
+      --text:#e2e8f0; --text2:#94a3b8; --text3:#64748b;
+      --radius:12px; --radius-lg:20px;
+      --shadow:0 4px 24px rgba(0,0,0,.45);
+      --sidebar-w:280px; --nav-h:64px;
+    }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.7; overflow-x:hidden; }
+    ::selection { background:rgba(124,111,247,.35); color:#fff; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:var(--bg2); }
+    ::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--accent); }
+    /* Topnav */
+    #topnav { position:fixed; top:0; left:0; right:0; z-index:100; height:var(--nav-h);
+      background:rgba(12,14,20,.88); backdrop-filter:blur(18px);
+      border-bottom:1px solid var(--border); display:flex; align-items:center;
+      padding:0 2rem; gap:1.5rem; }
+    .nav-brand { display:flex; align-items:center; gap:.75rem; font-size:1.2rem; font-weight:800;
+      letter-spacing:-.02em; color:var(--text); text-decoration:none; }
+    .nav-logo { width:36px; height:36px; border-radius:10px;
+      background:linear-gradient(135deg,var(--accent),var(--pink));
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; font-weight:900; color:#fff;
+      box-shadow:0 0 20px rgba(124,111,247,.5); }
+    .nav-badge { font-size:.7rem; font-weight:600;
+      background:rgba(124,111,247,.2); color:var(--accent3);
+      border:1px solid rgba(124,111,247,.3); border-radius:99px; padding:2px 10px; }
+    .nav-links { display:flex; gap:1rem; margin-left:auto; }
+    .nav-link { font-size:.85rem; font-weight:500; color:var(--text2);
+      text-decoration:none; padding:.4rem .8rem; border-radius:8px; transition:all .2s; }
+    .nav-link:hover { background:var(--bg4); color:var(--text); }
+    #menu-toggle { display:none; background:none; border:none; color:var(--text);
+      font-size:1.4rem; cursor:pointer; padding:.25rem; }
+    /* Layout */
+    #layout { display:grid; grid-template-columns:var(--sidebar-w) 1fr; min-height:100vh; padding-top:var(--nav-h); }
+    /* Sidebar */
+    #sidebar { position:fixed; top:var(--nav-h); left:0; bottom:0; width:var(--sidebar-w);
+      background:var(--bg2); border-right:1px solid var(--border);
+      overflow-y:auto; padding:1.5rem 1rem; z-index:50; transition:transform .3s; }
+    .sidebar-section { margin-bottom:2rem; }
+    .sidebar-label { font-size:.68rem; font-weight:700; letter-spacing:.1em;
+      text-transform:uppercase; color:var(--text3); padding:0 .5rem; margin-bottom:.5rem; }
+    .sidebar-link { display:flex; align-items:center; gap:.6rem;
+      padding:.45rem .75rem; border-radius:8px; font-size:.85rem; font-weight:500;
+      color:var(--text2); text-decoration:none; transition:all .2s; }
+    .sidebar-link:hover { background:var(--bg4); color:var(--text); }
+    .sidebar-link.active { background:rgba(124,111,247,.15); color:var(--accent3); border-left:2px solid var(--accent); }
+    .sidebar-icon { font-size:1rem; width:1.2rem; text-align:center; }
+    /* Main */
+    #main { grid-column:2; min-width:0; padding:3rem 4rem; }
+    /* Hero */
+    #hero { text-align:center; padding:5rem 1rem 4rem; position:relative; overflow:hidden; }
+    .hero-glow { position:absolute; inset:0;
+      background:radial-gradient(ellipse 60% 50% at 50% 30%,rgba(124,111,247,.18) 0%,transparent 70%);
+      pointer-events:none; }
+    .hero-ascii { font-family:'JetBrains Mono',monospace; font-size:clamp(.5rem,1.2vw,.8rem);
+      line-height:1.2; color:var(--accent2); white-space:pre; margin:0 auto 2rem;
+      text-shadow:0 0 30px rgba(124,111,247,.6);
+      animation:glowPulse 3s ease-in-out infinite alternate; }
+    @keyframes glowPulse {
+      from { text-shadow:0 0 20px rgba(124,111,247,.5); }
+      to   { text-shadow:0 0 50px rgba(167,139,250,.9); } }
+    .hero-title { font-size:clamp(2.5rem,6vw,4rem); font-weight:800; letter-spacing:-.04em;
+      background:linear-gradient(135deg,#fff 30%,var(--accent2) 70%,var(--pink));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text; line-height:1.1; margin-bottom:1rem; }
+    .hero-sub { font-size:1.1rem; color:var(--text2); max-width:650px; margin:0 auto 2.5rem; }
+    .hero-badges { display:flex; flex-wrap:wrap; gap:.75rem; justify-content:center; margin-bottom:2.5rem; }
+    .badge { display:inline-flex; align-items:center; gap:.4rem;
+      font-size:.8rem; font-weight:600; padding:.4rem 1rem; border-radius:99px; border:1px solid; }
+    .badge-purple { background:rgba(124,111,247,.12); color:var(--accent3); border-color:rgba(124,111,247,.3); }
+    .badge-teal   { background:rgba(45,212,191,.1);  color:var(--teal);    border-color:rgba(45,212,191,.3); }
+    .badge-pink   { background:rgba(244,114,182,.1); color:var(--pink);    border-color:rgba(244,114,182,.3); }
+    .badge-amber  { background:rgba(251,191,36,.1);  color:var(--amber);   border-color:rgba(251,191,36,.3); }
+    .badge-green  { background:rgba(52,211,153,.1);  color:var(--green);   border-color:rgba(52,211,153,.3); }
+    .badge-blue   { background:rgba(96,165,250,.1);  color:var(--blue);    border-color:rgba(96,165,250,.3); }
+    .hero-cta { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
+    .btn { display:inline-flex; align-items:center; gap:.5rem;
+      font-size:.95rem; font-weight:600; padding:.75rem 1.75rem;
+      border-radius:10px; text-decoration:none; transition:all .25s; cursor:pointer; border:none; }
+    .btn-primary { background:linear-gradient(135deg,var(--accent),#9b6cf0); color:#fff;
+      box-shadow:0 4px 20px rgba(124,111,247,.4); }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(124,111,247,.6); }
+    .btn-outline { background:transparent; color:var(--text); border:1px solid var(--border2); }
+    .btn-outline:hover { background:var(--bg4); border-color:var(--accent); }
+    /* Feature grid */
+    .features-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.25rem; margin:2rem 0; }
+    .feature-card { background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius-lg); padding:1.5rem; transition:all .3s; }
+    .feature-card:hover { border-color:var(--border2); transform:translateY(-3px); box-shadow:0 12px 40px rgba(0,0,0,.4); }
+    .feature-icon { font-size:2rem; margin-bottom:.75rem; }
+    .feature-title { font-size:1rem; font-weight:700; margin-bottom:.4rem; }
+    .feature-desc { font-size:.875rem; color:var(--text2); line-height:1.6; }
+    /* Sections */
+    .section { margin:0 0 5rem; scroll-margin-top:calc(var(--nav-h) + 2rem); }
+    .section-header { margin-bottom:2rem; }
+    .section-tag { display:inline-flex; align-items:center; gap:.4rem;
+      font-size:.75rem; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase; color:var(--accent2); margin-bottom:.75rem; }
+    h2.section-title { font-size:clamp(1.5rem,2.5vw,2rem); font-weight:700;
+      letter-spacing:-.02em; color:var(--text); margin-bottom:.75rem; }
+    h3.subsection { font-size:1.2rem; font-weight:700; color:var(--text);
+      margin:2rem 0 1rem; padding-bottom:.5rem; border-bottom:1px solid var(--border); }
+    .section-desc { font-size:1rem; color:var(--text2); max-width:700px; }
+    .divider { height:1px; background:var(--border); margin:3rem 0; }
+    /* Code */
+    .code-wrap { position:relative; margin:1.25rem 0; border-radius:var(--radius);
+      border:1px solid var(--border); overflow:hidden; box-shadow:var(--shadow); }
+    .code-header { display:flex; align-items:center; justify-content:space-between;
+      background:var(--bg3); padding:.6rem 1rem; border-bottom:1px solid var(--border); }
+    .code-dots { display:flex; gap:.4rem; }
+    .code-dot { width:10px; height:10px; border-radius:50%; }
+    .code-dot:nth-child(1){background:#ff5f57} .code-dot:nth-child(2){background:#febc2e} .code-dot:nth-child(3){background:#28c840}
+    .code-lang { font-family:'JetBrains Mono',monospace; font-size:.7rem; font-weight:600;
+      letter-spacing:.1em; text-transform:uppercase; color:var(--text3); }
+    .copy-btn { font-size:.75rem; font-weight:600; background:rgba(255,255,255,.06);
+      color:var(--text2); border:1px solid var(--border); padding:.25rem .75rem;
+      border-radius:6px; cursor:pointer; transition:all .2s; }
+    .copy-btn:hover { background:var(--bg4); color:var(--text); }
+    .copy-btn.copied { color:var(--green); border-color:rgba(52,211,153,.4); }
+    pre { background:var(--bg2); overflow-x:auto; padding:1.25rem 1.5rem; margin:0; }
+    code { font-family:'JetBrains Mono',monospace; font-size:.87rem; line-height:1.7; tab-size:2; }
+    :not(pre) > code { background:var(--bg3); color:var(--accent3); padding:.15em .45em;
+      border-radius:5px; font-size:.875em; border:1px solid var(--border); }
+    /* Syntax highlighting */
+    .kw  { color:#c792ea; font-style:italic; }
+    .kw2 { color:#89ddff; }
+    .ty  { color:#ffcb6b; }
+    .fn  { color:#82aaff; }
+    .str { color:#c3e88d; }
+    .num { color:#f78c6c; }
+    .cmt { color:#546e7a; font-style:italic; }
+    .mac { color:#f472b6; font-weight:600; }
+    .dec { color:#fbbf24; }
+    /* Tables */
+    .table-wrap { overflow-x:auto; margin:1.25rem 0; }
+    table { width:100%; border-collapse:collapse; font-size:.9rem; }
+    thead tr { background:var(--bg3); }
+    th { padding:.75rem 1rem; text-align:left; font-size:.8rem; font-weight:700;
+      letter-spacing:.05em; text-transform:uppercase; color:var(--text3);
+      border-bottom:1px solid var(--border); }
+    td { padding:.75rem 1rem; border-bottom:1px solid var(--border); vertical-align:top; }
+    tr:hover td { background:rgba(255,255,255,.02); }
+    td:first-child { color:var(--accent3); font-weight:500; }
+    /* Info boxes */
+    .info-box { display:flex; gap:1rem; align-items:flex-start; background:var(--bg3);
+      border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.25rem; margin:1.25rem 0; }
+    .info-box.tip  { border-left:3px solid var(--teal); }
+    .info-box.note { border-left:3px solid var(--blue); }
+    .info-box.warn { border-left:3px solid var(--amber); }
+    .info-icon { font-size:1.25rem; flex-shrink:0; line-height:1.6; }
+    .info-text { font-size:.9rem; color:var(--text2); line-height:1.65; }
+    .info-text strong { color:var(--text); }
+    /* Steps */
+    .steps { display:flex; flex-direction:column; gap:1.25rem; margin:1.5rem 0; }
+    .step { display:flex; gap:1rem; align-items:flex-start; }
+    .step-num { min-width:2rem; height:2rem; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:.85rem; font-weight:700; flex-shrink:0;
+      background:linear-gradient(135deg,var(--accent),var(--pink));
+      color:#fff; box-shadow:0 4px 12px rgba(124,111,247,.4); }
+    .step-title { font-weight:700; margin-bottom:.25rem; }
+    .step-desc { font-size:.9rem; color:var(--text2); }
+    /* Phases */
+    .phases { display:flex; flex-direction:column; gap:1rem; margin:1.5rem 0; }
+    .phase { display:flex; gap:1.25rem; align-items:flex-start; background:var(--surface);
+      border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem 1.5rem; transition:all .3s; }
+    .phase:hover { border-color:var(--border2); box-shadow:var(--shadow); }
+    .phase-badge { min-width:2.5rem; height:2.5rem;
+      background:linear-gradient(135deg,var(--accent),var(--teal));
+      border-radius:10px; display:flex; align-items:center; justify-content:center;
+      font-size:.8rem; font-weight:800; color:#fff; flex-shrink:0; }
+    .phase-name { font-weight:700; color:var(--text); margin-bottom:.2rem; }
+    .phase-desc { font-size:.875rem; color:var(--text2); }
+    /* CLI */
+    .cli-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem; }
+    .cli-card { background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:1.25rem; transition:all .25s; }
+    .cli-card:hover { border-color:var(--border2); }
+    .cli-cmd { font-family:'JetBrains Mono',monospace; font-size:.85rem; color:var(--teal);
+      font-weight:600; background:var(--bg3); padding:.5rem .85rem; border-radius:7px;
+      margin-bottom:.6rem; border:1px solid rgba(45,212,191,.2); }
+    .cli-desc { font-size:.85rem; color:var(--text2); }
+    /* Footer */
+    #footer { text-align:center; padding:3rem; border-top:1px solid var(--border); color:var(--text3); font-size:.85rem; }
+    #footer a { color:var(--accent2); text-decoration:none; }
+    #footer a:hover { text-decoration:underline; }
+    /* Progress bar */
+    #progress { position:fixed; top:var(--nav-h); left:0; right:0; height:2px; z-index:101;
+      background:linear-gradient(90deg,var(--accent),var(--pink),var(--teal));
+      transform-origin:left; transition:transform .1s; }
+    /* Back to top */
+    #back-top { position:fixed; bottom:2rem; right:2rem; z-index:90;
+      width:46px; height:46px; background:linear-gradient(135deg,var(--accent),var(--pink));
+      border:none; border-radius:50%; cursor:pointer; font-size:1.2rem; color:#fff;
+      box-shadow:0 4px 20px rgba(124,111,247,.5);
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; transform:translateY(10px); transition:all .3s; }
+    #back-top.visible { opacity:1; transform:translateY(0); }
+    #back-top:hover { transform:translateY(-3px) scale(1.05); }
+    /* Responsive */
+    @media (max-width:900px) { :root{--sidebar-w:260px} #main{padding:2rem 1.5rem} }
+    @media (max-width:768px) {
+      #menu-toggle{display:block} #layout{grid-template-columns:1fr}
+      #sidebar{transform:translateX(-100%)} #sidebar.open{transform:translateX(0)}
+      #main{grid-column:1} .hero-ascii{display:none} }
+    @media (max-width:480px) { #main{padding:1.5rem 1rem} .features-grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+<div id="progress"></div>
+
+<nav id="topnav" aria-label="Navegação principal">
+  <button id="menu-toggle" aria-label="Abrir menu" onclick="toggleSidebar()">&#9776;</button>
+  <a href="#hero" class="nav-brand">
+    <div class="nav-logo">V</div>
+    Vox <span class="nav-badge">v0.7.0</span>
+  </a>
+  <div class="nav-links">
+    <a href="#instalacao" class="nav-link">Instalação</a>
+    <a href="#sintaxe" class="nav-link">Sintaxe</a>
+    <a href="#oop" class="nav-link">OOP</a>
+    <a href="#ownership" class="nav-link">Ownership</a>
+    <a href="#concorrencia" class="nav-link">CSP</a>
+    <a href="#cli" class="nav-link">CLI</a>
+    <a href="https://github.com/mabreu2022/linguagemvox" class="nav-link" target="_blank" rel="noopener">GitHub &#x2197;</a>
+  </div>
+</nav>
+
+<div id="layout">
+  <aside id="sidebar" aria-label="Índice da documentação">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Início</div>
+      <a href="#hero"       class="sidebar-link active"><span class="sidebar-icon">&#127968;</span>Visão Geral</a>
+      <a href="#instalacao" class="sidebar-link"><span class="sidebar-icon">&#9889;</span>Instalação</a>
+      <a href="#quickstart" class="sidebar-link"><span class="sidebar-icon">&#128640;</span>Quick Start</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Linguagem</div>
+      <a href="#sintaxe"  class="sidebar-link"><span class="sidebar-icon">&#128221;</span>Léxico &amp; Sintaxe</a>
+      <a href="#tipos"    class="sidebar-link"><span class="sidebar-icon">&#128311;</span>Sistema de Tipos</a>
+      <a href="#fluxo"    class="sidebar-link"><span class="sidebar-icon">&#128256;</span>Controle de Fluxo</a>
+      <a href="#funcoes"  class="sidebar-link"><span class="sidebar-icon">&#955;</span>Funções &amp; Lambdas</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Paradigmas</div>
+      <a href="#oop"          class="sidebar-link"><span class="sidebar-icon">&#127963;</span>Orientação a Objetos</a>
+      <a href="#generics"     class="sidebar-link"><span class="sidebar-icon">&#129516;</span>Genéricos</a>
+      <a href="#ownership"    class="sidebar-link"><span class="sidebar-icon">&#129408;</span>Ownership &amp; Memória</a>
+      <a href="#funcional"    class="sidebar-link"><span class="sidebar-icon">&#127754;</span>Programação Funcional</a>
+      <a href="#concorrencia" class="sidebar-link"><span class="sidebar-icon">&#128256;</span>Concorrência CSP</a>
+      <a href="#matching"     class="sidebar-link"><span class="sidebar-icon">&#129513;</span>Pattern Matching</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Avançado</div>
+      <a href="#async"  class="sidebar-link"><span class="sidebar-icon">&#9203;</span>Async / Await</a>
+      <a href="#macros" class="sidebar-link"><span class="sidebar-icon">&#128295;</span>Macros &amp; Decoradores</a>
+      <a href="#codegen" class="sidebar-link"><span class="sidebar-icon">&#9881;</span>Compilação Nativa</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Ferramentas</div>
+      <a href="#cli"         class="sidebar-link"><span class="sidebar-icon">&#128187;</span>CLI Referência</a>
+      <a href="#lsp"         class="sidebar-link"><span class="sidebar-icon">&#128268;</span>LSP &amp; Editores</a>
+      <a href="#diagnostics" class="sidebar-link"><span class="sidebar-icon">&#128269;</span>Diagnósticos</a>
+      <a href="#exemplos"    class="sidebar-link"><span class="sidebar-icon">&#128193;</span>Exemplos</a>
+    </div>
+  </aside>
+
+  <main id="main">    <!-- HERO -->
+    <section id="hero" class="section">
+      <div class="hero-glow"></div>
+      <pre class="hero-ascii">
+&#x2588;&#x2588;&#x2557;   &#x2588;&#x2588;&#x2557; &#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2557; &#x2588;&#x2588;&#x2557;  &#x2588;&#x2588;&#x2557;
+&#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2554;&#x2550;&#x2550;&#x2550;&#x2588;&#x2588;&#x2557;&#x255A;&#x2588;&#x2588;&#x2557;&#x2588;&#x2588;&#x2554;&#x255D;
+&#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551;&#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551; &#x255A;&#x2588;&#x2588;&#x2588;&#x2554;&#x255D;
+&#x255A;&#x2588;&#x2588;&#x2557; &#x2588;&#x2588;&#x2554;&#x255D;&#x2588;&#x2588;&#x2551;   &#x2588;&#x2588;&#x2551; &#x2588;&#x2588;&#x2554;&#x2588;&#x2588;&#x2557;
+ &#x255A;&#x2588;&#x2588;&#x2588;&#x2588;&#x2554;&#x255D; &#x255A;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2588;&#x2554;&#x255D;&#x2588;&#x2588;&#x2554;&#x255D; &#x2588;&#x2588;&#x2557;
+  &#x255A;&#x2550;&#x2550;&#x2550;&#x255D;   &#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D; &#x255A;&#x2550;&#x255D;  &#x255A;&#x2550;&#x255D;   v0.7.0 &#x2014; Production-Ready</pre>
+      <h1 class="hero-title" style="font-size:clamp(2.5rem,6vw,4rem);font-weight:800;letter-spacing:-.04em;background:linear-gradient(135deg,#fff 30%,var(--accent2) 70%,var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;margin-bottom:1rem;">Linguagem de Programação Vox</h1>
+      <p class="hero-sub">Uma linguagem moderna, orientada a objetos, com tipagem gradual, segurança de memória via <em>ownership</em>, concorrência CSP nativa e compilação direta para binários nativos via C99.</p>
+      <div class="hero-badges">
+        <span class="badge badge-purple">&#x1F48E; OOP Moderna</span>
+        <span class="badge badge-teal">&#x26A1; Compilação C99</span>
+        <span class="badge badge-pink">&#x1F980; Ownership</span>
+        <span class="badge badge-amber">&#x1F500; CSP Nativo</span>
+        <span class="badge badge-green">&#x1F9E9; Pattern Matching</span>
+        <span class="badge badge-blue">&#x1F30A; Funcional</span>
+      </div>
+      <div class="hero-cta">
+        <a href="#instalacao" class="btn btn-primary">&#x26A1; Começar Agora</a>
+        <a href="#quickstart" class="btn btn-outline">&#x1F4D6; Quick Start</a>
+        <a href="https://github.com/mabreu2022/linguagemvox" class="btn btn-outline" target="_blank" rel="noopener">&#x2B50; GitHub</a>
+      </div>
+    </section>
+
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon">&#x1F48E;</div><div class="feature-title">OOP Completa</div><div class="feature-desc">Classes, herança, interfaces, mixins, sobrecarga de operadores e modificadores de visibilidade <code>pub/priv/prot/stat</code>.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x26A1;</div><div class="feature-title">Compilação Nativa Sub-Segundo</div><div class="feature-desc">Transpilação para ANSI C99 e compilação direta para <code>.exe</code> nativo em ~60ms via TCC embutido.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x1F980;</div><div class="feature-title">Ownership sem GC</div><div class="feature-desc">Semântica afim com <code>own</code>, <code>borrow</code>, <code>ref</code> e <code>move</code>. Detecção de use-after-move em tempo de compilação.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x1F500;</div><div class="feature-title">Concorrência CSP</div><div class="feature-desc">Goroutines leves com <code>spawn { }</code> e canais bidirecionais com buffers circulares thread-safe.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x1F9E9;</div><div class="feature-title">Pattern Matching</div><div class="feature-desc">Expressão de valor exaustiva com literais, ranges, monads (<code>some</code>, <code>none</code>, <code>ok</code>, <code>err</code>) e guards.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x1F30A;</div><div class="feature-title">Programação Funcional</div><div class="feature-desc">Lambdas, <code>.map()</code>, <code>.filter()</code>, <code>.reduce()</code>, <code>.find()</code> e o operador pipeline <code>|&gt;</code>.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x1F6E0;&#xFE0F;</div><div class="feature-title">Metaprogramação</div><div class="feature-desc">Decoradores <code>@timed</code>, <code>@logged</code>, <code>@memoize</code> e macros <code>format!</code>, <code>assert!</code>, <code>dbg!</code>, <code>panic!</code>.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x1F50D;</div><div class="feature-title">Diagnósticos Amigáveis</div><div class="feature-desc">Mensagens estilo Rust/Elm com squiggles, contexto completo e sugestões automáticas <em>"Você quis dizer?"</em>.</div></div>
+      <div class="feature-card"><div class="feature-icon">&#x1F50C;</div><div class="feature-title">LSP &amp; Editores</div><div class="feature-desc">Servidor LSP integrado com autocompletion, hover docs e diagnósticos em tempo real. Extensão VS Code oficial.</div></div>
+    </div>
+    <div class="divider"></div>    <!-- INSTALAÇÃO -->
+    <section id="instalacao" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x26A1; Começando</div>
+        <h2 class="section-title">Instalação</h2>
+        <p class="section-desc">Configure o compilador Vox em sua máquina em menos de dois minutos.</p>
+      </div>
+      <h3 class="subsection">Pré-requisitos</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Dependência</th><th>Versão Mínima</th><th>Observação</th></tr></thead>
+        <tbody>
+          <tr><td>Node.js</td><td>&#x2265; 18.0</td><td>Runtime necessário para o compilador</td></tr>
+          <tr><td>NPM</td><td>&#x2265; 9.0</td><td>Gerenciador de pacotes</td></tr>
+          <tr><td>Git</td><td>qualquer</td><td>Para clonar o repositório</td></tr>
+          <tr><td>GCC / TCC / MSVC</td><td>qualquer</td><td>Opcional — TCC embutido já incluso</td></tr>
+        </tbody>
+      </table></div>
+      <h3 class="subsection">Passos de Instalação</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt"># 1. Clonar o repositório</span>
+git clone https://github.com/mabreu2022/linguagemvox.git
+cd linguagemvox
+
+<span class="cmt"># 2. Instalar dependências</span>
+npm install
+
+<span class="cmt"># 3. Compilar o compilador Vox</span>
+npm run build
+
+<span class="cmt"># 4. Verificar instalação</span>
+node dist/cli/index.js --version
+<span class="cmt"># → Vox v0.7.0 (Production-Ready)</span></code></pre>
+      </div>
+      <div class="info-box tip">
+        <span class="info-icon">&#x1F4A1;</span>
+        <div class="info-text"><strong>TCC Embutido:</strong> O Vox inclui o Tiny C Compiler para Windows x64. Não é necessário instalar um compilador C externo para gerar executáveis nativos.</div>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- QUICK START -->
+    <section id="quickstart" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F680; Primeiros Passos</div>
+        <h2 class="section-title">Quick Start</h2>
+        <p class="section-desc">Do "Olá, Mundo" até concorrência em cinco minutos.</p>
+      </div>
+      <h3 class="subsection">Olá, Mundo</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// hello.vox</span>
+<span class="fn">println</span>(<span class="str">"Olá, Mundo! Bem-vindo ao Vox!"</span>);</code></pre>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt"># Interpretar</span>
+node dist/cli/index.js run hello.vox
+
+<span class="cmt"># Compilar e executar como binário nativo</span>
+node dist/cli/index.js build hello.vox --run</code></pre>
+      </div>
+      <h3 class="subsection">Programa Completo</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Classes</span>
+<span class="kw">class</span> <span class="ty">Personagem</span> {
+    <span class="kw2">pub</span> nome: <span class="ty">str</span>;
+    <span class="kw2">pub</span> vida: <span class="ty">int</span>;
+
+    <span class="kw2">pub</span> <span class="kw">new</span>(nome: <span class="ty">str</span>, vida_inicial: <span class="ty">int</span>) {
+        <span class="kw2">self</span>.nome = nome;
+        <span class="kw2">self</span>.vida = vida_inicial;
+    }
+
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">receber_dano</span>(dano: <span class="ty">int</span>) -&gt; <span class="ty">int</span> {
+        <span class="kw2">self</span>.vida = <span class="kw2">self</span>.vida - dano;
+        <span class="kw">if</span> <span class="kw2">self</span>.vida &lt; <span class="num">0</span> { <span class="kw2">self</span>.vida = <span class="num">0</span>; }
+        <span class="kw">return</span> <span class="kw2">self</span>.vida;
+    }
+
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">esta_vivo</span>() -&gt; <span class="ty">bool</span> =&gt; <span class="kw2">self</span>.vida &gt; <span class="num">0</span>;
+}
+
+<span class="cmt">// Canais CSP</span>
+<span class="kw">let</span> ch = <span class="fn">chan_new</span>(<span class="num">4</span>);
+ch.<span class="fn">send</span>(<span class="num">100</span>); ch.<span class="fn">send</span>(<span class="num">200</span>);
+<span class="kw">let</span> r1 = ch.<span class="fn">recv</span>(); ch.<span class="fn">close</span>();
+
+<span class="cmt">// Pattern Matching</span>
+<span class="kw">let</span> heroi = <span class="kw">new</span> <span class="ty">Personagem</span>(<span class="str">"Kaelen"</span>, <span class="num">100</span>);
+heroi.<span class="fn">receber_dano</span>(<span class="num">35</span>);
+
+<span class="kw">let</span> status = <span class="kw">match</span> heroi.vida {
+    <span class="num">100</span>    =&gt; <span class="str">"Intacto"</span>,
+    <span class="num">50</span>..<span class="num">99</span>  =&gt; <span class="str">"Ferido"</span>,
+    <span class="num">1</span>..<span class="num">49</span>   =&gt; <span class="str">"Crítico"</span>,
+    _      =&gt; <span class="str">"Derrotado"</span>
+};
+
+<span class="fn">println</span>(<span class="mac">format!</span>(<span class="str">"Herói: {} | Status: {} | Vida: {}"</span>, heroi.nome, status, heroi.vida));
+<span class="mac">assert!</span>(heroi.<span class="fn">esta_vivo</span>(), <span class="str">"O herói deve estar vivo!"</span>);</code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>    <!-- LÉXICO & SINTAXE -->
+    <section id="sintaxe" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F4DD; Linguagem</div>
+        <h2 class="section-title">Léxico &amp; Sintaxe</h2>
+        <p class="section-desc">Fundamentos: identificadores, literais, operadores e comentários.</p>
+      </div>
+      <h3 class="subsection">Palavras-chave Reservadas</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">texto</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code>Controle de fluxo:
+  <span class="kw">if  elif  else  while  for  in  match  return  break  continue</span>
+
+Declarações:
+  <span class="kw">let  const  fn  class  interface  mixin</span>
+
+OOP &amp; Visibilidade:
+  <span class="kw2">new  self  super  pub  priv  prot  stat</span>
+
+Ownership:
+  <span class="kw">own  borrow  ref  move</span>
+
+Concorrência:
+  <span class="kw">async  await  spawn</span></code></pre>
+      </div>
+      <h3 class="subsection">Literais</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tipo</th><th>Exemplos</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td>Inteiro</td><td><code>42</code>, <code>100LL</code>, <code>0xFF</code>, <code>0b1010</code></td><td>Decimal, hex e binário</td></tr>
+          <tr><td>Float</td><td><code>3.14</code>, <code>0.5</code>, <code>1e-4</code></td><td>IEEE 754 de dupla precisão</td></tr>
+          <tr><td>String</td><td><code>"texto\n"</code></td><td>UTF-8 com escapes: \n, \t, \", \\</td></tr>
+          <tr><td>Char</td><td><code>'a'</code>, <code>'\n'</code></td><td>Caractere único 8 bits</td></tr>
+          <tr><td>Bool</td><td><code>true</code>, <code>false</code></td><td>Booleano de 1 byte</td></tr>
+          <tr><td>Null</td><td><code>null</code></td><td>Valor nulo</td></tr>
+        </tbody>
+      </table></div>
+      <h3 class="subsection">Operadores</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Categoria</th><th>Operadores</th></tr></thead>
+        <tbody>
+          <tr><td>Aritméticos</td><td><code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code></td></tr>
+          <tr><td>Comparação</td><td><code>==</code> <code>!=</code> <code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code></td></tr>
+          <tr><td>Lógicos</td><td><code>&amp;&amp;</code> <code>||</code> <code>!</code></td></tr>
+          <tr><td>Atribuição</td><td><code>=</code> <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code></td></tr>
+          <tr><td>Pipeline</td><td><code>|&gt;</code> — composição linear da esquerda para direita</td></tr>
+          <tr><td>Range</td><td><code>1..10</code> — range inclusivo para pattern matching</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- SISTEMA DE TIPOS -->
+    <section id="tipos" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F537; Tipos</div>
+        <h2 class="section-title">Sistema de Tipos</h2>
+        <p class="section-desc">Tipagem gradual com inferência local, primitivos, coleções e tipos monádicos.</p>
+      </div>
+      <h3 class="subsection">Tipos Primitivos</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tipo Vox</th><th>Representação C</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>int</code></td><td><code>int64_t</code></td><td>Inteiro de 64 bits com sinal</td></tr>
+          <tr><td><code>float</code></td><td><code>double</code></td><td>Ponto flutuante IEEE 754 de dupla precisão</td></tr>
+          <tr><td><code>bool</code></td><td><code>uint8_t</code></td><td>Booleano — <code>true</code> ou <code>false</code></td></tr>
+          <tr><td><code>char</code></td><td><code>char</code></td><td>Caractere único 8 bits</td></tr>
+          <tr><td><code>str</code></td><td><code>VoxStr*</code></td><td>String com comprimento explícito na heap</td></tr>
+          <tr><td><code>void</code></td><td><code>void</code></td><td>Tipo unitário — funções sem retorno</td></tr>
+        </tbody>
+      </table></div>
+      <h3 class="subsection">Declaração e Inferência</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Tipagem explícita</span>
+<span class="kw">let</span> nome: <span class="ty">str</span>   = <span class="str">"Vox"</span>;
+<span class="kw">let</span> versao: <span class="ty">int</span> = <span class="num">7</span>;
+<span class="kw">let</span> pi: <span class="ty">float</span>   = <span class="num">3.14159</span>;
+
+<span class="cmt">// Inferência automática</span>
+<span class="kw">let</span> cidade = <span class="str">"São Paulo"</span>;  <span class="cmt">// str</span>
+<span class="kw">let</span> ano    = <span class="num">2026</span>;         <span class="cmt">// int</span>
+
+<span class="cmt">// Tipagem gradual — reatribui tipo diferente</span>
+<span class="kw">let</span> v;
+v = <span class="num">42</span>;
+v = <span class="str">"agora sou string"</span>;
+
+<span class="cmt">// Constante imutável</span>
+<span class="kw">const</span> MAX: <span class="ty">int</span> = <span class="num">100</span>;</code></pre>
+      </div>
+      <h3 class="subsection">Option&lt;T&gt; e Result&lt;T, E&gt;</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Option&lt;T&gt; — valor opcional</span>
+<span class="kw">fn</span> <span class="fn">buscar</span>(id: <span class="ty">int</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">str</span>&gt; {
+    <span class="kw">if</span> id == <span class="num">1</span> { <span class="kw">return</span> <span class="fn">some</span>(<span class="str">"Espada de Fogo"</span>); }
+    <span class="kw">return</span> <span class="fn">none</span>();
+}
+<span class="kw">let</span> item = <span class="fn">buscar</span>(<span class="num">1</span>);
+item.<span class="fn">is_some</span>();              <span class="cmt">// true</span>
+item.<span class="fn">unwrap</span>();               <span class="cmt">// "Espada de Fogo"</span>
+item.<span class="fn">unwrap_or</span>(<span class="str">"padrão"</span>);    <span class="cmt">// "Espada de Fogo"</span>
+
+<span class="cmt">// Result&lt;T, E&gt; — sucesso ou erro</span>
+<span class="kw">fn</span> <span class="fn">dividir</span>(a: <span class="ty">int</span>, b: <span class="ty">int</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">int</span>, <span class="ty">str</span>&gt; {
+    <span class="kw">if</span> b == <span class="num">0</span> { <span class="kw">return</span> <span class="fn">err</span>(<span class="str">"Divisão por zero!"</span>); }
+    <span class="kw">return</span> <span class="fn">ok</span>(a / b);
+}
+<span class="kw">let</span> r = <span class="fn">dividir</span>(<span class="num">10</span>, <span class="num">2</span>);
+r.<span class="fn">is_ok</span>();    <span class="cmt">// true</span>
+r.<span class="fn">unwrap</span>();   <span class="cmt">// 5</span></code></pre>
+      </div>
+      <h3 class="subsection">Arrays</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="kw">let</span> nums: <span class="ty">Array</span>&lt;<span class="ty">int</span>&gt; = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>];
+nums.<span class="fn">push</span>(<span class="num">6</span>);   <span class="cmt">// adicionar ao final</span>
+nums.<span class="fn">pop</span>();     <span class="cmt">// remover do final</span>
+nums.<span class="fn">get</span>(<span class="num">0</span>);    <span class="cmt">// → 1</span>
+nums.len;        <span class="cmt">// comprimento</span>
+nums[<span class="num">2</span>];         <span class="cmt">// acesso por índice</span></code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- CONTROLE DE FLUXO -->
+    <section id="fluxo" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F500; Controle</div>
+        <h2 class="section-title">Controle de Fluxo</h2>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// if / elif / else</span>
+<span class="kw">let</span> nota = <span class="num">85</span>;
+<span class="kw">if</span> nota &gt;= <span class="num">90</span> {
+    <span class="fn">println</span>(<span class="str">"Excelente!"</span>);
+} <span class="kw">elif</span> nota &gt;= <span class="num">70</span> {
+    <span class="fn">println</span>(<span class="str">"Aprovado."</span>);
+} <span class="kw">else</span> {
+    <span class="fn">println</span>(<span class="str">"Recuperação."</span>);
+}
+
+<span class="cmt">// while</span>
+<span class="kw">let</span> i = <span class="num">0</span>;
+<span class="kw">while</span> i &lt; <span class="num">5</span> {
+    <span class="fn">print</span>(<span class="fn">int</span>(i) + <span class="str">" "</span>);
+    i = i + <span class="num">1</span>;
+}
+
+<span class="cmt">// for...in</span>
+<span class="kw">let</span> itens = [<span class="str">"Alpha"</span>, <span class="str">"Beta"</span>, <span class="str">"Gamma"</span>];
+<span class="kw">for</span> item <span class="kw">in</span> itens {
+    <span class="fn">println</span>(<span class="str">"Item: "</span> + item);
+}
+
+<span class="cmt">// break / continue</span>
+<span class="kw">let</span> j = <span class="num">0</span>;
+<span class="kw">while</span> j &lt; <span class="num">10</span> {
+    <span class="kw">if</span> j == <span class="num">3</span> { j = j + <span class="num">1</span>; <span class="kw">continue</span>; }
+    <span class="kw">if</span> j == <span class="num">7</span> { <span class="kw">break</span>; }
+    j = j + <span class="num">1</span>;
+}</code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- FUNÇÕES -->
+    <section id="funcoes" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#955; Funções</div>
+        <h2 class="section-title">Funções &amp; Lambdas</h2>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Função nomeada</span>
+<span class="kw">fn</span> <span class="fn">somar</span>(a: <span class="ty">int</span>, b: <span class="ty">int</span>) -&gt; <span class="ty">int</span> {
+    <span class="kw">return</span> a + b;
+}
+
+<span class="cmt">// Arrow body — corpo de expressão única</span>
+<span class="kw">fn</span> <span class="fn">quadrado</span>(x: <span class="ty">int</span>) -&gt; <span class="ty">int</span> =&gt; x * x;
+
+<span class="cmt">// Funções genéricas</span>
+<span class="kw">fn</span> <span class="fn">identity</span>&lt;T&gt;(x: <span class="ty">T</span>) -&gt; <span class="ty">T</span> { <span class="kw">return</span> x; }
+<span class="kw">fn</span> <span class="fn">duplicar</span>&lt;T&gt;(x: <span class="ty">T</span>) -&gt; <span class="ty">Array</span>&lt;<span class="ty">T</span>&gt; { <span class="kw">return</span> [x, x]; }
+
+<span class="cmt">// Lambda de linha (arrow)</span>
+<span class="kw">let</span> dobrar = |x| =&gt; x * <span class="num">2</span>;
+
+<span class="cmt">// Lambda com bloco</span>
+<span class="kw">let</span> somar_lambda = |a, b| { <span class="kw">return</span> a + b; };
+
+<span class="cmt">// Funções de primeira classe</span>
+<span class="kw">fn</span> <span class="fn">aplicar</span>(f: <span class="ty">fn</span>(<span class="ty">int</span>) -&gt; <span class="ty">int</span>, x: <span class="ty">int</span>) -&gt; <span class="ty">int</span> {
+    <span class="kw">return</span> f(x);
+}
+<span class="fn">aplicar</span>(|x| =&gt; x + <span class="num">1</span>, <span class="num">41</span>);  <span class="cmt">// → 42</span></code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>    <!-- OOP -->
+    <section id="oop" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F3DB;&#xFE0F; OOP</div>
+        <h2 class="section-title">Orientação a Objetos</h2>
+        <p class="section-desc">Classes, herança, interfaces, mixins e sobrecarga de operadores.</p>
+      </div>
+      <h3 class="subsection">Classes e Construtores</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="kw">class</span> <span class="ty">Ponto</span> {
+    <span class="kw2">pub</span>  x: <span class="ty">float</span>;
+    <span class="kw2">pub</span>  y: <span class="ty">float</span>;
+    <span class="kw2">priv</span> id: <span class="ty">int</span>;
+
+    <span class="kw2">pub</span> <span class="kw">new</span>(x: <span class="ty">float</span>, y: <span class="ty">float</span>) {
+        <span class="kw2">self</span>.x = x;
+        <span class="kw2">self</span>.y = y;
+    }
+
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">distancia_origem</span>() -&gt; <span class="ty">float</span> {
+        <span class="kw">return</span> <span class="fn">sqrt</span>(<span class="kw2">self</span>.x * <span class="kw2">self</span>.x + <span class="kw2">self</span>.y * <span class="kw2">self</span>.y);
+    }
+
+    <span class="cmt">// Método estático — chamado via Ponto.origem()</span>
+    <span class="kw2">pub</span> <span class="kw2">stat</span> <span class="kw">fn</span> <span class="fn">origem</span>() -&gt; <span class="ty">Ponto</span> =&gt; <span class="kw">new</span> <span class="ty">Ponto</span>(<span class="num">0.0</span>, <span class="num">0.0</span>);
+}
+
+<span class="kw">let</span> p = <span class="kw">new</span> <span class="ty">Ponto</span>(<span class="num">3.0</span>, <span class="num">4.0</span>);
+<span class="fn">println</span>(p.<span class="fn">distancia_origem</span>());  <span class="cmt">// → 5.0</span></code></pre>
+      </div>
+      <h3 class="subsection">Modificadores de Visibilidade</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Modificador</th><th>Escopo de Acesso</th></tr></thead>
+        <tbody>
+          <tr><td><code>pub</code></td><td>Público — acessível de qualquer escopo</td></tr>
+          <tr><td><code>priv</code></td><td>Privado — restrito à própria classe</td></tr>
+          <tr><td><code>prot</code></td><td>Protegido — classe e subclasses derivadas</td></tr>
+          <tr><td><code>stat</code></td><td>Estático — escopo de classe, via <code>Classe.membro</code></td></tr>
+        </tbody>
+      </table></div>
+      <h3 class="subsection">Herança com super</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="kw">class</span> <span class="ty">Animal</span> {
+    <span class="kw2">pub</span> nome: <span class="ty">str</span>;
+    <span class="kw2">pub</span> <span class="kw">new</span>(nome: <span class="ty">str</span>) { <span class="kw2">self</span>.nome = nome; }
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">falar</span>() -&gt; <span class="ty">str</span> { <span class="kw">return</span> <span class="str">"..."</span>; }
+}
+
+<span class="kw">class</span> <span class="ty">Cachorro</span> <span class="kw2">extends</span> <span class="ty">Animal</span> {
+    <span class="kw2">pub</span> <span class="kw">new</span>(nome: <span class="ty">str</span>) {
+        <span class="kw2">super</span>.<span class="kw">new</span>(nome);  <span class="cmt">// chama construtor da classe pai</span>
+    }
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">falar</span>() -&gt; <span class="ty">str</span> {
+        <span class="kw">return</span> <span class="str">"Au au!"</span>;   <span class="cmt">// override</span>
+    }
+}
+
+<span class="kw">let</span> dog = <span class="kw">new</span> <span class="ty">Cachorro</span>(<span class="str">"Rex"</span>);
+<span class="fn">println</span>(dog.<span class="fn">falar</span>());  <span class="cmt">// → "Au au!"</span></code></pre>
+      </div>
+      <h3 class="subsection">Interfaces e Mixins</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Interface — contrato de métodos</span>
+<span class="kw">interface</span> <span class="ty">Desenhavel</span> {
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">desenhar</span>() -&gt; <span class="ty">void</span>
+}
+
+<span class="cmt">// Mixin — implementação reutilizável</span>
+<span class="kw">mixin</span> <span class="ty">Identificavel</span> {
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">id_completo</span>(nome: <span class="ty">str</span>, id: <span class="ty">int</span>) -&gt; <span class="ty">str</span> {
+        <span class="kw">return</span> <span class="str">"["</span> + nome + <span class="str">"#"</span> + <span class="fn">str</span>(id) + <span class="str">"]"</span>;
+    }
+}
+
+<span class="cmt">// Classe com interface e mixin</span>
+<span class="kw">class</span> <span class="ty">Entidade</span> <span class="kw">implements</span> <span class="ty">Desenhavel</span> <span class="kw">with</span> <span class="ty">Identificavel</span> {
+    <span class="kw2">prot</span> id: <span class="ty">int</span>;
+    <span class="kw2">prot</span> nome: <span class="ty">str</span>;
+
+    <span class="kw">new</span>(id: <span class="ty">int</span>, nome: <span class="ty">str</span>) { <span class="kw2">self</span>.id = id; <span class="kw2">self</span>.nome = nome; }
+
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">desenhar</span>() -&gt; <span class="ty">void</span> {
+        <span class="fn">println</span>(<span class="str">"Entidade: "</span> + <span class="kw2">self</span>.nome);
+    }
+}</code></pre>
+      </div>
+      <h3 class="subsection">Sobrecarga de Operadores</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="kw">class</span> <span class="ty">Vector2</span> {
+    <span class="kw2">pub</span> x: <span class="ty">float</span>; <span class="kw2">pub</span> y: <span class="ty">float</span>;
+    <span class="kw">new</span>(x: <span class="ty">float</span>, y: <span class="ty">float</span>) { <span class="kw2">self</span>.x = x; <span class="kw2">self</span>.y = y; }
+
+    <span class="kw">operator</span> +(outro: <span class="ty">Vector2</span>) -&gt; <span class="ty">Vector2</span> {
+        <span class="kw">return</span> <span class="kw">new</span> <span class="ty">Vector2</span>(<span class="kw2">self</span>.x + outro.x, <span class="kw2">self</span>.y + outro.y);
+    }
+    <span class="kw">operator</span> ==(outro: <span class="ty">Vector2</span>) -&gt; <span class="ty">bool</span> {
+        <span class="kw">return</span> <span class="kw2">self</span>.x == outro.x &amp;&amp; <span class="kw2">self</span>.y == outro.y;
+    }
+    <span class="kw">operator</span> *(escalar: <span class="ty">float</span>) -&gt; <span class="ty">Vector2</span> {
+        <span class="kw">return</span> <span class="kw">new</span> <span class="ty">Vector2</span>(<span class="kw2">self</span>.x * escalar, <span class="kw2">self</span>.y * escalar);
+    }
+}
+
+<span class="kw">let</span> p1 = <span class="kw">new</span> <span class="ty">Vector2</span>(<span class="num">10.0</span>, <span class="num">20.0</span>);
+<span class="kw">let</span> p2 = <span class="kw">new</span> <span class="ty">Vector2</span>(<span class="num">5.0</span>, <span class="num">4.0</span>);
+<span class="kw">let</span> soma   = p1 + p2;     <span class="cmt">// (15.0, 24.0)</span>
+<span class="kw">let</span> escala = p1 * <span class="num">2.0</span>;   <span class="cmt">// (20.0, 40.0)</span>
+<span class="fn">println</span>(p1 == p1);       <span class="cmt">// → true</span></code></pre>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Operador</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td><code>operator +</code></td><td>Adição</td></tr>
+          <tr><td><code>operator -</code></td><td>Subtração</td></tr>
+          <tr><td><code>operator *</code></td><td>Multiplicação / Escalonamento</td></tr>
+          <tr><td><code>operator ==</code></td><td>Igualdade</td></tr>
+          <tr><td><code>operator !=</code></td><td>Desigualdade</td></tr>
+          <tr><td><code>operator []</code></td><td>Acesso por índice</td></tr>
+          <tr><td><code>operator []=</code></td><td>Atribuição por índice</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- GENÉRICOS -->
+    <section id="generics" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F9EC; Genéricos</div>
+        <h2 class="section-title">Tipos Genéricos</h2>
+        <p class="section-desc">Funções e classes parametrizadas por tipo com inferência automática.</p>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Função genérica</span>
+<span class="kw">fn</span> <span class="fn">identity</span>&lt;T&gt;(x: <span class="ty">T</span>) -&gt; <span class="ty">T</span> { <span class="kw">return</span> x; }
+<span class="fn">identity</span>(<span class="num">42</span>);              <span class="cmt">// infere T = int</span>
+<span class="fn">identity</span>&lt;<span class="ty">str</span>&gt;(<span class="str">"Vox"</span>);     <span class="cmt">// explícito</span>
+
+<span class="cmt">// Classe genérica Stack&lt;T&gt;</span>
+<span class="kw">class</span> <span class="ty">Stack</span>&lt;T&gt; {
+    <span class="kw2">priv</span> items: <span class="ty">Array</span>&lt;T&gt;;
+
+    <span class="kw">new</span>() { <span class="kw2">self</span>.items = []; }
+
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">push</span>(item: <span class="ty">T</span>) -&gt; <span class="ty">void</span>    { <span class="fn">push</span>(<span class="kw2">self</span>.items, item); }
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">pop</span>()        -&gt; <span class="ty">Option</span>&lt;T&gt; { ... }
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">size</span>()       -&gt; <span class="ty">int</span>       =&gt; <span class="fn">len</span>(<span class="kw2">self</span>.items);
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">is_empty</span>()   -&gt; <span class="ty">bool</span>      =&gt; <span class="fn">len</span>(<span class="kw2">self</span>.items) == <span class="num">0</span>;
+}
+
+<span class="kw">let</span> pilha = <span class="kw">new</span> <span class="ty">Stack</span>&lt;<span class="ty">int</span>&gt;();
+pilha.<span class="fn">push</span>(<span class="num">10</span>); pilha.<span class="fn">push</span>(<span class="num">20</span>); pilha.<span class="fn">push</span>(<span class="num">30</span>);
+<span class="fn">println</span>(pilha.<span class="fn">size</span>());  <span class="cmt">// → 3</span>
+
+<span class="cmt">// Dois parâmetros de tipo — Pair&lt;K, V&gt;</span>
+<span class="kw">class</span> <span class="ty">Pair</span>&lt;K, V&gt; {
+    <span class="kw2">pub</span> key: <span class="ty">K</span>; <span class="kw2">pub</span> value: <span class="ty">V</span>;
+    <span class="kw">new</span>(k: <span class="ty">K</span>, v: <span class="ty">V</span>) { <span class="kw2">self</span>.key = k; <span class="kw2">self</span>.value = v; }
+}
+
+<span class="kw">let</span> par = <span class="kw">new</span> <span class="ty">Pair</span>&lt;<span class="ty">str</span>, <span class="ty">int</span>&gt;(<span class="str">"versao"</span>, <span class="num">7</span>);
+
+<span class="cmt">// Interface genérica</span>
+<span class="kw">interface</span> <span class="ty">Repository</span>&lt;T&gt; {
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">save</span>(item: <span class="ty">T</span>) -&gt; <span class="ty">void</span>
+    <span class="kw2">pub</span> <span class="kw">fn</span> <span class="fn">find</span>(id: <span class="ty">int</span>) -&gt; <span class="ty">Option</span>&lt;T&gt;
+}</code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>    <!-- OWNERSHIP -->
+    <section id="ownership" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F980; Memória</div>
+        <h2 class="section-title">Ownership &amp; Gerenciamento de Memória</h2>
+        <p class="section-desc">Sem garbage collector. Semântica afim com detecção de erros em tempo de compilação.</p>
+      </div>
+      <div class="info-box note">
+        <span class="info-icon">&#x2139;&#xFE0F;</span>
+        <div class="info-text"><strong>Princípio:</strong> Todo valor possui exatamente um dono. Ao transferir a posse, a variável original fica inválida — o compilador detecta use-after-move com o erro <code>E0103</code>.</div>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// own — propriedade exclusiva</span>
+<span class="kw">let</span> <span class="kw">own</span> buf = <span class="kw">new</span> <span class="ty">Buffer</span>(<span class="num">1024</span>, <span class="str">"Dados"</span>);
+
+<span class="cmt">// borrow — empréstimo imutável, sem transferir posse</span>
+<span class="kw">fn</span> <span class="fn">inspecionar</span>(<span class="kw">borrow</span> b: <span class="ty">Buffer</span>) -&gt; <span class="ty">int</span> {
+    <span class="kw">return</span> b.capacidade;
+}
+<span class="kw">let</span> cap = <span class="fn">inspecionar</span>(buf);  <span class="cmt">// buf permanece válido</span>
+
+<span class="cmt">// ref — referência mutável exclusiva</span>
+<span class="kw">fn</span> <span class="fn">modificar</span>(<span class="kw">ref</span> b: <span class="ty">Buffer</span>, prefixo: <span class="ty">str</span>) -&gt; <span class="ty">void</span> {
+    b.conteudo = prefixo + <span class="str">" >> "</span> + b.conteudo;
+}
+<span class="fn">modificar</span>(<span class="kw">ref</span> buf, <span class="str">"VOX"</span>);  <span class="cmt">// muta in-place</span>
+
+<span class="cmt">// move — transferência de posse</span>
+<span class="kw">fn</span> <span class="fn">consumir</span>(<span class="kw">own</span> f: <span class="ty">Buffer</span>) -&gt; <span class="ty">void</span> {
+    <span class="fn">println</span>(f.conteudo);  <span class="cmt">// f descartado aqui</span>
+}
+<span class="fn">consumir</span>(buf);
+<span class="cmt">// println(buf.conteudo);  → ERRO E0103: use-after-move</span>
+
+<span class="cmt">// Múltiplos empréstimos imutáveis simultâneos</span>
+{
+    <span class="kw">let</span> <span class="kw">borrow</span> leitor1 = arquivo;
+    <span class="kw">let</span> <span class="kw">borrow</span> leitor2 = arquivo;
+    <span class="fn">println</span>(leitor1.conteudo);  <span class="cmt">// OK</span>
+} <span class="cmt">// leitor1 e leitor2 expiram aqui</span>
+
+<span class="cmt">// Primitivos: Copy Semantics (não move)</span>
+<span class="kw">let</span> a = <span class="num">100</span>;
+<span class="kw">let</span> b = a;  <span class="cmt">// cópia — a continua válido</span></code></pre>
+      </div>
+      <h3 class="subsection">Regras de Borrowing</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Regra</th><th>Descrição</th><th>Erro</th></tr></thead>
+        <tbody>
+          <tr><td>Posse Única</td><td>Cada valor tem exatamente um dono</td><td>—</td></tr>
+          <tr><td>Use-after-move</td><td>Usar variável após transferência de posse</td><td><code>E0103</code></td></tr>
+          <tr><td>Borrows Conflitantes</td><td>Ref mutável simultânea com borrow ativo</td><td><code>E0104</code></td></tr>
+          <tr><td>Copy Semantics</td><td>Primitivos são copiados automaticamente</td><td>—</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- FUNCIONAL -->
+    <section id="funcional" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F30A; Funcional</div>
+        <h2 class="section-title">Programação Funcional &amp; Pipeline</h2>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="kw">let</span> nums = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>, <span class="num">7</span>, <span class="num">8</span>, <span class="num">9</span>, <span class="num">10</span>];
+
+<span class="cmt">// map — transforma cada elemento</span>
+<span class="kw">let</span> dobrados = nums.<span class="fn">map</span>(|x| =&gt; x * <span class="num">2</span>);
+
+<span class="cmt">// filter — seleciona por predicado</span>
+<span class="kw">let</span> pares = nums.<span class="fn">filter</span>(|x| =&gt; x % <span class="num">2</span> == <span class="num">0</span>);
+
+<span class="cmt">// reduce — acumula em um valor</span>
+<span class="kw">let</span> soma = nums.<span class="fn">reduce</span>(|acc, x| =&gt; acc + x, <span class="num">0</span>);
+
+<span class="cmt">// find — primeiro que satisfaz</span>
+<span class="kw">let</span> primeiro_par = nums.<span class="fn">find</span>(|x| =&gt; x % <span class="num">2</span> == <span class="num">0</span>);
+
+<span class="cmt">// every — todos satisfazem?</span>
+<span class="kw">let</span> todos_pos = nums.<span class="fn">every</span>(|x| =&gt; x &gt; <span class="num">0</span>);   <span class="cmt">// true</span>
+
+<span class="cmt">// some — algum satisfaz?</span>
+<span class="kw">let</span> tem_dez = nums.<span class="fn">some</span>(|x| =&gt; x == <span class="num">10</span>);    <span class="cmt">// true</span>
+
+<span class="cmt">// Pipeline |&gt; — composição linear</span>
+<span class="kw">fn</span> <span class="fn">incrementar</span>(n: <span class="ty">int</span>) -&gt; <span class="ty">int</span> { <span class="kw">return</span> n + <span class="num">1</span>; }
+<span class="kw">fn</span> <span class="fn">triplicar</span>(n: <span class="ty">int</span>)   -&gt; <span class="ty">int</span> { <span class="kw">return</span> n * <span class="num">3</span>; }
+<span class="kw">fn</span> <span class="fn">ao_quadrado</span>(n: <span class="ty">int</span>) -&gt; <span class="ty">int</span> { <span class="kw">return</span> n * n; }
+
+<span class="cmt">// 5 |&gt; (+1=6) |&gt; (*3=18) |&gt; (^2=324)</span>
+<span class="kw">let</span> resultado = <span class="num">5</span> |&gt; <span class="fn">incrementar</span> |&gt; <span class="fn">triplicar</span> |&gt; <span class="fn">ao_quadrado</span>;</code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- CSP -->
+    <section id="concorrencia" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F500; Concorrência</div>
+        <h2 class="section-title">Concorrência CSP</h2>
+        <p class="section-desc">Goroutines leves e canais bidirecionais seguros, inspirados no cálculo CSP e em Go.</p>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Canal com buffer de 4 elementos</span>
+<span class="kw">let</span> ch = <span class="fn">chan_new</span>(<span class="num">4</span>);
+
+<span class="cmt">// Goroutine leve</span>
+<span class="kw">spawn</span> {
+    <span class="fn">println</span>(<span class="str">"[Goroutine] Enviando mensagem..."</span>);
+    ch.<span class="fn">send</span>(<span class="str">"Olá do canal!"</span>);
+    ch.<span class="fn">send</span>(<span class="num">42</span>);
+    ch.<span class="fn">close</span>();
+}
+
+<span class="kw">let</span> msg = ch.<span class="fn">recv</span>();  <span class="cmt">// bloqueia até dados chegarem</span>
+<span class="kw">let</span> num = ch.<span class="fn">recv</span>();
+<span class="fn">println</span>(<span class="mac">format!</span>(<span class="str">"Recebido: {} e {}"</span>, msg, num));
+
+<span class="cmt">// Canal como fila de eventos</span>
+<span class="kw">let</span> eventos = <span class="fn">chan_new</span>(<span class="num">10</span>);
+eventos.<span class="fn">send</span>(<span class="str">"Login"</span>);
+eventos.<span class="fn">send</span>(<span class="str">"Atualização"</span>);
+eventos.<span class="fn">send</span>(<span class="str">"Logout"</span>);
+
+<span class="fn">println</span>(eventos.<span class="fn">recv</span>());  <span class="cmt">// → "Login"</span>
+<span class="fn">println</span>(eventos.<span class="fn">recv</span>());  <span class="cmt">// → "Atualização"</span>
+eventos.<span class="fn">close</span>();
+<span class="fn">println</span>(eventos.is_closed); <span class="cmt">// → true</span></code></pre>
+      </div>
+      <h3 class="subsection">API do Canal</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Operação</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>chan_new(capacity)</code></td><td>Cria canal com buffer circular de tamanho <em>capacity</em></td></tr>
+          <tr><td><code>ch.send(value)</code></td><td>Envia valor (bloqueia se buffer cheio)</td></tr>
+          <tr><td><code>ch.recv()</code></td><td>Recebe valor (bloqueia se buffer vazio)</td></tr>
+          <tr><td><code>ch.close()</code></td><td>Fecha o canal</td></tr>
+          <tr><td><code>ch.len</code></td><td>Quantidade de itens no buffer</td></tr>
+          <tr><td><code>ch.capacity</code></td><td>Capacidade total do buffer</td></tr>
+          <tr><td><code>ch.is_closed</code></td><td>Verdadeiro se o canal foi fechado</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- PATTERN MATCHING -->
+    <section id="matching" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F9E9; Matching</div>
+        <h2 class="section-title">Pattern Matching</h2>
+        <p class="section-desc">Expressão de valor exaustiva com suporte a literais, ranges, monads e guards.</p>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// Literais e ranges</span>
+<span class="kw">let</span> status = <span class="kw">match</span> codigo_http {
+    <span class="num">200</span>      =&gt; <span class="str">"OK"</span>,
+    <span class="num">201</span>      =&gt; <span class="str">"Created"</span>,
+    <span class="num">400</span>..<span class="num">499</span> =&gt; <span class="str">"Client Error"</span>,
+    <span class="num">500</span>..<span class="num">599</span> =&gt; <span class="str">"Server Error"</span>,
+    _        =&gt; <span class="str">"Unknown"</span>
+};
+
+<span class="cmt">// Guards condicionais (if)</span>
+<span class="kw">let</span> clima = <span class="kw">match</span> temperatura {
+    t <span class="kw">if</span> t &gt;= <span class="num">35</span> =&gt; <span class="str">"Muito Quente"</span>,
+    t <span class="kw">if</span> t &gt;= <span class="num">25</span> =&gt; <span class="str">"Agradável"</span>,
+    t <span class="kw">if</span> t &gt;= <span class="num">15</span> =&gt; <span class="str">"Ameno"</span>,
+    _            =&gt; <span class="str">"Frio"</span>
+};
+
+<span class="cmt">// Option&lt;T&gt;</span>
+<span class="kw">let</span> saudacao = <span class="kw">match</span> usuario {
+    <span class="fn">some</span>(nome) =&gt; <span class="mac">format!</span>(<span class="str">"Bem-vindo, {}!"</span>, nome),
+    <span class="kw">none</span>       =&gt; <span class="str">"Visitante Anônimo"</span>
+};
+
+<span class="cmt">// Result&lt;T, E&gt;</span>
+<span class="kw">let</span> resultado = <span class="kw">match</span> operacao {
+    <span class="fn">ok</span>(valor) =&gt; <span class="mac">format!</span>(<span class="str">"Sucesso: {}"</span>, valor),
+    <span class="fn">err</span>(e)    =&gt; <span class="mac">format!</span>(<span class="str">"Erro: {}"</span>, e)
+};
+
+<span class="cmt">// Rankings com range</span>
+<span class="kw">let</span> rank = <span class="kw">match</span> pontuacao {
+    <span class="num">90</span>..<span class="num">100</span> =&gt; <span class="str">"Rank S"</span>,
+    <span class="num">80</span>..<span class="num">89</span>  =&gt; <span class="str">"Rank A"</span>,
+    <span class="num">70</span>..<span class="num">79</span>  =&gt; <span class="str">"Rank B"</span>,
+    _       =&gt; <span class="str">"Rank C"</span>
+};</code></pre>
+      </div>
+      <div class="info-box tip">
+        <span class="info-icon">&#x1F4A1;</span>
+        <div class="info-text"><strong>Match é uma expressão:</strong> O resultado pode ser atribuído a variáveis, passado como argumento ou retornado de funções. O wildcard <code>_</code> captura todos os casos restantes.</div>
+      </div>
+    </section>
+    <div class="divider"></div>    <!-- ASYNC -->
+    <section id="async" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x23F3; Assíncrono</div>
+        <h2 class="section-title">Async / Await</h2>
+        <p class="section-desc">Funções assíncronas baseadas em corotinas para operações de I/O não bloqueantes.</p>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="kw">async</span> <span class="kw">fn</span> <span class="fn">buscar_dados</span>(id: <span class="ty">int</span>) -&gt; <span class="ty">str</span> {
+    <span class="kw">return</span> <span class="mac">format!</span>(<span class="str">"Payload_UUID_{}"</span>, id * <span class="num">12345</span>);
+}
+
+<span class="kw">async</span> <span class="kw">fn</span> <span class="fn">processar</span>(clienteId: <span class="ty">int</span>) -&gt; <span class="ty">str</span> {
+    <span class="kw">let</span> dados = <span class="kw">await</span> <span class="fn">buscar_dados</span>(clienteId);
+    <span class="kw">return</span> <span class="mac">format!</span>(<span class="str">"Processado: {}"</span>, dados);
+}
+
+<span class="kw">let</span> resposta = <span class="kw">await</span> <span class="fn">processar</span>(<span class="num">7</span>);
+<span class="fn">println</span>(resposta);</code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- MACROS & DECORADORES -->
+    <section id="macros" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F6E0;&#xFE0F; Metaprogramação</div>
+        <h2 class="section-title">Macros &amp; Decoradores</h2>
+      </div>
+      <h3 class="subsection">Macros</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// format! — interpolação</span>
+<span class="kw">let</span> msg = <span class="mac">format!</span>(<span class="str">"Jogador {} marcou {} pontos!"</span>, jogador, pontos);
+
+<span class="cmt">// assert! — valida invariantes, aborta em falha</span>
+<span class="mac">assert!</span>(pontos &gt; <span class="num">0</span>, <span class="str">"Pontuação deve ser positiva"</span>);
+
+<span class="cmt">// dbg! — inspeciona e retorna o valor intacto</span>
+<span class="kw">let</span> total = <span class="mac">dbg!</span>(pontos * <span class="num">2</span>);  <span class="cmt">// imprime e retorna</span>
+
+<span class="cmt">// panic! — erro irrecuperável</span>
+<span class="kw">if</span> estado_invalido { <span class="mac">panic!</span>(<span class="str">"Estado inválido!"</span>); }</code></pre>
+      </div>
+      <h3 class="subsection">Decoradores</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">vox</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code><span class="cmt">// @timed — mede tempo de execução</span>
+<span class="dec">@timed</span>
+<span class="kw">fn</span> <span class="fn">operacao_pesada</span>(n: <span class="ty">int</span>) -&gt; <span class="ty">int</span> {
+    <span class="kw">let</span> s = <span class="num">0</span>; <span class="kw">let</span> i = <span class="num">1</span>;
+    <span class="kw">while</span> i &lt;= n { s += i; i += <span class="num">1</span>; }
+    <span class="kw">return</span> s;
+}
+<span class="cmt">// Saída: [timed] operacao_pesada: 1.23ms</span>
+
+<span class="cmt">// @logged — imprime chamadas e retornos</span>
+<span class="dec">@logged</span>
+<span class="kw">fn</span> <span class="fn">formatar_moeda</span>(v: <span class="ty">float</span>) -&gt; <span class="ty">str</span> {
+    <span class="kw">return</span> <span class="mac">format!</span>(<span class="str">"R$ {:.2}"</span>, v);
+}
+
+<span class="cmt">// @memoize — cache automático por argumentos</span>
+<span class="dec">@memoize</span>
+<span class="kw">fn</span> <span class="fn">fibonacci</span>(n: <span class="ty">int</span>) -&gt; <span class="ty">int</span> {
+    <span class="kw">if</span> n &lt;= <span class="num">1</span> { <span class="kw">return</span> n; }
+    <span class="kw">return</span> <span class="fn">fibonacci</span>(n - <span class="num">1</span>) + <span class="fn">fibonacci</span>(n - <span class="num">2</span>);
+}
+<span class="kw">let</span> f1 = <span class="fn">fibonacci</span>(<span class="num">30</span>);  <span class="cmt">// calculado</span>
+<span class="kw">let</span> f2 = <span class="fn">fibonacci</span>(<span class="num">30</span>);  <span class="cmt">// do cache — instantâneo</span></code></pre>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Macro / Decorador</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>format!(tmpl, args...)</code></td><td>Formatação com <code>{}</code> para interpolação</td></tr>
+          <tr><td><code>assert!(cond, msg)</code></td><td>Aborta se <em>cond</em> for falso</td></tr>
+          <tr><td><code>dbg!(expr)</code></td><td>Inspeciona, imprime e retorna a expressão</td></tr>
+          <tr><td><code>panic!(msg)</code></td><td>Encerra com erro irrecuperável</td></tr>
+          <tr><td><code>@timed</code></td><td>Mede e imprime tempo de execução</td></tr>
+          <tr><td><code>@logged</code></td><td>Imprime chamadas, argumentos e retornos</td></tr>
+          <tr><td><code>@memoize</code></td><td>Cache automático baseado nos argumentos</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- COMPILAÇÃO -->
+    <section id="codegen" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x2699;&#xFE0F; Compilação</div>
+        <h2 class="section-title">Compilação Nativa via C99</h2>
+        <p class="section-desc">Transpilação multi-pass para ANSI C99 e compilação direta para executáveis nativos.</p>
+      </div>
+      <h3 class="subsection">Pipeline de Compilação</h3>
+      <div class="phases">
+        <div class="phase"><div class="phase-badge">1</div><div><div class="phase-name">Lexer — Tokenização</div><div class="phase-desc">Análise léxica do código-fonte Vox, produzindo tokens com posição, tipo e valor.</div></div></div>
+        <div class="phase"><div class="phase-badge">2</div><div><div class="phase-name">Parser — AST</div><div class="phase-desc">Parser recursivo descendente constrói a Árvore Sintática Abstrata com todas as declarações.</div></div></div>
+        <div class="phase"><div class="phase-badge">3</div><div><div class="phase-name">Semantic — Análise Semântica</div><div class="phase-desc">Verificação de tipos graduais, inferência local, borrow checker e resolução de nomes.</div></div></div>
+        <div class="phase"><div class="phase-badge">4</div><div><div class="phase-name">Codegen — Transpilação C99</div><div class="phase-desc">Geração de código ANSI C99 com o runtime Vox embutido (<code>vox_runtime.h</code>).</div></div></div>
+        <div class="phase"><div class="phase-badge">5</div><div><div class="phase-name">Compilação Nativa</div><div class="phase-desc">TCC embutido (~60ms), GCC/Clang com <code>-O2</code> ou MSVC x64.</div></div></div>
+      </div>
+      <h3 class="subsection">Toolchains Suportados</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Compilador</th><th>Tempo Médio</th><th>Otimizações</th><th>Plataforma</th></tr></thead>
+        <tbody>
+          <tr><td>TCC (embutido)</td><td>~60ms</td><td>Básicas</td><td>Windows x64</td></tr>
+          <tr><td>GCC</td><td>~200ms</td><td><code>-O2</code> / <code>-O3</code></td><td>Linux, macOS, Windows</td></tr>
+          <tr><td>Clang</td><td>~180ms</td><td><code>-O2</code> / <code>-O3</code></td><td>Linux, macOS, Windows</td></tr>
+          <tr><td>MSVC</td><td>~300ms</td><td>Release x64</td><td>Windows via vcvars64.bat</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- CLI -->
+    <section id="cli" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F4BB; Ferramentas</div>
+        <h2 class="section-title">CLI — Referência Completa</h2>
+        <p class="section-desc">Todos os comandos disponíveis no Vox CLI.</p>
+      </div>
+      <div class="cli-grid">
+        <div class="cli-card"><div class="cli-cmd">vox run &lt;arquivo.vox&gt;</div><div class="cli-desc">Interpreta e executa o arquivo com o interpretador tree-walking.</div></div>
+        <div class="cli-card"><div class="cli-cmd">vox build &lt;arquivo&gt; --run</div><div class="cli-desc">Compila para <code>.exe</code> nativo e executa imediatamente.</div></div>
+        <div class="cli-card"><div class="cli-cmd">vox build &lt;arquivo&gt; -o app.exe</div><div class="cli-desc">Compila especificando o nome do executável.</div></div>
+        <div class="cli-card"><div class="cli-cmd">vox build ... --emit-c</div><div class="cli-desc">Emite o código C99 intermediário para inspeção.</div></div>
+        <div class="cli-card"><div class="cli-cmd">vox check &lt;arquivo.vox&gt;</div><div class="cli-desc">Verifica tipos e sintaxe sem executar.</div></div>
+        <div class="cli-card"><div class="cli-cmd">vox lsp</div><div class="cli-desc">Inicia o servidor Language Server Protocol.</div></div>
+        <div class="cli-card"><div class="cli-cmd">vox repl</div><div class="cli-desc">Abre o REPL interativo para experimentação.</div></div>
+      </div>
+      <h3 class="subsection">Via Node.js</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code>node dist/cli/index.js run examples/phase5_modern.vox
+node dist/cli/index.js build examples/phase6_native.vox --run
+node dist/cli/index.js build examples/phase6_native.vox -o app.exe --emit-c
+node dist/cli/index.js check examples/phase5_modern.vox
+node dist/cli/index.js lsp
+node dist/cli/index.js repl</code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- LSP -->
+    <section id="lsp" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F50C; Editores</div>
+        <h2 class="section-title">LSP &amp; Suporte a Editores</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card"><div class="feature-icon">&#x2705;</div><div class="feature-title">Autocompletion</div><div class="feature-desc">Completions inteligentes de símbolos, palavras-chave, membros e funções do runtime.</div></div>
+        <div class="feature-card"><div class="feature-icon">&#x1F4D6;</div><div class="feature-title">Hover Documentation</div><div class="feature-desc">Documentação contextual ao passar o cursor sobre símbolos e funções.</div></div>
+        <div class="feature-card"><div class="feature-icon">&#x1F534;</div><div class="feature-title">Diagnósticos em Tempo Real</div><div class="feature-desc">Erros e avisos sublinhados enquanto você digita com squiggles amigáveis.</div></div>
+        <div class="feature-card"><div class="feature-icon">&#x1F3A8;</div><div class="feature-title">Syntax Highlighting</div><div class="feature-desc">Realce TextMate para VS Code com suporte a todas as construções Vox.</div></div>
+      </div>
+      <h3 class="subsection">Configuração VS Code</h3>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code>cd editors/vscode
+npm install &amp;&amp; npm run package
+code --install-extension vox-language-*.vsix</code></pre>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- DIAGNÓSTICOS -->
+    <section id="diagnostics" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F50D; Diagnósticos</div>
+        <h2 class="section-title">Mensagens de Erro Amigáveis</h2>
+        <p class="section-desc">Diagnósticos estilo Rust/Elm com contexto completo e sugestões automáticas.</p>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">texto</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code>erro[E0103]: Uso de valor após transferência de posse
+ --> hello.vox:14:5
+  |
+12 |   let own buf = new Buffer(1024, "dados");
+   |       --- valor movido aqui
+13 |   consumir(buf);
+   |            --- movido para 'consumir'
+14 |   println(buf.conteudo);
+   |           ^^^ uso após movimento
+
+Nota: 'consumir' recebe 'own', transferindo a posse.
+Sugestão: considere mudar para `fn consumir(borrow buf: Buffer)`</code></pre>
+      </div>
+      <h3 class="subsection">Códigos de Erro</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Código</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>E0001</code></td><td>Token inesperado — erro de sintaxe</td></tr>
+          <tr><td><code>E0010</code></td><td>Variável não declarada</td></tr>
+          <tr><td><code>E0020</code></td><td>Tipo incompatível</td></tr>
+          <tr><td><code>E0030</code></td><td>Membro não encontrado na classe</td></tr>
+          <tr><td><code>E0103</code></td><td>Use-after-move — uso após transferência de posse</td></tr>
+          <tr><td><code>E0104</code></td><td>Borrowing conflitante — ref mutável com borrow ativo</td></tr>
+          <tr><td><code>E0200</code></td><td>Número de argumentos inválido</td></tr>
+          <tr><td><code>W0001</code></td><td>Variável declarada mas não utilizada</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- EXEMPLOS -->
+    <section id="exemplos" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F4C2; Exemplos</div>
+        <h2 class="section-title">Exemplos Completos</h2>
+        <p class="section-desc">Programas funcionais demonstrando recursos de cada fase da linguagem.</p>
+      </div>
+      <div class="phases">
+        <div class="phase"><div class="phase-badge">P1</div><div><div class="phase-name">hello.vox — Fundamentos</div><div class="phase-desc">Variáveis, tipos, loops, condicionais e funções básicas.</div></div></div>
+        <div class="phase"><div class="phase-badge">P2</div><div><div class="phase-name">phase2_oop.vox — OOP Core</div><div class="phase-desc">Classes, herança, interfaces, mixins, sobrecarga de operadores, Option e Result.</div></div></div>
+        <div class="phase"><div class="phase-badge">P3</div><div><div class="phase-name">phase3_types.vox — Sistema de Tipos</div><div class="phase-desc">Tipagem gradual, inferência, Stack&lt;T&gt;, Pair&lt;K,V&gt; e interfaces genéricas.</div></div></div>
+        <div class="phase"><div class="phase-badge">P4</div><div><div class="phase-name">phase4_ownership.vox — Ownership</div><div class="phase-desc">Own/borrow/ref, move semantics, lifetimes e copy semantics para primitivos.</div></div></div>
+        <div class="phase"><div class="phase-badge">P5</div><div><div class="phase-name">phase5_modern.vox — Recursos Modernos</div><div class="phase-desc">Programação funcional, CSP, async/await, decoradores e macros.</div></div></div>
+        <div class="phase"><div class="phase-badge">P6</div><div><div class="phase-name">phase6_native.vox — Compilação Nativa</div><div class="phase-desc">Geração de .exe via C99 com o runtime Vox completo.</div></div></div>
+      </div>
+    </section>
+    <div class="divider"></div>
+
+    <!-- TESTES -->
+    <section id="testes" class="section">
+      <div class="section-header">
+        <div class="section-tag">&#x1F9EA; Qualidade</div>
+        <h2 class="section-title">Testes Automatizados</h2>
+        <p class="section-desc">Suite completa com 151 testes cobrindo todas as fases.</p>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">bash</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code>npm test</code></pre>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><div class="code-dots"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div></div><span class="code-lang">resultado</span><button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+        <pre><code>PASS tests/lexer.test.ts                    (  9 testes)
+PASS tests/parser.test.ts                   ( 14 testes)
+PASS tests/interpreter.test.ts              ( 19 testes)
+PASS tests/oop_phase2.test.ts               ( 19 testes)
+PASS tests/types_phase3.test.ts             ( 28 testes)
+PASS tests/ownership_phase4.test.ts         ( 16 testes)
+PASS tests/modern_features_phase5.test.ts   ( 32 testes)
+PASS tests/codegen_phase6.test.ts           ( 14 testes)
+
+Test Suites: 8 passed, 8 total
+Tests:       151 passed, 151 total — 100% de sucesso</code></pre>
+      </div>
+    </section>
+
+    <footer id="footer">
+      <p>
+        <strong>Vox Programming Language</strong> v0.7.0 — Production-Ready<br/>
+        Licença MIT &bull;
+        <a href="https://github.com/mabreu2022/linguagemvox" target="_blank" rel="noopener">GitHub &#x2197;</a> &bull;
+        Construído com &#x1F49C; e TypeScript
+      </p>
+    </footer>
+  </main>
+</div>
+
+<button id="back-top" aria-label="Voltar ao topo" onclick="window.scrollTo({top:0,behavior:'smooth'})">&#x2191;</button>
+
+<script>
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+  }
+  document.addEventListener('click', (e) => {
+    const s = document.getElementById('sidebar');
+    const b = document.getElementById('menu-toggle');
+    if (s.classList.contains('open') && !s.contains(e.target) && e.target !== b)
+      s.classList.remove('open');
+  });
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.sidebar-link');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const a = document.querySelector(`.sidebar-link[href="#${e.target.id}"]`);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-60px 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+  const progressBar = document.getElementById('progress');
+  window.addEventListener('scroll', () => {
+    const p = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+    progressBar.style.transform = `scaleX(${p})`;
+    document.getElementById('back-top').classList.toggle('visible', window.scrollY > 400);
+  }, { passive: true });
+  function copyCode(btn) {
+    const text = btn.closest('.code-wrap').querySelector('pre').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '&#x2713; Copiado';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+  document.querySelectorAll('a[href^="#"]').forEach(l => {
+    l.addEventListener('click', e => {
+      const t = document.querySelector(l.getAttribute('href'));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior:'smooth', block:'start' }); document.getElementById('sidebar').classList.remove('open'); }
+    });
+  });
+</script>
+</body>
+</html>

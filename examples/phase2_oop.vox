@@ -1,0 +1,162 @@
+// ============================================================
+// phase2_oop.vox — Demonstração Completa da Fase 2: OOP Core
+// Linguagem: Vox (v0.2.0)
+// ============================================================
+
+// ── 1. Interfaces e Mixins ───────────────────────────────────
+
+interface Desenhavel {
+    pub fn desenhar() -> void
+}
+
+mixin Identificavel {
+    pub fn id_completo(nome: str, id: int) -> str {
+        return "[" + nome + "#" + str(id) + "]"
+    }
+}
+
+// ── 2. Classes, Herança e super.method() ──────────────────────
+
+class Entidade implements Desenhavel with Identificavel {
+    prot id: int
+    prot nome: str
+
+    new(id: int, nome: str) {
+        self.id = id
+        self.nome = nome
+    }
+
+    pub fn desenhar() -> void {
+        println("Entidade base: " + self.nome)
+    }
+
+    pub fn info() -> str {
+        return self.id_completo(self.nome, self.id)
+    }
+}
+
+class Personagem extends Entidade {
+    priv vida: int
+    pub stat maxVida: int = 100
+
+    new(id: int, nome: str, vida: int) {
+        super(id, nome)
+        self.vida = vida
+    }
+
+    pub fn desenhar() -> void {
+        super.desenhar()
+        println("  -> Personagem: " + self.nome + " | HP: " + str(self.vida) + "/" + str(Personagem.maxVida))
+    }
+
+    pub fn sofrerDano(qtd: int) -> void {
+        self.vida = self.vida - qtd
+        if self.vida < 0 {
+            self.vida = 0
+        }
+    }
+
+    pub fn vidaAtual() -> int => self.vida
+}
+
+// ── 3. Sobrecarga de Operadores ──────────────────────────────
+
+class Vector2 {
+    pub x: float
+    pub y: float
+
+    new(x: float, y: float) {
+        self.x = x
+        self.y = y
+    }
+
+    operator +(outro: Vector2) -> Vector2 {
+        return new Vector2(self.x + outro.x, self.y + outro.y)
+    }
+
+    operator -(outro: Vector2) -> Vector2 {
+        return new Vector2(self.x - outro.x, self.y - outro.y)
+    }
+
+    operator *(escalar: float) -> Vector2 {
+        return new Vector2(self.x * escalar, self.y * escalar)
+    }
+
+    operator ==(outro: Vector2) -> bool {
+        return self.x == outro.x && self.y == outro.y
+    }
+}
+
+// ── 4. Null Safety com Option e Result ───────────────────────
+
+fn buscarItem(id: int) -> Option<str> {
+    if id == 1 {
+        return some("Espada de Fogo")
+    }
+    if id == 2 {
+        return some("Escudo de Ferro")
+    }
+    return none()
+}
+
+fn dividir(a: int, b: int) -> Result<int, str> {
+    if b == 0 {
+        return err("Divisão por zero não permitida!")
+    }
+    return ok(a / b)
+}
+
+// ── 5. Programa Principal ────────────────────────────────────
+
+println("==================================================")
+println("          VOX LINGUAGEM DE PROGRAMAÇÃO            ")
+println("              Fase 2: OOP Core                    ")
+println("==================================================")
+
+// Teste de Personagem e Herança com super
+let heroi = new Personagem(1, "Valquíria", 95)
+heroi.desenhar()
+println("Info: " + heroi.info())
+heroi.sofrerDano(30)
+println("Após dano, HP restante: " + str(heroi.vidaAtual()))
+
+println("\n--- Sobrecarga de Operadores ---")
+let p1 = new Vector2(10.0, 20.0)
+let p2 = new Vector2(5.5, 4.5)
+let soma = p1 + p2
+let diff = p1 - p2
+let escala = p1 * 2.0
+
+println("p1 + p2 = (" + str(soma.x) + ", " + str(soma.y) + ")")
+println("p1 - p2 = (" + str(diff.x) + ", " + str(diff.y) + ")")
+println("p1 * 2  = (" + str(escala.x) + ", " + str(escala.y) + ")")
+println("p1 == p1: " + str(p1 == p1))
+println("p1 == p2: " + str(p1 == p2))
+
+println("\n--- Null Safety: Option<T> ---")
+let item1 = buscarItem(1)
+let item99 = buscarItem(99)
+
+println("Item 1 encontrado: " + str(item1.is_some()) + " => " + item1.unwrap())
+println("Item 99 com valor padrão: " + item99.unwrap_or("Item não encontrado"))
+
+match item1 {
+    some(nome) => println("Match Option: " + nome),
+    none       => println("Match Option: Nada"),
+}
+
+println("\n--- Tratamento de Erros: Result<T, E> ---")
+let r1 = dividir(100, 4)
+let r2 = dividir(100, 0)
+
+println("100 / 4: ok? " + str(r1.is_ok()) + " => " + str(r1.unwrap()))
+println("100 / 0: falha? " + str(r2.is_err()) + " => " + r2.unwrap_err())
+
+match r2 {
+    ok(val) => println("Resultado: " + str(val)),
+    err(e)  => println("Capturado erro via match: " + e),
+}
+
+println("\n==================================================")
+println("       Todos os recursos Fase 2 validados!        ")
+println("==================================================")

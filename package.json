@@ -1,0 +1,32 @@
+{
+  "name": "kael-lang",
+  "version": "0.1.0",
+  "description": "Kael — A modern object-oriented programming language",
+  "main": "dist/index.js",
+  "bin": {
+    "vox": "./dist/cli/index.js",
+    "kael": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc && node -e \"const fs=require('fs'); fs.mkdirSync('dist/codegen', {recursive:true}); fs.copyFileSync('src/codegen/vox_runtime.h', 'dist/codegen/vox_runtime.h');\"",
+    "dev": "tsc --watch",
+    "test": "npx jest",
+    "vox": "npx ts-node src/cli/index.ts",
+    "kael": "npx ts-node src/cli/index.ts"
+  },
+  "keywords": ["compiler", "programming-language", "oop"],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": ["**/*.test.ts"]
+  }
+}

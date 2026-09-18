@@ -1,0 +1,224 @@
+// ============================================================
+// examples/phase5_modern.vox
+// Demonstração da Fase 5 da Linguagem Vox:
+// Programação Funcional, Concorrência CSP, Match como Expressão,
+// Decoradores e Macros
+// ============================================================
+
+println("=================================================");
+println("  VOX — FASE 5: RECURSOS MODERNOS");
+println("  Funcional, CSP, Pattern Matching, Metaprogramação");
+println("=================================================");
+
+// ────────────────────────────────────────────────────────────
+// 1. PROGRAMAÇÃO FUNCIONAL & PIPELINES
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 1. Programação Funcional & Pipelines ---");
+
+let numeros = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+println(format!("Array inicial: {}", numeros));
+
+// Map: dobrar cada valor
+let dobrados = numeros.map(|x| => x * 2);
+println(format!("Mapeado (x * 2): {}", dobrados));
+
+// Filter: filtrar apenas múltiplos de 4
+let multiplosDeQuatro = dobrados.filter(|x| => x % 4 == 0);
+println(format!("Filtrado (% 4 == 0): {}", multiplosDeQuatro));
+
+// Reduce: somar todos os elementos
+let somaTotal = multiplosDeQuatro.reduce(|acc, x| => acc + x, 0);
+println(format!("Reduzido (Soma): {}", somaTotal));
+
+// Find: encontrar o primeiro maior que 10
+let primeiroMaiorQue10 = multiplosDeQuatro.find(|x| => x > 10);
+println(format!("Primeiro > 10: {}", primeiroMaiorQue10));
+
+// Every & Some
+let todosSaoPares = multiplosDeQuatro.every(|x| => x % 2 == 0);
+let temMaiorQue15 = multiplosDeQuatro.some(|x| => x > 15);
+println(format!("Todos pares? {} | Algum > 15? {}", todosSaoPares, temMaiorQue15));
+
+// Operador Pipeline (|>)
+fn incrementar(n: int) -> int { return n + 1; }
+fn triplicar(n: int) -> int { return n * 3; }
+fn ao_quadrado(n: int) -> int { return n * n; }
+
+let resultadoPipeline = 5 |> incrementar |> triplicar |> ao_quadrado;
+println(format!("Pipeline: 5 |> +1 |> *3 |> ^2 = {}", resultadoPipeline));
+
+// ────────────────────────────────────────────────────────────
+// 2. PATTERN MATCHING COMO EXPRESSÃO
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 2. Pattern Matching como Expressão ---");
+
+let codigoHttp = 404;
+let mensagemHttp = match codigoHttp {
+  200 => "200 OK — Requisição atendida com sucesso",
+  201 => "201 Created — Recurso criado",
+  400 => "400 Bad Request — Parâmetros inválidos",
+  404 => "404 Not Found — Recurso não encontrado",
+  500 => "500 Internal Server Error — Falha no servidor",
+  _   => "Código desconhecido",
+};
+println(format!("Status HTTP: {}", mensagemHttp));
+
+// Match com Guards (if)
+let temperatura = 27;
+let clima = match temperatura {
+  t if t >= 35 => "Muito Quente (Onda de calor)",
+  t if t >= 25 => "Agradável (Primavera)",
+  t if t >= 15 => "Ameno (Outono)",
+  _            => "Frio (Inverno)",
+};
+println(format!("Temperatura {}°C: {}", temperatura, clima));
+
+// Match com Option e Result
+let optionalUser = some("Denize");
+let saudacao = match optionalUser {
+  some(nome) => format!("Bem-vinda, {}!", nome),
+  none       => "Visitante Anônimo",
+};
+println(format!("Option Match: {}", saudacao));
+
+let resultadoOperacao = ok(999);
+let statusOperacao = match resultadoOperacao {
+  ok(valor) => format!("Operação bem-sucedida com código: {}", valor),
+  err(e)    => format!("Erro: {}", e),
+};
+println(format!("Result Match: {}", statusOperacao));
+
+// Match com Ranges
+let pontuacao = 88;
+let rank = match pontuacao {
+  90..100 => "Rank S (Excelente)",
+  80..89  => "Rank A (Ótimo)",
+  70..79  => "Rank B (Bom)",
+  _       => "Rank C (Precisa Melhorar)",
+};
+println(format!("Pontuação {}: {}", pontuacao, rank));
+
+// ────────────────────────────────────────────────────────────
+// 3. ASYNC / AWAIT
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 3. Funções Assíncronas (Async / Await) ---");
+
+async fn buscar_dados_remotos(id: int) -> str {
+  return format!("Payload_UUID_{}", id * 12345);
+}
+
+async fn processar_requisicao(clienteId: int) -> str {
+  let dados = await buscar_dados_remotos(clienteId);
+  return format!("Processado com sucesso para: {}", dados);
+}
+
+let respostaAsync = await processar_requisicao(7);
+println(format!("Resultado Async: {}", respostaAsync));
+
+// ────────────────────────────────────────────────────────────
+// 4. CONCORRÊNCIA CSP (GOROUTINES & CANAIS)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 4. Concorrência CSP (Goroutines & Channels) ---");
+
+// Criação de canal de comunicação tipado/bufferizado
+let canal = new Channel(5);
+println(format!("Canal criado: capacidade = {}", canal.capacity));
+
+// Disparo de tarefa concorrente leve (Goroutine / spawn)
+spawn {
+  println("  [Goroutine 1] Gerando mensagem concorrente...");
+  canal.send("Mensagem segura transmitida via canal CSP!");
+}
+
+let mensagemRecebida = canal.recv();
+println(format!("Canal recebeu da Goroutine: '{}'", mensagemRecebida));
+
+// Produtor / Consumidor em fila no canal
+let filaEventos = chan_new(10);
+filaEventos.send("Evento #1: Login");
+filaEventos.send("Evento #2: Atualização de Perfil");
+filaEventos.send("Evento #3: Logout");
+
+println(format!("Eventos no buffer do canal: len = {}", filaEventos.len));
+println(format!("Consumindo: {}", filaEventos.recv()));
+println(format!("Consumindo: {}", filaEventos.recv()));
+println(format!("Consumindo: {}", filaEventos.recv()));
+filaEventos.close();
+println(format!("Canal fechado com sucesso? {}", filaEventos.is_closed));
+
+// ────────────────────────────────────────────────────────────
+// 5. DECORADORES (@timed, @logged, @memoize, custom)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 5. Decoradores & Metaprogramação ---");
+
+@timed
+fn operacao_pesada(n: int) -> int {
+  let s = 0;
+  let i = 1;
+  while i <= n {
+    s += i;
+    i += 1;
+  }
+  return s;
+}
+
+let somaPesada = operacao_pesada(500);
+println(format!("Soma calculada com @timed: {}", somaPesada));
+
+@logged
+fn formatar_moeda(valor: float) -> str {
+  return format!("R$ {:.2}", valor);
+}
+let moedaFormatada = formatar_moeda(1250.75);
+
+let computacoesFib = 0;
+@memoize
+fn fibonacci(n: int) -> int {
+  computacoesFib += 1;
+  if n <= 1 { return n; }
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// Chamadas com repetições usam cache automático!
+let f1 = fibonacci(10);
+let f2 = fibonacci(10);
+let f3 = fibonacci(10);
+println(format!("Fibonacci(10) memoizado = {} (calculado sem reexecuções redundantes)", f1));
+
+// Decorador em Métodos de Classe
+class ServicoAnalitico {
+  @memoize
+  pub fn calcularScore(base: int, peso: int) -> int {
+    return base * peso + 42;
+  }
+}
+
+let servico = new ServicoAnalitico();
+let score1 = servico.calcularScore(10, 5);
+let score2 = servico.calcularScore(10, 5);
+println(format!("Score analítico via método com @memoize: {}", score1));
+
+// ────────────────────────────────────────────────────────────
+// 6. MACROS (format!, assert!, dbg!)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 6. Macros Invocáveis ---");
+
+let mensagemFormatada = format!("Vox {} suporta {} paradigmas modernos!", "1.0", "multi");
+println(mensagemFormatada);
+
+assert!(1 + 1 == 2, "Verificação de sanidade aritmética");
+println("assert!(1 + 1 == 2) aprovado com sucesso!");
+
+let debugado = dbg!(10 * 10 + 5);
+println(format!("dbg! avaliou expressão com sucesso: {}", debugado));
+
+println("");
+println("=================================================");
+println("  FASE 5 CONCLUÍDA COM 100% DE SUCESSO NO VOX!   ");
+println("=================================================");

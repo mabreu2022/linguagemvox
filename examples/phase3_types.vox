@@ -1,0 +1,223 @@
+// ============================================================
+// phase3_types.vox — Demonstração Completa da Fase 3: Sistema de Tipos
+// Linguagem: Vox (v0.3.0)
+// Features: Tipagem Gradual, Classes Genéricas, Funções Genéricas,
+//           Interfaces Genéricas, Type Checker & Inferência Local
+// ============================================================
+
+println("==================================================")
+println("     VOX PROGRAMMING LANGUAGE — FASE 3: TYPES     ")
+println("==================================================")
+
+// ── 1. Tipagem Gradual & Inferência Local ─────────────────────
+println("\n--- [1] Tipagem Gradual e Inferência Local ---")
+
+// Tipagem estrita inferida localmente:
+let total = 100            // Infere int
+let taxa = 0.15            // Infere float
+let linguagem = "Vox"      // Infere str
+let ativo = true           // Infere bool
+
+println("Total inferido (int): " + str(total))
+println("Taxa inferida (float): " + str(taxa))
+println("Linguagem inferida (str): " + linguagem)
+println("Ativo inferido (bool): " + str(ativo))
+
+// Arrays com inferência de tipo homogêneo Array<T>:
+let linguagens = ["Vox", "Rust", "TypeScript", "Go"]
+println("Array de strings tamanho: " + str(len(linguagens)))
+println("Primeiro item: " + linguagens[0])
+
+// Tipagem gradual flexível (quando não há tipo estático fixo):
+let variavelGradual;
+variavelGradual = 42
+println("Gradual como int: " + str(variavelGradual))
+variavelGradual = "Agora sou texto com tipagem gradual!"
+println("Gradual como str: " + variavelGradual)
+
+
+// ── 2. Funções Genéricas e Inferência de Tipo ─────────────────
+println("\n--- [2] Funções Genéricas ---")
+
+fn identity<T>(x: T) -> T {
+    return x
+}
+
+fn duplicar<T>(x: T) -> Array<T> {
+    return [x, x]
+}
+
+// Chamada com inferência automática de tipo:
+let id_numero = identity(42)
+let id_texto = identity("Vox Type System")
+println("identity(42): " + str(id_numero))
+println("identity('Vox Type System'): " + id_texto)
+
+// Chamada com anotação explícita de tipo:
+let id_explicito = identity<str>("Generics em Ação!")
+println("identity<str>: " + id_explicito)
+
+let lista_duplicada = duplicar("Item")
+println("Array duplicado: " + lista_duplicada[0] + ", " + lista_duplicada[1])
+
+
+// ── 3. Classes Genéricas: Stack<T> e Pair<K, V> ──────────────
+println("\n--- [3] Classes Genéricas ---")
+
+class Stack<T> {
+    priv items: Array<T>
+
+    new() {
+        self.items = []
+    }
+
+    pub fn push_elem(item: T) -> void {
+        push(self.items, item)
+    }
+
+    pub fn pop_elem() -> Option<T> {
+        if len(self.items) == 0 {
+            return none()
+        }
+        return some(pop(self.items))
+    }
+
+    pub fn peek() -> Option<T> {
+        let n = len(self.items)
+        if n == 0 {
+            return none()
+        }
+        return some(self.items[n - 1])
+    }
+
+    pub fn size() -> int => len(self.items)
+    pub fn is_empty() -> bool => len(self.items) == 0
+}
+
+// Instanciação e uso de Stack<int>:
+let pilha = new Stack<int>()
+pilha.push_elem(10)
+pilha.push_elem(20)
+pilha.push_elem(30)
+
+println("Tamanho da pilha: " + str(pilha.size()))
+
+let topo = pilha.peek()
+if topo.is_some() {
+    println("Elemento no topo (peek): " + str(topo.unwrap()))
+}
+
+println("Desempilhando: " + str(pilha.pop_elem().unwrap()))
+println("Desempilhando: " + str(pilha.pop_elem().unwrap()))
+println("Tamanho restante: " + str(pilha.size()))
+
+// Classe genérica com 2 parâmetros de tipo:
+class Pair<K, V> {
+    pub key: K
+    pub value: V
+
+    new(k: K, v: V) {
+        self.key = k
+        self.value = v
+    }
+
+    pub fn get_key() -> K => self.key
+    pub fn get_value() -> V => self.value
+
+    pub fn to_str() -> str {
+        return "Pair(" + str(self.key) + " => " + str(self.value) + ")"
+    }
+}
+
+let par = new Pair<str, int>("versao", 3)
+println("Par chave-valor: " + par.to_str())
+println("Chave: " + par.get_key() + " | Valor: " + str(par.get_value()))
+
+
+// ── 4. Interfaces Genéricas ──────────────────────────────────
+println("\n--- [4] Interfaces Genéricas ---")
+
+interface Repository<T> {
+    pub fn save(item: T) -> void
+    pub fn find(id: int) -> Option<T>
+}
+
+class Produto {
+    pub id: int
+    pub nome: str
+    pub preco: float
+
+    new(id: int, nome: str, preco: float) {
+        self.id = id
+        self.nome = nome
+        self.preco = preco
+    }
+
+    pub fn detalhes() -> str {
+        return self.nome + " ($" + str(self.preco) + ")"
+    }
+}
+
+class ProdutoRepository implements Repository {
+    priv itens: Array<Produto>
+
+    new() {
+        self.itens = []
+    }
+
+    pub fn save(p: Produto) -> void {
+        push(self.itens, p)
+    }
+
+    pub fn find(id: int) -> Option<Produto> {
+        let i = 0
+        while i < len(self.itens) {
+            let prod = self.itens[i]
+            if prod.id == id {
+                return some(prod)
+            }
+            i = i + 1
+        }
+        return none()
+    }
+}
+
+let repo = new ProdutoRepository()
+repo.save(new Produto(1, "Notebook Gamer", 4500.0))
+repo.save(new Produto(2, "Teclado Mecanico", 350.0))
+
+let busca1 = repo.find(1)
+if busca1.is_some() {
+    let p = busca1.unwrap()
+    println("Produto encontrado [ID 1]: " + p.detalhes())
+}
+
+let buscaInexistente = repo.find(99)
+println("Produto ID 99 existe? " + str(buscaInexistente.is_some()))
+println("ID 99 unwrap_or default: " + str(buscaInexistente.unwrap_or(new Produto(0, "Padrao", 0.0)).detalhes()))
+
+
+// ── 5. Option<T> e Result<T, E> Parametrizados ───────────────
+println("\n--- [5] Option<T> e Result<T, E> ---")
+
+fn dividir(a: float, b: float) -> Result<float, str> {
+    if b == 0.0 {
+        return err("Divisao por zero nao permitida!")
+    }
+    return ok(a / b)
+}
+
+let resSucesso = dividir(10.0, 2.0)
+if resSucesso.is_ok() {
+    println("10.0 / 2.0 = " + str(resSucesso.unwrap()))
+}
+
+let resErro = dividir(10.0, 0.0)
+match resErro {
+    ok(val) => println("Resultado: " + str(val)),
+    err(e) => println("Erro capturado com seguranca: " + e)
+}
+
+println("\n==================================================")
+println("   FASE 3 EXECUTADA COM SUCESSO! VOX ESTA FORTE!  ")
+println("==================================================")

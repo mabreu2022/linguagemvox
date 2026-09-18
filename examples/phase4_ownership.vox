@@ -1,0 +1,121 @@
+// ============================================================
+// phase4_ownership.vox — Demonstração da Fase 4: Ownership & Memória
+// Linguagem: Vox (v0.4.0)
+// Features: Modelo own / borrow / ref, Move Semantics,
+//           Empréstimos Imutáveis, Referências Mutáveis, Lifetimes
+// ============================================================
+
+println("==================================================")
+println("   VOX PROGRAMMING LANGUAGE — FASE 4: OWNERSHIP   ")
+println("==================================================")
+
+// ── 1. Classe de Recurso Gerenciado ───────────────────────────
+println("\n--- [1] Recurso Gerenciado: Buffer Seguro ---")
+
+class Buffer {
+    pub capacidade: int
+    pub conteudo: str
+
+    new(cap: int, cont: str) {
+        self.capacidade = cap
+        self.conteudo = cont
+    }
+
+    pub fn info() -> str {
+        return "Buffer[" + str(self.capacidade) + " bytes]: '" + self.conteudo + "'"
+    }
+
+    pub fn append(texto: str) -> void {
+        self.conteudo = self.conteudo + texto
+    }
+}
+
+// Criando recurso com posse explícita (own)
+let own buf1 = new Buffer(1024, "Dados Iniciais")
+println("Recurso alocado: " + buf1.info())
+
+
+// ── 2. Empréstimo Imutável (borrow) ───────────────────────────
+println("\n--- [2] Empréstimo Imutável (borrow) ---")
+
+// Função que apenas inspeciona o buffer sem transferir posse
+fn inspecionar_buffer(borrow b: Buffer) -> int {
+    println("  [borrow] Lendo: " + b.info())
+    return b.capacidade
+}
+
+// Chamando função com borrow: a posse de buf1 permanece intacta!
+let cap = inspecionar_buffer(buf1)
+println("Capacidade obtida via borrow: " + str(cap))
+println("Proprietário continua válido: " + buf1.info())
+
+{
+    // Múltiplos empréstimos imutáveis simultâneos dentro de um escopo:
+    let borrow leitor1 = buf1
+    let borrow leitor2 = buf1
+    println("Leitor 1: " + leitor1.info())
+    println("Leitor 2: " + leitor2.info())
+} // Ao sair do bloco, os empréstimos expiram, permitindo mutação via ref!
+
+
+// ── 3. Referência Mutável Exclusiva (ref) ─────────────────────
+println("\n--- [3] Referência Mutável Exclusiva (ref) ---")
+
+// Função que muta o buffer no local sem transferir posse
+fn adicionar_cabecalho(ref b: Buffer, prefixo: str) -> void {
+    b.conteudo = prefixo + " >> " + b.conteudo
+    println("  [ref] Modificado in-place")
+}
+
+// Aplicando modificação via ref
+adicionar_cabecalho(ref buf1, "VOX_PROTO")
+println("Buffer após ref: " + buf1.info())
+
+
+// ── 4. Ciclo de Vida e Expiração de Empréstimos (Lifetimes) ───
+println("\n--- [4] Escopo e Expiração de Lifetimes ---")
+
+let own arquivo = new Buffer(512, "config.json")
+println("Arquivo original criado: " + arquivo.info())
+
+{
+    // Escopo aninhado: o empréstimo 'temp' vive apenas dentro destas chaves
+    let borrow temp = arquivo
+    println("  -> Empréstimo temporário ativo no bloco: " + temp.info())
+} // O lifetime de 'temp' expira aqui! O recurso 'arquivo' é liberado de empréstimos.
+
+println("Empréstimo expirado. Agora podemos transferir a posse do arquivo!")
+
+// Transferência de posse (Move Semantics):
+fn processar_e_consumir(own f: Buffer) -> void {
+    println("  [own] Consumindo e descartando: " + f.info())
+}
+
+processar_e_consumir(arquivo)
+println("Posse transferida e recurso processado com segurança de memória!")
+
+
+// ── 5. Re-inicialização de Variáveis Movidas ──────────────────
+println("\n--- [5] Re-inicialização pós-movimento ---")
+
+// Uma variável que foi movida pode receber um novo valor e voltar a ser válida:
+let own slot = new Buffer(64, "Lote 1")
+let own destino = slot // 'slot' é movido para 'destino'
+println("Destino recebeu: " + destino.info())
+
+// Re-inicializando 'slot' com um novo objeto:
+slot = new Buffer(128, "Lote 2 (Re-inicializado)")
+println("Slot re-inicializado com sucesso: " + slot.info())
+
+
+// ── 6. Tipos Primitivos (Copy Semantics) ──────────────────────
+println("\n--- [6] Tipos Primitivos com Semântica Copy ---")
+
+let a = 100
+let b = a // Cópia! 'a' continua perfeitamente válido
+let c = a
+println("Valores copiados: a=" + str(a) + ", b=" + str(b) + ", c=" + str(c))
+
+println("\n==================================================")
+println("   FASE 4 CONCLUÍDA! SISTEMA DE OWNERSHIP TOTAL!  ")
+println("==================================================")

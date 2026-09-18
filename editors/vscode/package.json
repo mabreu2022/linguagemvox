@@ -1,0 +1,31 @@
+{
+  "name": "vox-vscode",
+  "displayName": "Vox Language Support",
+  "description": "Rich language support and syntax highlighting for the Vox programming language",
+  "version": "0.7.0",
+  "publisher": "vox-lang",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vox",
+        "aliases": ["Vox", "vox", "Kael", "kael"],
+        "extensions": [".vox", ".kael"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vox",
+        "scopeName": "source.vox",
+        "path": "./syntaxes/vox.tmLanguage.json"
+      }
+    ]
+  }
+}
