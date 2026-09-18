@@ -1,6 +1,6 @@
 {
-  "name": "vox-language-support",
-  "displayName": "Vox Language Support",
+  "name": "vox-programming-language",
+  "displayName": "Vox Programming Language",
   "description": "Suporte oficial à linguagem de programação Vox v1.0 para o Visual Studio Code (syntax highlighting, snippets, configuração de linguagem e integração de ferramentas).",
   "version": "1.0.0",
   "publisher": "MauricioAbreu",
