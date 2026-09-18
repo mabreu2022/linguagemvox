@@ -164,7 +164,7 @@
       "patterns": [
         {
           "name": "support.function.builtin.vox",
-          "match": "\\b(print|println|eprint|len|panic|assert|sqrt|abs|floor|ceil|min|max|pow|rand|chan_new|chan_send|chan_recv|chan_close)\\b"
+          "match": "\\b(print|println|eprint|len|panic|assert|sqrt|abs|floor|ceil|min|max|pow|rand|chan_new|chan_send|chan_recv|chan_close|sqlite_open|sqlite_exec|sqlite_query|sqlite_close)\\b"
         }
       ]
     },

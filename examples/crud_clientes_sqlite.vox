@@ -1,0 +1,216 @@
+// ==============================================================================
+// crud_clientes_sqlite.vox — Exemplo Completo de CRUD com Banco de Dados SQLite
+// Linguagem: Vox v1.0 (OOP + Banco de Dados Relacional Nativo)
+// ==============================================================================
+
+// ── 1. Modelo de Domínio: Cliente ──────────────────────────────────────────────
+class Cliente {
+    pub id: int;
+    pub nome: str;
+    pub email: str;
+    pub telefone: str;
+    pub cidade: str;
+    pub saldo: float;
+
+    new(id: int, nome: str, email: str, telefone: str, cidade: str, saldo: float) {
+        self.id = id;
+        self.nome = nome;
+        self.email = email;
+        self.telefone = telefone;
+        self.cidade = cidade;
+        self.saldo = saldo;
+    }
+
+    pub fn formatar() -> str {
+        return "#" + str(self.id) + " | " + self.nome + " | " + self.email + " | " + self.telefone + " | " + self.cidade + " | R$ " + str(self.saldo);
+    }
+}
+
+// ── 2. Repositório de Acesso a Dados: ClienteRepository ───────────────────────
+class ClienteRepository {
+    pub caminho_banco: str;
+    pub db: int;
+
+    new(caminho_banco: str) {
+        self.caminho_banco = caminho_banco;
+        self.db = 0;
+    }
+
+    pub fn conectar() -> void {
+        self.db = sqlite_open(self.caminho_banco);
+        println("[SQLite] Conexao estabelecida com: " + self.caminho_banco);
+    }
+
+    pub fn inicializar_tabela() -> void {
+        let ddl = "CREATE TABLE IF NOT EXISTS clientes (" +
+                  "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                  "  nome TEXT NOT NULL," +
+                  "  email TEXT NOT NULL UNIQUE," +
+                  "  telefone TEXT," +
+                  "  cidade TEXT," +
+                  "  saldo REAL DEFAULT 0.0" +
+                  ");";
+        sqlite_exec(self.db, ddl);
+        println("[SQLite] Tabela 'clientes' verificada/criada com sucesso.");
+    }
+
+    // [CREATE] Insere um novo cliente
+    pub fn inserir(nome: str, email: str, telefone: str, cidade: str, saldo: float) -> bool {
+        let sql = "INSERT INTO clientes (nome, email, telefone, cidade, saldo) VALUES ('" +
+                  nome + "', '" + email + "', '" + telefone + "', '" + cidade + "', " + str(saldo) + ");";
+        sqlite_exec(self.db, sql);
+        println("  [+] Cliente inserido: " + nome + " (" + email + ")");
+        return true;
+    }
+
+    // [READ] Retorna todos os clientes
+    pub fn listar_todos() -> Array {
+        return sqlite_query(self.db, "SELECT id, nome, email, telefone, cidade, saldo FROM clientes ORDER BY id ASC;");
+    }
+
+    // [READ] Busca um cliente específico por ID
+    pub fn buscar_por_id(id: int) -> Array {
+        let sql = "SELECT id, nome, email, telefone, cidade, saldo FROM clientes WHERE id = " + str(id) + ";";
+        return sqlite_query(self.db, sql);
+    }
+
+    // [UPDATE] Atualiza telefone e saldo de um cliente
+    pub fn atualizar(id: int, novo_telefone: str, novo_saldo: float) -> bool {
+        let sql = "UPDATE clientes SET telefone = '" + novo_telefone + "', saldo = " + str(novo_saldo) + " WHERE id = " + str(id) + ";";
+        sqlite_exec(self.db, sql);
+        println("  [*] Cliente #" + str(id) + " atualizado para Tel: " + novo_telefone + ", Saldo: R$ " + str(novo_saldo));
+        return true;
+    }
+
+    // [DELETE] Remove um cliente por ID
+    pub fn remover(id: int) -> bool {
+        let sql = "DELETE FROM clientes WHERE id = " + str(id) + ";";
+        sqlite_exec(self.db, sql);
+        println("  [-] Cliente #" + str(id) + " removido do banco de dados.");
+        return true;
+    }
+
+    // Contagem total de clientes
+    pub fn total() -> int {
+        let resultado = sqlite_query(self.db, "SELECT COUNT(*) as total FROM clientes;");
+        if len(resultado) > 0 {
+            let linha = resultado[0];
+            return int(linha["total"]);
+        }
+        return 0;
+    }
+
+    pub fn fechar() -> void {
+        sqlite_close(self.db);
+        println("[SQLite] Conexao com banco de dados encerrada.");
+    }
+}
+
+// ── 3. Execução da Aplicação (Fluxo CRUD Completo) ───────────────────────────
+
+println("==================================================================");
+println("        SISTEMA DE CADASTRO DE CLIENTES — VOX + SQLITE           ");
+println("==================================================================");
+
+// Utiliza banco em arquivo real 'clientes_vox.db'
+let repo = new ClienteRepository("clientes_vox.db");
+repo.conectar();
+repo.inicializar_tabela();
+
+// Limpa dados de testes anteriores para demonstração limpa
+sqlite_exec(repo.db, "DELETE FROM clientes;");
+
+println("");
+println("--- 1. [CREATE] Cadastrando Clientes ---");
+repo.inserir("Mauricio Abreu", "mauricio@voxlang.org", "(21) 98888-1111", "Rio de Janeiro", 1500.50);
+repo.inserir("Beatriz Lima", "beatriz@email.com", "(11) 97777-2222", "Sao Paulo", 3200.00);
+repo.inserir("Carlos Eduardo", "carlos@empresa.com", "(31) 96666-3333", "Belo Horizonte", 450.75);
+repo.inserir("Fernanda Souza", "fernanda@tech.io", "(41) 95555-4444", "Curitiba", 8900.20);
+
+println("");
+println("--- 2. [READ] Listagem de Todos os Clientes Cadastrados ---");
+let mut lista = repo.listar_todos();
+println("Total de clientes no banco: " + str(len(lista)));
+println("------------------------------------------------------------------");
+
+let mut i = 0;
+while i < len(lista) {
+    let row = lista[i];
+    let c = new Cliente(
+        int(row["id"]),
+        str(row["nome"]),
+        str(row["email"]),
+        str(row["telefone"]),
+        str(row["cidade"]),
+        float(row["saldo"])
+    );
+    println(c.formatar());
+    i = i + 1;
+}
+println("------------------------------------------------------------------");
+
+println("");
+println("--- 3. [READ] Consulta Individual por ID ---");
+let busca = repo.buscar_por_id(2);
+if len(busca) > 0 {
+    let row2 = busca[0];
+    let cliente2 = new Cliente(
+        int(row2["id"]),
+        str(row2["nome"]),
+        str(row2["email"]),
+        str(row2["telefone"]),
+        str(row2["cidade"]),
+        float(row2["saldo"])
+    );
+    println("Cliente encontrado: " + cliente2.formatar());
+}
+
+println("");
+println("--- 4. [UPDATE] Atualizando Dados do Cliente #1 ---");
+repo.atualizar(1, "(21) 99999-9999", 2750.00);
+
+let busca_atualizado = repo.buscar_por_id(1);
+if len(busca_atualizado) > 0 {
+    let row_at = busca_atualizado[0];
+    let c_at = new Cliente(
+        int(row_at["id"]),
+        str(row_at["nome"]),
+        str(row_at["email"]),
+        str(row_at["telefone"]),
+        str(row_at["cidade"]),
+        float(row_at["saldo"])
+    );
+    println("Dados apos update: " + c_at.formatar());
+}
+
+println("");
+println("--- 5. [DELETE] Removendo Cliente #3 (Carlos Eduardo) ---");
+repo.remover(3);
+
+println("");
+println("--- 6. [READ] Relatorio Final Apos Exclusao ---");
+let mut lista_final = repo.listar_todos();
+println("Total de clientes restantes: " + str(repo.total()));
+println("------------------------------------------------------------------");
+
+let mut j = 0;
+while j < len(lista_final) {
+    let row_f = lista_final[j];
+    let cf = new Cliente(
+        int(row_f["id"]),
+        str(row_f["nome"]),
+        str(row_f["email"]),
+        str(row_f["telefone"]),
+        str(row_f["cidade"]),
+        float(row_f["saldo"])
+    );
+    println(cf.formatar());
+    j = j + 1;
+}
+println("------------------------------------------------------------------");
+
+println("");
+repo.fechar();
+
+println("");
+println("=== CRUD COMPLETO EXECUTADO COM SUCESSO NO VOX + SQLITE! ===");

@@ -215,6 +215,63 @@ export class Interpreter {
     resMap.set('err', { kind: 'function', name: 'err', params: ['e'], body: null as any, closure: this.globals, isAsync: false, isNative: true, native: (e: KaelValue) => makeResult(false, e) } as KaelFunction);
     this.globals.set('Result', resMap);
 
+    // ── SQLite Database Built-ins ───────────────────────────
+    let dbCounter = 1;
+    const dbRegistry = new Map<number, any>();
+
+    this.defineNative('sqlite_open', (pathStr) => {
+      try {
+        const { DatabaseSync } = require('node:sqlite');
+        const db = new DatabaseSync(String(pathStr));
+        const id = dbCounter++;
+        dbRegistry.set(id, db);
+        return id;
+      } catch (err: any) {
+        throw new RuntimeError(`sqlite_open error: ${err.message}`);
+      }
+    });
+
+    this.defineNative('sqlite_exec', (handle, sql) => {
+      const db = dbRegistry.get(Number(handle));
+      if (!db) throw new RuntimeError(`Invalid database handle: ${handle}`);
+      try {
+        db.exec(String(sql));
+        return true;
+      } catch (err: any) {
+        throw new RuntimeError(`sqlite_exec error: ${err.message}`);
+      }
+    });
+
+    this.defineNative('sqlite_query', (handle, sql) => {
+      const db = dbRegistry.get(Number(handle));
+      if (!db) throw new RuntimeError(`Invalid database handle: ${handle}`);
+      try {
+        const stmt = db.prepare(String(sql));
+        const rows = stmt.all();
+        return rows.map((row: any) => {
+          const map = new Map<KaelValue, KaelValue>();
+          for (const [k, v] of Object.entries(row)) {
+            map.set(k, v as KaelValue);
+          }
+          return map;
+        });
+      } catch (err: any) {
+        throw new RuntimeError(`sqlite_query error: ${err.message}`);
+      }
+    });
+
+    this.defineNative('sqlite_close', (handle) => {
+      const db = dbRegistry.get(Number(handle));
+      if (!db) return false;
+      try {
+        db.close();
+        dbRegistry.delete(Number(handle));
+        return true;
+      } catch (err: any) {
+        throw new RuntimeError(`sqlite_close error: ${err.message}`);
+      }
+    });
+
     // Channels & Concurrency
     const makeChannel = (cap?: KaelValue) => {
       const capacity = (cap !== undefined && cap !== null) ? Number(cap) : Infinity;

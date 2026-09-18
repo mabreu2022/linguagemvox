@@ -168,6 +168,11 @@ export class SemanticAnalyzer {
       }],
       // Debug
       ['is_null', fn('bool')], ['type_of', fn('str')],
+      // SQLite Database
+      ['sqlite_open', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'int' }, isAsync: false }],
+      ['sqlite_exec', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      ['sqlite_query', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'unknown' }] }, isAsync: false }],
+      ['sqlite_close', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
       // Concurrency & Channels
       ['sleep', fn('void')],
       ['chan_new', {
