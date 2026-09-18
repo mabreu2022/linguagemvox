@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vox Commercial MVC — Clientes, Produtos, Estoque e PDV</title>
+  <meta name="description" content="Sistema de Gestão Comercial completo em padrão MVC utilizando a Linguagem Vox integrada ao SQLite: Clientes, Produtos, Controle de Estoque e Ponto de Venda (PDV)." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- ==================================================================== -->
+    <!-- MENU LATERAL (SIDEBAR DE NAVEGAÇÃO)                                  -->
+    <!-- ==================================================================== -->
+    <aside class="sidebar" id="app-sidebar">
+      <!-- Topo da Sidebar: Brand & Logo -->
+      <div class="sidebar-brand">
+        <div class="brand-icon">V</div>
+        <div class="brand-text">
+          <h2>Vox Comercial</h2>
+          <span class="brand-badge">Padrão MVC • SQLite</span>
+        </div>
+      </div>
+
+      <!-- Links de Navegação Principal -->
+      <nav class="sidebar-nav" aria-label="Navegação do Sistema">
+        <div class="nav-group-title">MÓDULOS DE GESTÃO</div>
+
+        <button class="nav-item active" id="nav-btn-clientes" data-view="clientes">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="nav-label">Clientes</span>
+          <span class="nav-counter" id="counter-clientes">0</span>
+        </button>
+
+        <button class="nav-item" id="nav-btn-produtos" data-view="produtos">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span class="nav-label">Produtos</span>
+          <span class="nav-counter" id="counter-produtos">0</span>
+        </button>
+
+        <button class="nav-item" id="nav-btn-estoque" data-view="estoque">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span class="nav-label">Estoque</span>
+          <span class="nav-badge-alert" id="badge-alerta-estoque" style="display: none;">!</span>
+        </button>
+
+        <div class="nav-group-title">FRENTE DE CAIXA</div>
+
+        <button class="nav-item nav-item-pdv" id="nav-btn-pdv" data-view="pdv">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <span class="nav-label">PDV (Caixa)</span>
+          <span class="nav-cart-pill" id="badge-pdv-carrinho" style="display: none;">0</span>
+        </button>
+      </nav>
+
+      <!-- Rodapé da Sidebar: Status do Banco e Ações Globais -->
+      <div class="sidebar-footer">
+        <div class="db-status-card">
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span class="status-title">SQLite Conectado</span>
+          </div>
+          <div class="status-meta" title="clientes/db/clientes_vox.db">clientes_vox.db</div>
+        </div>
+        <div class="sidebar-actions">
+          <button class="btn btn-sm btn-ghost" id="btn-seed-data" title="Restaurar dados iniciais de demonstração">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            Restaurar Demo
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================================================================== -->
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL (WORKSPACES)                              -->
+    <!-- ==================================================================== -->
+    <main class="main-viewport">
+      <!-- Topbar / Cabeçalho Superior -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" id="btn-toggle-sidebar" aria-label="Alternar Menu Lateral">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div>
+            <h1 class="page-title" id="current-view-title">Gestão de Clientes</h1>
+            <p class="page-subtitle" id="current-view-subtitle">Controle relacional de clientes com persistência em SQLite</p>
+          </div>
+        </div>
+
+        <div class="topbar-right" id="topbar-actions">
+          <!-- Ações dinâmicas injetadas pelo JavaScript -->
+          <button class="btn btn-primary" id="btn-top-action">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span id="btn-top-action-text">Novo Cliente</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Conteúdo das Views -->
+      <div class="content-scrollable">
+
+        <!-- ================================================================ -->
+        <!-- VIEW 1: CLIENTES                                                 -->
+        <!-- ================================================================ -->
+        <section class="view-panel active" id="view-clientes">
+          <!-- KPIs de Clientes -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Total de Clientes</span>
+                <div class="kpi-icon icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpi-cli-total">0</div>
+              <div class="kpi-meta">Cadastros ativos</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Saldo em Custódia</span>
+                <div class="kpi-icon icon-teal">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value text-teal" id="kpi-cli-saldo-total">R$ 0,00</div>
+              <div class="kpi-meta">Disponível em conta</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Ticket Médio Saldo</span>
+                <div class="kpi-icon icon-blue">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpi-cli-saldo-medio">R$ 0,00</div>
+              <div class="kpi-meta">Média por cliente</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Cidades Atendidas</span>
+                <div class="kpi-icon icon-amber">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpi-cli-cidades">0</div>
+              <div class="kpi-meta">Cobertura geográfica</div>
+            </div>
+          </div>
+
+          <!-- Barra de Busca -->
+          <div class="toolbar-box">
+            <div class="search-input-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search-clientes" placeholder="Buscar por nome, e-mail ou cidade..." />
+            </div>
+          </div>
+
+          <!-- Tabela de Clientes -->
+          <div class="table-container">
+            <table class="data-table" id="table-clientes">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">ID</th>
+                  <th>NOME COMPLETO</th>
+                  <th>E-MAIL</th>
+                  <th>TELEFONE</th>
+                  <th>CIDADE</th>
+                  <th style="text-align: right;">SALDO (BRL)</th>
+                  <th style="text-align: center; width: 130px;">AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-clientes">
+                <!-- Preenchido dinamicamente -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 2: PRODUTOS                                                 -->
+        <!-- ================================================================ -->
+        <section class="view-panel" id="view-produtos">
+          <!-- KPIs de Produtos -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Catálogo de Produtos</span>
+                <div class="kpi-icon icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpi-prod-total">0</div>
+              <div class="kpi-meta">SKUs cadastrados</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Itens em Prateleira</span>
+                <div class="kpi-icon icon-blue">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value" id="kpi-prod-itens">0</div>
+              <div class="kpi-meta">Unidades totais</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Valor em Estoque</span>
+                <div class="kpi-icon icon-teal">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value text-teal" id="kpi-prod-valor">R$ 0,00</div>
+              <div class="kpi-meta">Patrimônio estocado</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-title">Reposição Necessária</span>
+                <div class="kpi-icon icon-rose">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+              </div>
+              <div class="kpi-value text-rose" id="kpi-prod-criticos">0</div>
+              <div class="kpi-meta">Abaixo do estoque mínimo</div>
+            </div>
+          </div>
+
+          <!-- Filtros de Busca e Categoria -->
+          <div class="toolbar-box flex-between">
+            <div class="search-input-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search-produtos" placeholder="Buscar por código SKU, nome do produto ou categoria..." />
+            </div>
+            <div class="filter-wrap">
+              <select id="filter-categoria" class="select-field">
+                <option value="Todas">Todas as Categorias</option>
+                <option value="Periféricos">Periféricos</option>
+                <option value="Monitores">Monitores</option>
+                <option value="Áudio">Áudio</option>
+                <option value="Armazenamento">Armazenamento</option>
+                <option value="Mobiliário">Mobiliário</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tabela de Produtos -->
+          <div class="table-container">
+            <table class="data-table" id="table-produtos">
+              <thead>
+                <tr>
+                  <th style="width: 110px;">CÓDIGO SKU</th>
+                  <th>NOME DO PRODUTO</th>
+                  <th>CATEGORIA</th>
+                  <th style="text-align: right;">PREÇO UNITÁRIO</th>
+                  <th style="text-align: center;">ESTOQUE ATUAL</th>
+                  <th style="text-align: center;">ESTOQUE MÍN</th>
+                  <th style="text-align: center; width: 140px;">AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-produtos">
+                <!-- Preenchido dinamicamente -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 3: CONTROLE DE ESTOQUE                                      -->
+        <!-- ================================================================ -->
+        <section class="view-panel" id="view-estoque">
+          <!-- Alertas Críticos de Reposição -->
+          <div class="stock-alerts-card" id="stock-alerts-container">
+            <div class="stock-alerts-header">
+              <div class="alert-icon-wrap">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div>
+                <h3>Alertas de Estoque Mínimo e Reposição</h3>
+                <p>Os seguintes produtos estão em nível crítico de inventário e exigem novas ordens de compra.</p>
+              </div>
+            </div>
+            <div class="stock-alerts-list" id="stock-alerts-list">
+              <!-- Lista dinâmica de avisos -->
+            </div>
+          </div>
+
+          <!-- Seção de Ações Rápidas de Estoque -->
+          <div class="toolbar-box flex-between">
+            <div class="section-heading">
+              <h3>Histórico de Movimentações de Estoque</h3>
+              <p>Auditoria completa de entradas, saídas de PDV e ajustes em tempo real</p>
+            </div>
+            <button class="btn btn-primary" id="btn-open-entrada-modal">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Dar Entrada de Mercadoria
+            </button>
+          </div>
+
+          <!-- Tabela de Movimentações de Estoque -->
+          <div class="table-container">
+            <table class="data-table" id="table-estoque-movimentos">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">REGISTRO</th>
+                  <th>DATA & HORA</th>
+                  <th>PRODUTO</th>
+                  <th style="text-align: center;">TIPO</th>
+                  <th style="text-align: center;">QUANTIDADE</th>
+                  <th style="text-align: center;">SALDO ANTERIOR</th>
+                  <th style="text-align: center;">NOVO SALDO</th>
+                  <th>MOTIVO / AUDITORIA</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-estoque-movimentos">
+                <!-- Preenchido dinamicamente -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ================================================================ -->
+        <!-- VIEW 4: FRENTE DE CAIXA / PDV                                    -->
+        <!-- ================================================================ -->
+        <section class="view-panel" id="view-pdv">
+          <div class="pdv-layout">
+            <!-- Coluna Esquerda: Catálogo Rápido e Seleção de Produtos -->
+            <div class="pdv-catalog-column">
+              <div class="pdv-search-bar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="pdv-product-search" placeholder="Bipar código de barras ou pesquisar produto..." autocomplete="off" />
+              </div>
+
+              <!-- Grade de Cards de Produtos para Clique Rápido -->
+              <div class="pdv-products-grid" id="pdv-products-grid">
+                <!-- Cards dinâmicos com foto/ícone, nome, preço e estoque -->
+              </div>
+            </div>
+
+            <!-- Coluna Direita: Comanda / Carrinho do PDV -->
+            <div class="pdv-cart-column">
+              <div class="pdv-cart-card">
+                <div class="cart-header">
+                  <div class="cart-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                    <span>Cupom de Venda Ativa</span>
+                  </div>
+                  <button class="btn btn-sm btn-ghost text-rose" id="btn-pdv-clear-cart" title="Esvaziar carrinho">Limpar</button>
+                </div>
+
+                <!-- Seleção do Cliente -->
+                <div class="pdv-field-group">
+                  <label for="pdv-select-cliente">Cliente da Venda:</label>
+                  <select id="pdv-select-cliente" class="select-field">
+                    <option value="1">Consumidor Final (Venda Rápida)</option>
+                    <!-- Preenchido dinamicamente com clientes cadastrados -->
+                  </select>
+                </div>
+
+                <!-- Tabela de Itens no Carrinho -->
+                <div class="cart-table-wrapper">
+                  <table class="cart-table" id="cart-table">
+                    <thead>
+                      <tr>
+                        <th>ITEM</th>
+                        <th style="text-align: center; width: 90px;">QTD</th>
+                        <th style="text-align: right;">PREÇO</th>
+                        <th style="text-align: right;">SUBTOTAL</th>
+                        <th style="width: 35px;"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="cart-items-body">
+                      <!-- Linhas dinâmicas -->
+                    </tbody>
+                  </table>
+                  <div class="cart-empty-state" id="cart-empty-state">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                    <p>O carrinho do PDV está vazio.</p>
+                    <small>Clique nos produtos à esquerda para adicionar.</small>
+                  </div>
+                </div>
+
+                <!-- Fechamento Financeiro -->
+                <div class="cart-financial-summary">
+                  <div class="summary-row">
+                    <span>Subtotal Bruto:</span>
+                    <strong id="pdv-subtotal-display">R$ 0,00</strong>
+                  </div>
+
+                  <div class="summary-row">
+                    <span>Desconto Promocional:</span>
+                    <div class="discount-input-wrap">
+                      <span>R$</span>
+                      <input type="number" id="pdv-desconto-input" min="0" step="0.5" value="0.00" />
+                    </div>
+                  </div>
+
+                  <div class="summary-total-row">
+                    <span>TOTAL A PAGAR:</span>
+                    <span class="total-big-value" id="pdv-total-liquido-display">R$ 0,00</span>
+                  </div>
+
+                  <!-- Forma de Pagamento -->
+                  <div class="payment-method-selector">
+                    <label>Forma de Pagamento:</label>
+                    <div class="payment-options">
+                      <label class="pay-option">
+                        <input type="radio" name="pay-method" value="DINHEIRO" checked />
+                        <span>💵 Dinheiro</span>
+                      </label>
+                      <label class="pay-option">
+                        <input type="radio" name="pay-method" value="CARTAO DE CREDITO" />
+                        <span>💳 Cartão</span>
+                      </label>
+                      <label class="pay-option">
+                        <input type="radio" name="pay-method" value="PIX" />
+                        <span>⚡ Pix</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Campo de Valor Recebido e Troco -->
+                  <div class="summary-row" id="pdv-cash-row">
+                    <span>Valor Recebido:</span>
+                    <div class="cash-input-wrap">
+                      <span>R$</span>
+                      <input type="number" id="pdv-valor-pago-input" min="0" step="1.0" value="0.00" />
+                    </div>
+                  </div>
+
+                  <div class="summary-row" id="pdv-troco-row">
+                    <span>Troco:</span>
+                    <strong class="text-teal" id="pdv-troco-display">R$ 0,00</strong>
+                  </div>
+
+                  <!-- Botão de Ação Primária -->
+                  <button class="btn btn-success btn-block btn-lg" id="btn-pdv-finalizar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    CONCLUIR VENDA (PDV)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- MODAIS DO SISTEMA                                                    -->
+  <!-- ==================================================================== -->
+
+  <!-- Modal 1: Cadastro / Edição de Cliente -->
+  <div class="modal-backdrop" id="modal-cliente">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-cliente-title">Novo Cliente</h3>
+        <button class="btn-close-modal" data-close="modal-cliente">&times;</button>
+      </div>
+      <form id="form-cliente">
+        <input type="hidden" id="cli-id" />
+        <div class="form-group">
+          <label for="cli-nome">Nome Completo *</label>
+          <input type="text" id="cli-nome" required placeholder="Ex: Lucas Ferreira" />
+        </div>
+        <div class="form-group">
+          <label for="cli-email">E-mail *</label>
+          <input type="email" id="cli-email" required placeholder="Ex: lucas@voxlang.org" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cli-telefone">Telefone / WhatsApp</label>
+            <input type="text" id="cli-telefone" placeholder="(11) 99999-8888" />
+          </div>
+          <div class="form-group">
+            <label for="cli-cidade">Cidade / UF</label>
+            <input type="text" id="cli-cidade" placeholder="São Paulo" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="cli-saldo">Saldo Inicial (BRL)</label>
+          <input type="number" id="cli-saldo" step="0.01" value="0.00" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-cliente">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-cliente">Salvar Cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Cadastro / Edição de Produto -->
+  <div class="modal-backdrop" id="modal-produto">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-produto-title">Novo Produto</h3>
+        <button class="btn-close-modal" data-close="modal-produto">&times;</button>
+      </div>
+      <form id="form-produto">
+        <input type="hidden" id="prod-id" />
+        <div class="form-row">
+          <div class="form-group" style="flex: 1;">
+            <label for="prod-codigo">Código SKU *</label>
+            <input type="text" id="prod-codigo" required placeholder="Ex: PROD-010" />
+          </div>
+          <div class="form-group" style="flex: 1.5;">
+            <label for="prod-categoria">Categoria</label>
+            <input type="text" id="prod-categoria" placeholder="Periféricos, Áudio, etc." list="list-categorias" />
+            <datalist id="list-categorias">
+              <option value="Periféricos">
+              <option value="Monitores">
+              <option value="Áudio">
+              <option value="Armazenamento">
+              <option value="Mobiliário">
+              <option value="Hardware">
+            </datalist>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="prod-nome">Nome do Produto *</label>
+          <input type="text" id="prod-nome" required placeholder="Ex: Teclado Mecânico Compacto" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="prod-preco">Preço Unitário (R$) *</label>
+            <input type="number" id="prod-preco" step="0.01" min="0.01" required placeholder="199.90" />
+          </div>
+          <div class="form-group">
+            <label for="prod-estoque">Estoque Inicial (un)</label>
+            <input type="number" id="prod-estoque" min="0" value="10" />
+          </div>
+          <div class="form-group">
+            <label for="prod-estoque-min">Estoque Mínimo (un)</label>
+            <input type="number" id="prod-estoque-min" min="1" value="5" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-produto">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-produto">Salvar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Entrada de Mercadoria no Estoque -->
+  <div class="modal-backdrop" id="modal-entrada-estoque">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Dar Entrada no Estoque</h3>
+        <button class="btn-close-modal" data-close="modal-entrada-estoque">&times;</button>
+      </div>
+      <form id="form-entrada-estoque">
+        <div class="form-group">
+          <label for="entrada-select-produto">Selecione o Produto *</label>
+          <select id="entrada-select-produto" class="select-field" required>
+            <!-- Preenchido dinamicamente -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="entrada-quantidade">Quantidade a Adicionar (un) *</label>
+          <input type="number" id="entrada-quantidade" min="1" required value="10" />
+        </div>
+        <div class="form-group">
+          <label for="entrada-motivo">Motivo / Nota Fiscal de Entrada</label>
+          <input type="text" id="entrada-motivo" placeholder="Ex: NF-e 9874 - Reposição de Lote" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-entrada-estoque">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-confirm-entrada">Confirmar Entrada</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 4: Emissão e Impressão do Cupom Fiscal (PDV) -->
+  <div class="modal-backdrop" id="modal-cupom-fiscal">
+    <div class="modal-box modal-receipt-box">
+      <div class="modal-header">
+        <h3>Extrato do Ponto de Venda (PDV)</h3>
+        <button class="btn-close-modal" data-close="modal-cupom-fiscal">&times;</button>
+      </div>
+      <div class="receipt-preview-container">
+        <!-- Bobina Térmica -->
+        <div class="thermal-receipt" id="thermal-receipt-content">
+          <div class="receipt-header">
+            <h4>VOX MEGA STORE TECH LTDA</h4>
+            <p>CNPJ: 12.345.678/0001-99 • IE: 88.777.666</p>
+            <p>RUA DA INOVAÇÃO, 1000 — POLO TECNOLÓGICO</p>
+            <div class="receipt-divider">================================================</div>
+            <div class="receipt-title">EXTRATO DE VENDA AO CONSUMIDOR</div>
+            <div class="receipt-meta">
+              <span>CUPOM Nº: <strong id="receipt-id">0001</strong></span>
+              <span id="receipt-data">18/09/2026 15:30:00</span>
+            </div>
+            <div class="receipt-cliente">
+              <span>CLIENTE: <strong id="receipt-cliente">Mauricio Abreu</strong></span>
+            </div>
+            <div class="receipt-divider">------------------------------------------------</div>
+          </div>
+
+          <div class="receipt-items-table">
+            <div class="receipt-item-row receipt-item-head">
+              <span class="r-col-idx">#</span>
+              <span class="r-col-desc">DESCRIÇÃO</span>
+              <span class="r-col-qtd">QTD</span>
+              <span class="r-col-unit">VL UN</span>
+              <span class="r-col-tot">TOTAL</span>
+            </div>
+            <div id="receipt-items-list">
+              <!-- Linhas de itens impressos -->
+            </div>
+          </div>
+
+          <div class="receipt-totals">
+            <div class="receipt-divider">------------------------------------------------</div>
+            <div class="receipt-row">
+              <span>TOTAL BRUTO:</span>
+              <strong id="receipt-total-bruto">R$ 0,00</strong>
+            </div>
+            <div class="receipt-row text-rose" id="receipt-desconto-row">
+              <span>DESCONTO PROMOCIONAL:</span>
+              <strong id="receipt-desconto">- R$ 0,00</strong>
+            </div>
+            <div class="receipt-row receipt-final-total">
+              <span>VALOR LÍQUIDO A PAGAR:</span>
+              <strong id="receipt-total-liquido">R$ 0,00</strong>
+            </div>
+            <div class="receipt-divider">------------------------------------------------</div>
+            <div class="receipt-row">
+              <span>FORMA DE PAGAMENTO:</span>
+              <strong id="receipt-forma-pgto">DINHEIRO</strong>
+            </div>
+            <div class="receipt-row">
+              <span>VALOR RECEBIDO:</span>
+              <span id="receipt-valor-pago">R$ 0,00</span>
+            </div>
+            <div class="receipt-row">
+              <span>TROCO:</span>
+              <strong id="receipt-troco">R$ 0,00</strong>
+            </div>
+            <div class="receipt-divider">================================================</div>
+            <div class="receipt-footer">
+              <p>OBRIGADO PELA PREFERÊNCIA!</p>
+              <p>VOLTE SEMPRE AO NOSSO PDV</p>
+              <p class="receipt-vox-engine">PROCESSADO NATIVAMENTE EM VOX v1.0 + SQLITE</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-print-receipt">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Imprimir Cupom
+        </button>
+        <button type="button" class="btn btn-primary" data-close="modal-cupom-fiscal">Nova Venda</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container de Toasts / Notificações -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Script Principal -->
+  <script src="app.js"></script>
+</body>
+</html>

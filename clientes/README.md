@@ -55,16 +55,37 @@ clientes/
 
 ---
 
-## 💻 Como Executar
+---
 
-Execute o comando a partir da raiz do projeto:
+## 💻 Formas de Execução
+
+### 1. 🌐 Modo Interface Web com Menu Lateral (Recomendado)
+Inicia o servidor comercial completo na porta `3000` com uma interface moderna em Dark Glassmorphism e **Menu Lateral (Sidebar)** para alternar entre Clientes, Produtos, Estoque e PDV:
+
+```powershell
+npm run crud:web
+```
+Ou:
+```powershell
+npm run clientes:web
+```
+> Acesse no seu navegador: **`http://localhost:3000`**
+
+### 2. ⚡ Modo Console / Terminal (Script em Linguagem Vox)
+Executa o ciclo comercial de demonstração ponta a ponta compilado/interpretado diretamente pelo runtime do Vox:
 
 ```powershell
 npm run crud:mvc
 ```
-
-Ou diretamente pelo compilador Vox:
-
+Ou diretamente:
 ```powershell
 node dist/cli/index.js run clientes/app.vox
 ```
+
+### 3. 📖 Manual Interativo de Comandos
+Abre o manual visual em HTML no seu navegador:
+
+```powershell
+npm run crud:manual
+```
+
