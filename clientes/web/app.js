@@ -329,6 +329,24 @@ function updateProdutosKpis(produtos) {
   document.getElementById('kpi-prod-criticos').textContent = criticos;
 }
 
+function getProductFallbackImage(categoria = '', codigo = '') {
+  const cod = String(codigo || '').toUpperCase();
+  if (cod === 'PROD-001' || cod.includes('TEC')) return 'img/prod_teclado.jpg';
+  if (cod === 'PROD-002' || cod.includes('MOU')) return 'img/prod_mouse.jpg';
+  if (cod === 'PROD-003' || cod.includes('MON')) return 'img/prod_monitor.jpg';
+  if (cod === 'PROD-004' || cod.includes('HEA') || cod.includes('AUD')) return 'img/prod_headset.jpg';
+  if (cod === 'PROD-005' || cod.includes('SSD') || cod.includes('NVME')) return 'img/prod_ssd.jpg';
+  if (cod === 'PROD-006' || cod.includes('CAD')) return 'img/prod_cadeira.jpg';
+
+  const cat = String(categoria || '').toLowerCase();
+  if (cat.includes('perif')) return 'img/prod_mouse.jpg';
+  if (cat.includes('monit')) return 'img/prod_monitor.jpg';
+  if (cat.includes('áudio') || cat.includes('audio')) return 'img/prod_headset.jpg';
+  if (cat.includes('armazen')) return 'img/prod_ssd.jpg';
+  if (cat.includes('mobili')) return 'img/prod_cadeira.jpg';
+  return 'img/prod_teclado.jpg';
+}
+
 function renderProdutosTable(produtos) {
   const tbody = document.getElementById('tbody-produtos');
   if (produtos.length === 0) {
@@ -338,10 +356,18 @@ function renderProdutosTable(produtos) {
 
   tbody.innerHTML = produtos.map(p => {
     const isCritical = p.estoque <= p.estoque_min;
+    const imgSrc = p.imagem || getProductFallbackImage(p.categoria, p.codigo);
     return `
       <tr>
         <td><span class="sku-badge">${p.codigo}</span></td>
-        <td><strong>${p.nome}</strong></td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="${imgSrc}" alt="${p.nome}" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; border: 1px solid rgba(255,255,255,0.1); background: #111;" onerror="this.src='img/prod_teclado.jpg'" />
+            <div>
+              <strong style="color: #fff; font-size: 0.9rem;">${p.nome}</strong>
+            </div>
+          </div>
+        </td>
         <td><span style="font-size: 0.8rem; color: var(--text-secondary);">${p.categoria || 'Geral'}</span></td>
         <td style="text-align: right; font-family: var(--font-mono); font-weight: 700; color: var(--accent-teal);">
           ${formatBRL(p.preco)}
@@ -617,15 +643,26 @@ function renderPdvProductsGrid(produtos) {
 
   grid.innerHTML = produtos.map(p => {
     const outOfStock = p.estoque <= 0;
+    const isCritical = p.estoque <= p.estoque_min && !outOfStock;
+    const imgSrc = p.imagem || getProductFallbackImage(p.categoria, p.codigo);
+
     return `
       <div class="pdv-prod-card ${outOfStock ? 'out-of-stock' : ''}" onclick="${outOfStock ? '' : `addItemToCart(${p.id})`}">
-        <div>
-          <div class="pdv-prod-category">${p.categoria || 'Geral'}</div>
-          <div class="pdv-prod-name">${p.nome}</div>
+        <div class="pdv-prod-img-wrap">
+          <img src="${imgSrc}" alt="${p.nome}" class="pdv-prod-img" loading="lazy" onerror="this.src='img/prod_teclado.jpg'" />
+          <span class="pdv-prod-badge-cat">${p.categoria || 'Geral'}</span>
+          ${isCritical ? '<span class="pdv-prod-badge-alert">⚠️ Baixo</span>' : ''}
+          ${outOfStock ? '<span class="pdv-prod-badge-alert out">Esgotado</span>' : ''}
+        </div>
+        <div class="pdv-prod-info">
+          <div class="pdv-prod-title" title="${p.nome}">${p.nome}</div>
+          <div class="pdv-prod-sku">${p.codigo}</div>
         </div>
         <div class="pdv-prod-footer">
           <div class="pdv-prod-price">${formatBRL(p.preco)}</div>
-          <div class="pdv-prod-stock">${p.estoque} em estoque</div>
+          <div class="pdv-prod-stock-pill ${outOfStock ? 'out' : isCritical ? 'danger' : ''}">
+            ${p.estoque} em estoque
+          </div>
         </div>
       </div>
     `;

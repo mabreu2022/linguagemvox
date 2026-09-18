@@ -73,6 +73,13 @@ db.exec(`
   );
 `);
 
+// Migração segura para adicionar coluna imagem caso a tabela já exista
+try {
+  db.exec('ALTER TABLE produtos ADD COLUMN imagem TEXT;');
+} catch (e) {
+  // Coluna já existe
+}
+
 // ── Seed Inicial de Dados (Se o banco estiver vazio) ──────────────────────────
 function seedDatabase() {
   const countClientes = db.prepare('SELECT COUNT(*) as total FROM clientes').get().total;
@@ -86,13 +93,26 @@ function seedDatabase() {
 
   const countProdutos = db.prepare('SELECT COUNT(*) as total FROM produtos').get().total;
   if (countProdutos === 0) {
-    const insertProd = db.prepare('INSERT INTO produtos (codigo, nome, categoria, preco, estoque, estoque_min) VALUES (?, ?, ?, ?, ?, ?)');
-    insertProd.run('PROD-001', 'Teclado Mecânico RGB', 'Periféricos', 299.90, 15, 5);
-    insertProd.run('PROD-002', 'Mouse Gamer 16000 DPI', 'Periféricos', 179.50, 4, 5); // Abaixo do mínimo propositalmente
-    insertProd.run('PROD-003', 'Monitor 27 Pol 165Hz', 'Monitores', 1450.00, 8, 3);
-    insertProd.run('PROD-004', 'Headset Surround 7.1', 'Áudio', 349.00, 20, 6);
-    insertProd.run('PROD-005', 'SSD NVMe 1TB PCIe 4.0', 'Armazenamento', 489.90, 3, 5); // Crítico
-    insertProd.run('PROD-006', 'Cadeira Ergonômica Pro', 'Mobiliário', 899.00, 6, 2);
+    const insertProd = db.prepare('INSERT INTO produtos (codigo, nome, categoria, preco, estoque, estoque_min, imagem) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    insertProd.run('PROD-001', 'Teclado Mecânico RGB', 'Periféricos', 299.90, 15, 5, 'img/prod_teclado.jpg');
+    insertProd.run('PROD-002', 'Mouse Gamer 16000 DPI', 'Periféricos', 179.50, 4, 5, 'img/prod_mouse.jpg');
+    insertProd.run('PROD-003', 'Monitor 27 Pol 165Hz', 'Monitores', 1450.00, 8, 3, 'img/prod_monitor.jpg');
+    insertProd.run('PROD-004', 'Headset Surround 7.1', 'Áudio', 349.00, 20, 6, 'img/prod_headset.jpg');
+    insertProd.run('PROD-005', 'SSD NVMe 1TB PCIe 4.0', 'Armazenamento', 489.90, 3, 5, 'img/prod_ssd.jpg');
+    insertProd.run('PROD-006', 'Cadeira Ergonômica Pro', 'Mobiliário', 899.00, 6, 2, 'img/prod_cadeira.jpg');
+  }
+
+  // Atualiza produtos existentes que estejam sem foto definida
+  const imgMap = {
+    'PROD-001': 'img/prod_teclado.jpg',
+    'PROD-002': 'img/prod_mouse.jpg',
+    'PROD-003': 'img/prod_monitor.jpg',
+    'PROD-004': 'img/prod_headset.jpg',
+    'PROD-005': 'img/prod_ssd.jpg',
+    'PROD-006': 'img/prod_cadeira.jpg',
+  };
+  for (const [cod, img] of Object.entries(imgMap)) {
+    db.prepare("UPDATE produtos SET imagem = ? WHERE codigo = ? AND (imagem IS NULL OR imagem = '')").run(img, cod);
   }
 }
 seedDatabase();
@@ -299,7 +319,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && pathname === '/api/produtos') {
     try {
-      const { codigo, nome, categoria, preco, estoque, estoque_min } = await parseBody(req);
+      const { codigo, nome, categoria, preco, estoque, estoque_min, imagem } = await parseBody(req);
       if (!codigo || !nome || preco === undefined) {
         return jsonResponse(res, 400, { success: false, error: 'Código SKU, Nome e Preço são obrigatórios.' });
       }
@@ -311,15 +331,28 @@ const server = http.createServer(async (req, res) => {
       const est = Number(estoque) || 0;
       const min = Number(estoque_min) || 5;
 
+      // Imagem personalizada ou fallback baseado na categoria/código
+      let img = imagem ? String(imagem).trim() : null;
+      if (!img) {
+        const catLower = cat.toLowerCase();
+        if (catLower.includes('peri') || nom.toLowerCase().includes('mouse')) img = 'img/prod_mouse.jpg';
+        else if (catLower.includes('peri') || nom.toLowerCase().includes('teclado')) img = 'img/prod_teclado.jpg';
+        else if (catLower.includes('monit') || nom.toLowerCase().includes('tela')) img = 'img/prod_monitor.jpg';
+        else if (catLower.includes('áudio') || catLower.includes('audio') || nom.toLowerCase().includes('headset')) img = 'img/prod_headset.jpg';
+        else if (catLower.includes('armazen') || nom.toLowerCase().includes('ssd')) img = 'img/prod_ssd.jpg';
+        else if (catLower.includes('mobili') || nom.toLowerCase().includes('cadeira')) img = 'img/prod_cadeira.jpg';
+        else img = 'img/prod_teclado.jpg';
+      }
+
       if (prc <= 0) {
         return jsonResponse(res, 400, { success: false, error: 'O preço do produto deve ser maior que zero.' });
       }
 
       const stmt = db.prepare(`
-        INSERT INTO produtos (codigo, nome, categoria, preco, estoque, estoque_min)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO produtos (codigo, nome, categoria, preco, estoque, estoque_min, imagem)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
-      stmt.run(cod, nom, cat, prc, est, min);
+      stmt.run(cod, nom, cat, prc, est, min, img);
 
       // Se informou estoque inicial > 0, grava no histórico de movimentação
       const inserido = db.prepare('SELECT * FROM produtos WHERE codigo = ?').get(cod);
@@ -343,7 +376,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'PUT' && produtoIdMatch) {
     try {
       const id = Number(produtoIdMatch[1]);
-      const { codigo, nome, categoria, preco, estoque_min } = await parseBody(req);
+      const { codigo, nome, categoria, preco, estoque_min, imagem } = await parseBody(req);
 
       const prodAtual = db.prepare('SELECT * FROM produtos WHERE id = ?').get(id);
       if (!prodAtual) {
@@ -352,7 +385,7 @@ const server = http.createServer(async (req, res) => {
 
       db.prepare(`
         UPDATE produtos 
-        SET codigo = ?, nome = ?, categoria = ?, preco = ?, estoque_min = ?
+        SET codigo = ?, nome = ?, categoria = ?, preco = ?, estoque_min = ?, imagem = ?
         WHERE id = ?
       `).run(
         String(codigo || prodAtual.codigo).trim().toUpperCase(),
@@ -360,6 +393,7 @@ const server = http.createServer(async (req, res) => {
         String(categoria || prodAtual.categoria).trim(),
         preco !== undefined ? Number(preco) : prodAtual.preco,
         estoque_min !== undefined ? Number(estoque_min) : prodAtual.estoque_min,
+        imagem !== undefined ? String(imagem).trim() : prodAtual.imagem,
         id
       );
 
@@ -609,6 +643,9 @@ const server = http.createServer(async (req, res) => {
       '.js': 'application/javascript; charset=utf-8',
       '.json': 'application/json; charset=utf-8',
       '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
       '.svg': 'image/svg+xml',
       '.ico': 'image/x-icon',
     };
