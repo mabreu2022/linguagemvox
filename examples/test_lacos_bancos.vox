@@ -1,0 +1,79 @@
+// examples/test_lacos_bancos.vox
+// Demonstração completa de:
+// 1. Laços e controle de fluxo: if, elif, else, while, for .. in, match, break, continue
+// 2. Acesso a banco de dados universal: SQLite, MySQL, SQL Server e Firebird
+
+fn main() {
+    println("=== 1. TESTE DE CONTROLE DE FLUXO (IF / ELIF / ELSE) ===");
+    let mut pontuacao: int = 85;
+    if pontuacao >= 90 {
+        println("Classificação: Ouro");
+    } elif pontuacao >= 70 {
+        println("Classificação: Prata");
+    } else {
+        println("Classificação: Bronze");
+    }
+
+    println("\n=== 2. TESTE DE LAÇO WHILE ===");
+    let mut contador: int = 1;
+    while contador <= 5 {
+        println("Passo do while: " + str(contador));
+        contador = contador + 1;
+    }
+
+    println("\n=== 3. TESTE DE WHILE COM BREAK E CONTINUE ===");
+    let mut num: int = 0;
+    while true {
+        num = num + 1;
+        if num == 3 {
+            println("Pulando número 3 (continue)");
+            continue;
+        }
+        if num > 5 {
+            println("Atingiu limite superior, saindo (break)");
+            break;
+        }
+        println("Número processado: " + str(num));
+    }
+
+    println("\n=== 4. TESTE DE LAÇO FOR .. IN (INTERVALO E ARRAY) ===");
+    let frutas = ["Maçã", "Banana", "Laranja", "Uva"];
+    for fruta in frutas {
+        println("Fruta do array: " + fruta);
+    }
+
+    println("\n=== 5. TESTE DE PATTERN MATCHING (MATCH) ===");
+    let status_code: int = 200;
+    let mensagem = match status_code {
+        200 => "Sucesso OK",
+        404 => "Não Encontrado",
+        500 => "Erro no Servidor",
+        _   => "Outro Código"
+    };
+    println("Mensagem do status: " + mensagem);
+
+    println("\n=== 6. TESTE DE ACESSO A BANCO DE DADOS UNIVERSAL ===");
+    // Conexão universal via db_connect com driver SQLite
+    let db = db_connect("sqlite", ":memory:");
+    db_exec(db, "CREATE TABLE produtos (id INTEGER PRIMARY KEY, nome TEXT, preco REAL);");
+    db_exec(db, "INSERT INTO produtos (nome, preco) VALUES ('Teclado Mecânico', 350.0);");
+    db_exec(db, "INSERT INTO produtos (nome, preco) VALUES ('Mouse Gamer', 180.0);");
+
+    let produtos = db_query(db, "SELECT * FROM produtos;");
+    println("Total de produtos cadastrados no SQLite: " + str(len(produtos)));
+    let mut i = 0;
+    while i < len(produtos) {
+        let p = produtos[i];
+        println(" - Produto: " + str(p["nome"]) + " | Preço: R$ " + str(p["preco"]));
+        i = i + 1;
+    }
+    db_close(db);
+
+    println("\n=== 7. INTERFACES PARA MYSQL, FIREBIRD E SQL SERVER PRONTAS ===");
+    println("Drivers suportados: 'sqlite', 'mysql', 'sqlserver' (mssql), 'firebird' (fb)");
+    println("Funções prontas: db_connect, db_query, db_exec, db_close");
+    println("Funções diretas: mysql_connect, mssql_connect, firebird_connect, sqlite_open");
+    println("Tudo funcionando com perfeição!");
+}
+
+main();

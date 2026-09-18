@@ -8,7 +8,7 @@
     "kael": "./dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"const fs=require('fs'); fs.mkdirSync('dist/codegen', {recursive:true}); fs.copyFileSync('src/codegen/vox_runtime.h', 'dist/codegen/vox_runtime.h');\"",
+    "build": "tsc && node -e \"const fs=require('fs'); fs.mkdirSync('dist/codegen', {recursive:true}); fs.copyFileSync('src/codegen/vox_runtime.h', 'dist/codegen/vox_runtime.h'); fs.mkdirSync('dist/runtime', {recursive:true}); fs.copyFileSync('src/runtime/db_worker.js', 'dist/runtime/db_worker.js');\"",
     "dev": "tsc --watch",
     "test": "npx jest",
     "vox": "npx ts-node src/cli/index.ts",
@@ -18,7 +18,11 @@
     "livro": "powershell -Command Start-Process docs/livro_vox.html",
     "livro:build": "node tools/build_book.js"
   },
-  "keywords": ["compiler", "programming-language", "oop"],
+  "keywords": [
+    "compiler",
+    "programming-language",
+    "oop"
+  ],
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -31,6 +35,13 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "testMatch": ["**/*.test.ts"]
+    "testMatch": [
+      "**/*.test.ts"
+    ]
+  },
+  "dependencies": {
+    "mssql": "^12.7.2",
+    "mysql2": "^3.24.4",
+    "node-firebird": "^2.16.0"
   }
 }

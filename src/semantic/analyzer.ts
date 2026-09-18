@@ -168,11 +168,31 @@ export class SemanticAnalyzer {
       }],
       // Debug
       ['is_null', fn('bool')], ['type_of', fn('str')],
-      // SQLite Database
+      // Universal Multi-Database (SQLite, MySQL, SQL Server, Firebird)
+      ['db_connect', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'int' }, isAsync: false }],
+      ['db_exec', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      ['db_query', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'unknown' }] }, isAsync: false }],
+      ['db_close', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      // SQLite
       ['sqlite_open', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'int' }, isAsync: false }],
       ['sqlite_exec', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
       ['sqlite_query', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'unknown' }] }, isAsync: false }],
       ['sqlite_close', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      // MySQL
+      ['mysql_connect', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'int' }, isAsync: false }],
+      ['mysql_exec', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      ['mysql_query', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'unknown' }] }, isAsync: false }],
+      ['mysql_close', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      // SQL Server (MSSQL)
+      ['mssql_connect', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'int' }, isAsync: false }],
+      ['mssql_exec', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      ['mssql_query', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'unknown' }] }, isAsync: false }],
+      ['mssql_close', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      // Firebird
+      ['firebird_connect', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'int' }, isAsync: false }],
+      ['firebird_exec', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
+      ['firebird_query', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'unknown' }] }, isAsync: false }],
+      ['firebird_close', { kind: 'function', params: [{ kind: 'primitive', name: 'int' }], returnType: { kind: 'primitive', name: 'bool' }, isAsync: false }],
       // Concurrency & Channels
       ['sleep', fn('void')],
       ['chan_new', {

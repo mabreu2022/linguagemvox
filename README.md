@@ -42,7 +42,8 @@ Construído nos mesmos moldes dos livros canônicos de outras linguagens consagr
 ## 🌟 Principais Recursos
 
 - 💎 **Orientação a Objetos Moderna & Traits**: Classes com construtores explícitos (`new`), structs, traits com blocos `impl Trait for Struct`, modificadores de visibilidade (`pub`, `priv`, `prot`, `stat`) e sobrecarga de operadores (`+`, `-`, `*`, `==`, `!=`, `[]`, `[]=`).
-- 🗄️ **Banco de Dados SQLite Nativo**: Funções embutidas de alta performance (`sqlite_open`, `sqlite_exec`, `sqlite_query`, `sqlite_close`) para criação de sistemas relacionais completos sem dependências externas.
+- 🗄️ **Bancos de Dados Multi-Engine (SQLite, MySQL, SQL Server, Firebird)**: Interface universal (`db_connect`, `db_query`, `db_exec`, `db_close`) e funções nativas por driver (`sqlite_*`, `mysql_*`, `mssql_*`, `firebird_*`) para conectar a qualquer banco relacional com alto desempenho.
+- 🔁 **Laços de Repetição e Controle de Fluxo**: Condicionais limpas (`if / elif / else`), laço `while` com suporte a loops contínuos e desvios (`break`, `continue`), e laço de iteração `for .. in` sobre coleções e intervalos numéricos (`1..10`).
 - 📦 **Sistema Modular (`include`)**: Organização desacoplada de código através da diretiva `include "modulo.vox";`, permitindo arquiteturas corporativas como **MVC**.
 - ⚡ **Compilação Nativa C99 Sub-Segundo**: Transpilação multi-pass para ANSI C99 e compilação direta para `.exe` nativo em ~60ms utilizando TCC embutido ou GCC/Clang/MSVC.
 - 🦀 **Gerenciamento de Memória por Ownership**: Sem garbage collector obrigatório! Semântica afim (`own`, `borrow`, `ref`, `move`) e borrow checker com detecção de *use-after-move* e conflitos de empréstimo.

@@ -14,6 +14,7 @@ import {
   ConstructorDeclNode, MapLiteralNode, OperatorDeclNode, Visibility,
   OwnershipExprNode, OwnershipKind, DecoratorNode,
 } from '../parser/ast';
+import { DatabaseManager } from './database_manager';
 
 // ── Valores em runtime ────────────────────────────────────────
 
@@ -215,60 +216,159 @@ export class Interpreter {
     resMap.set('err', { kind: 'function', name: 'err', params: ['e'], body: null as any, closure: this.globals, isAsync: false, isNative: true, native: (e: KaelValue) => makeResult(false, e) } as KaelFunction);
     this.globals.set('Result', resMap);
 
-    // ── SQLite Database Built-ins ───────────────────────────
-    let dbCounter = 1;
-    const dbRegistry = new Map<number, any>();
+    // ── Universal Multi-Database Engine (SQLite, MySQL, SQL Server, Firebird) ──
+    const dbManager = new DatabaseManager();
 
+    // Universal API
+    this.defineNative('db_connect', (driver, connStr) => {
+      try {
+        return dbManager.connect(String(driver), String(connStr));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+
+    this.defineNative('db_query', (handle, sql) => {
+      try {
+        return dbManager.query(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+
+    this.defineNative('db_exec', (handle, sql) => {
+      try {
+        return dbManager.exec(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+
+    this.defineNative('db_close', (handle) => {
+      try {
+        return dbManager.close(Number(handle));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+
+    // SQLite Direct API
     this.defineNative('sqlite_open', (pathStr) => {
       try {
-        const { DatabaseSync } = require('node:sqlite');
-        const db = new DatabaseSync(String(pathStr));
-        const id = dbCounter++;
-        dbRegistry.set(id, db);
-        return id;
+        return dbManager.connect('sqlite', String(pathStr));
       } catch (err: any) {
-        throw new RuntimeError(`sqlite_open error: ${err.message}`);
+        throw new RuntimeError(err.message);
       }
     });
-
     this.defineNative('sqlite_exec', (handle, sql) => {
-      const db = dbRegistry.get(Number(handle));
-      if (!db) throw new RuntimeError(`Invalid database handle: ${handle}`);
       try {
-        db.exec(String(sql));
-        return true;
+        return dbManager.exec(Number(handle), String(sql));
       } catch (err: any) {
-        throw new RuntimeError(`sqlite_exec error: ${err.message}`);
+        throw new RuntimeError(err.message);
       }
     });
-
     this.defineNative('sqlite_query', (handle, sql) => {
-      const db = dbRegistry.get(Number(handle));
-      if (!db) throw new RuntimeError(`Invalid database handle: ${handle}`);
       try {
-        const stmt = db.prepare(String(sql));
-        const rows = stmt.all();
-        return rows.map((row: any) => {
-          const map = new Map<KaelValue, KaelValue>();
-          for (const [k, v] of Object.entries(row)) {
-            map.set(k, v as KaelValue);
-          }
-          return map;
-        });
+        return dbManager.query(Number(handle), String(sql));
       } catch (err: any) {
-        throw new RuntimeError(`sqlite_query error: ${err.message}`);
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('sqlite_close', (handle) => {
+      try {
+        return dbManager.close(Number(handle));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
       }
     });
 
-    this.defineNative('sqlite_close', (handle) => {
-      const db = dbRegistry.get(Number(handle));
-      if (!db) return false;
+    // MySQL Direct API
+    this.defineNative('mysql_connect', (connStr) => {
       try {
-        db.close();
-        dbRegistry.delete(Number(handle));
-        return true;
+        return dbManager.connect('mysql', String(connStr));
       } catch (err: any) {
-        throw new RuntimeError(`sqlite_close error: ${err.message}`);
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('mysql_exec', (handle, sql) => {
+      try {
+        return dbManager.exec(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('mysql_query', (handle, sql) => {
+      try {
+        return dbManager.query(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('mysql_close', (handle) => {
+      try {
+        return dbManager.close(Number(handle));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+
+    // SQL Server (MSSQL) Direct API
+    this.defineNative('mssql_connect', (connStr) => {
+      try {
+        return dbManager.connect('sqlserver', String(connStr));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('mssql_exec', (handle, sql) => {
+      try {
+        return dbManager.exec(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('mssql_query', (handle, sql) => {
+      try {
+        return dbManager.query(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('mssql_close', (handle) => {
+      try {
+        return dbManager.close(Number(handle));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+
+    // Firebird Direct API
+    this.defineNative('firebird_connect', (connStr) => {
+      try {
+        return dbManager.connect('firebird', String(connStr));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('firebird_exec', (handle, sql) => {
+      try {
+        return dbManager.exec(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('firebird_query', (handle, sql) => {
+      try {
+        return dbManager.query(Number(handle), String(sql));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
+      }
+    });
+    this.defineNative('firebird_close', (handle) => {
+      try {
+        return dbManager.close(Number(handle));
+      } catch (err: any) {
+        throw new RuntimeError(err.message);
       }
     });
 

@@ -865,7 +865,7 @@ const bookHtml = `<!DOCTYPE html>
         <a href="#cap3" class="toc-item"><span class="toc-chapter-num">03.</span> Variáveis e Mutabilidade</a>
         <a href="#cap4" class="toc-item"><span class="toc-chapter-num">04.</span> Sistema de Tipos Primitivos</a>
         <a href="#cap5" class="toc-item"><span class="toc-chapter-num">05.</span> Operadores e Expressões</a>
-        <a href="#cap6" class="toc-item"><span class="toc-chapter-num">06.</span> Controle de Fluxo</a>
+        <a href="#cap6" class="toc-item"><span class="toc-chapter-num">06.</span> Controle de Fluxo e Laços</a>
 
         <div class="toc-part-title">Parte II: Dados e Estruturação</div>
         <a href="#cap7" class="toc-item"><span class="toc-chapter-num">07.</span> Funções, Procedures e Lambdas</a>
@@ -883,7 +883,7 @@ const bookHtml = `<!DOCTYPE html>
 
         <div class="toc-part-title">Parte IV: Engenharia e Sistemas</div>
         <a href="#cap17" class="toc-item"><span class="toc-chapter-num">17.</span> Decoradores e Macros Builtin</a>
-        <a href="#cap18" class="toc-item"><span class="toc-chapter-num">18.</span> Banco de Dados: SQLite Nativo</a>
+        <a href="#cap18" class="toc-item"><span class="toc-chapter-num">18.</span> Bancos de Dados: MySQL, SQL Server, Firebird e SQLite</a>
         <a href="#cap19" class="toc-item"><span class="toc-chapter-num">19.</span> Arquitetura Corporativa MVC</a>
         <a href="#cap20" class="toc-item"><span class="toc-chapter-num">20.</span> Compilação Nativa via C99</a>
         <a href="#cap21" class="toc-item"><span class="toc-chapter-num">21.</span> Ferramental e Produtividade</a>
@@ -1310,46 +1310,100 @@ contador = contador + <span class="k-num">1</span>;
         <section id="cap6" class="chapter">
           <div class="chapter-header">
             <span class="chapter-tag">Capítulo 06</span>
-            <h2 class="chapter-title">Controle de Fluxo Estruturado</h2>
+            <h2 class="chapter-title">Controle de Fluxo e Laços de Repetição</h2>
           </div>
 
           <p>
-            O controle de fluxo em Vox é conciso, prescindindo de parênteses redundantes em torno de expressões de teste condicional:
+            O Vox oferece um sistema completo, expressivo e seguro de bifurcação e repetição. O controle de fluxo dispensa parênteses obrigatórios em torno das expressões de teste, tornando o código mais limpo e legível.
           </p>
 
-          <h3>Bifurcação Condicional: <code>if / elif / else</code></h3>
+          <h3>1. Condicionais: <code>if / elif / else</code></h3>
+          <p>
+            As ramificações condicionais são avaliadas sequencialmente. O bloco <code>elif</code> permite encadear múltiplos testes antes da cláusula final <code>else</code>:
+          </p>
+
           <div class="code-box">
             <div class="code-header">
-              <span class="code-tag">VOX</span>
+              <span class="code-tag">VOX — Condicionais</span>
               <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
             </div>
-            <pre><span class="k-kw">let</span> nota: <span class="k-type">float</span> = <span class="k-num">8.5</span>;
+            <pre><span class="k-kw">let</span> pontuacao: <span class="k-type">int</span> = <span class="k-num">85</span>;
 
-<span class="k-kw">if</span> nota >= <span class="k-num">9.0</span> {
-    <span class="k-macro">println!</span>(<span class="k-str">"Desempenho: Excelente"</span>);
-} <span class="k-kw">elif</span> nota >= <span class="k-num">7.0</span> {
-    <span class="k-macro">println!</span>(<span class="k-str">"Desempenho: Aprovado"</span>);
+<span class="k-kw">if</span> pontuacao >= <span class="k-num">90</span> {
+    <span class="k-fn">println</span>(<span class="k-str">"Classificação: Ouro"</span>);
+} <span class="k-kw">elif</span> pontuacao >= <span class="k-num">70</span> {
+    <span class="k-fn">println</span>(<span class="k-str">"Classificação: Prata"</span>);
 } <span class="k-kw">else</span> {
-    <span class="k-macro">println!</span>(<span class="k-str">"Desempenho: Recuperação"</span>);
+    <span class="k-fn">println</span>(<span class="k-str">"Classificação: Bronze"</span>);
 }</pre>
           </div>
 
-          <h3>Laços de Repetição: <code>for</code> e <code>while</code></h3>
+          <h3>2. O Laço <code>while</code> e Loops Infinitos</h3>
+          <p>
+            O comando <code>while</code> executa seu bloco repetidamente enquanto o predicado lógico for verdadeiro. Para criar loops contínuos de monitoramento ou servidores, utilize a forma canônica <code>while true</code>:
+          </p>
+
           <div class="code-box">
             <div class="code-header">
-              <span class="code-tag">VOX</span>
+              <span class="code-tag">VOX — Laço While</span>
               <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
             </div>
-            <pre><span class="k-com">// Iteração sobre intervalo numérico com range sintético:</span>
-<span class="k-kw">for</span> i <span class="k-kw">in</span> <span class="k-num">1</span>..<span class="k-num">5</span> {
-    <span class="k-macro">println!</span>(<span class="k-str">"Passo: "</span> + (i <span class="k-kw">as</span> <span class="k-type">str</span>));
+            <pre><span class="k-kw">let</span> <span class="k-kw">mut</span> contador: <span class="k-type">int</span> = <span class="k-num">1</span>;
+
+<span class="k-kw">while</span> contador <= <span class="k-num">5</span> {
+    <span class="k-fn">println</span>(<span class="k-str">"Iteração do while: "</span> + <span class="k-fn">str</span>(contador));
+    contador = contador + <span class="k-num">1</span>;
+}</pre>
+          </div>
+
+          <h3>3. Controle de Iteração: <code>break</code> e <code>continue</code></h3>
+          <p>
+            Você pode alterar o fluxo de qualquer laço em tempo de execução:
+          </p>
+          <ul>
+            <li><code>continue</code>: Interrompe a iteração corrente e salta imediatamente para o início da próxima avaliação do laço.</li>
+            <li><code>break</code>: Aborta o laço de repetição imediatamente, transferindo a execução para a instrução subsequente.</li>
+          </ul>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Break e Continue</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> <span class="k-kw">mut</span> i = <span class="k-num">0</span>;
+<span class="k-kw">while</span> <span class="k-kw">true</span> {
+    i = i + <span class="k-num">1</span>;
+    <span class="k-kw">if</span> i == <span class="k-num">3</span> {
+        <span class="k-fn">println</span>(<span class="k-str">"Pulando o 3..."</span>);
+        <span class="k-kw">continue</span>; <span class="k-com">// Próxima volta</span>
+    }
+    <span class="k-kw">if</span> i > <span class="k-num">5</span> {
+        <span class="k-fn">println</span>(<span class="k-str">"Encerrando loop!"</span>);
+        <span class="k-kw">break</span>; <span class="k-com">// Sai do laço</span>
+    }
+    <span class="k-fn">println</span>(<span class="k-str">"Valor processado: "</span> + <span class="k-fn">str</span>(i));
+}</pre>
+          </div>
+
+          <h3>4. O Laço <code>for .. in</code> (Coleções e Intervalos)</h3>
+          <p>
+            O laço <code>for .. in</code> permite iterar com alta clareza tanto sobre coleções de dados (Arrays e Strings) quanto sobre faixas numéricas de intervalo (<em>ranges</em> como <code>inicio..fim</code>):
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — For In</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-com">// Iterando sobre elementos de um Array:</span>
+<span class="k-kw">let</span> servidores = [<span class="k-str">"web-01"</span>, <span class="k-str">"web-02"</span>, <span class="k-str">"db-master"</span>];
+<span class="k-kw">for</span> s <span class="k-kw">in</span> servidores {
+    <span class="k-fn">println</span>(<span class="k-str">"Servidor ativo: "</span> + s);
 }
 
-<span class="k-com">// Laço com predicado while:</span>
-<span class="k-kw">let</span> <span class="k-kw">mut</span> vida = <span class="k-num">3</span>;
-<span class="k-kw">while</span> vida > <span class="k-num">0</span> {
-    <span class="k-macro">println!</span>(<span class="k-str">"Vidas restantes: "</span> + (vida <span class="k-kw">as</span> <span class="k-type">str</span>));
-    vida = vida - <span class="k-num">1</span>;
+<span class="k-com">// Iterando sobre intervalo numérico:</span>
+<span class="k-kw">for</span> n <span class="k-kw">in</span> <span class="k-num">1</span>..<span class="k-num">4</span> {
+    <span class="k-fn">println</span>(<span class="k-str">"Passo: "</span> + <span class="k-fn">str</span>(n));
 }</pre>
           </div>
         </section>
@@ -1777,11 +1831,55 @@ primos.push(<span class="k-num">11</span>);
         <section id="cap18" class="chapter">
           <div class="chapter-header">
             <span class="chapter-tag">Capítulo 18</span>
-            <h2 class="chapter-title">Banco de Dados: SQLite Nativo no Vox</h2>
+            <h2 class="chapter-title">Bancos de Dados: MySQL, SQL Server, Firebird e SQLite</h2>
           </div>
 
           <p>
-            A versão v1.0 do Vox traz integração direta e síncrona com SQLite, proporcionando persistência relacional sem a complexidade de drivers externos:
+            Aplicações corporativas e de engenharia dependem de persistência de dados confiável. A linguagem Vox disponibiliza suporte nativo e multi-engine aos quatro maiores sistemas gerenciadores de banco de dados do mercado: <strong>SQLite</strong>, <strong>MySQL / MariaDB</strong>, <strong>Microsoft SQL Server</strong> e <strong>Firebird</strong>.
+          </p>
+
+          <h3>1. A Interface Unificada Universal (<code>db_*</code>)</h3>
+          <p>
+            Você pode conectar a qualquer banco com a mesma API padronizada, alternando de um banco de desenvolvimento (SQLite) para um de produção (MySQL ou SQL Server) simplesmente alterando a string de conexão:
+          </p>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Função</th>
+                  <th>Assinatura</th>
+                  <th>Descrição</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>db_connect</code></td>
+                  <td><code>(driver: str, conn_str: str) -> int</code></td>
+                  <td>Abre conexão e retorna o identificador (<code>handle</code>)</td>
+                </tr>
+                <tr>
+                  <td><code>db_query</code></td>
+                  <td><code>(handle: int, sql: str) -> Array&lt;Map&gt;</code></td>
+                  <td>Executa <code>SELECT</code> e retorna lista de mapas coluna &rarr; valor</td>
+                </tr>
+                <tr>
+                  <td><code>db_exec</code></td>
+                  <td><code>(handle: int, sql: str) -> bool</code></td>
+                  <td>Executa comandos de modificação (<code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>DDL</code>)</td>
+                </tr>
+                <tr>
+                  <td><code>db_close</code></td>
+                  <td><code>(handle: int) -> bool</code></td>
+                  <td>Encerra a conexão e libera recursos no servidor</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>2. SQLite (Embarcado e Ultrarrápido)</h3>
+          <p>
+            Não requer servidor externo nem configuração de rede. Roda diretamente no mesmo processo da sua aplicação, em arquivo local ou em memória (<code>:memory:</code>):
           </p>
 
           <div class="code-box">
@@ -1789,23 +1887,79 @@ primos.push(<span class="k-num">11</span>);
               <span class="code-tag">VOX — SQLite</span>
               <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
             </div>
-            <pre><span class="k-com">// 1. Abertura da base de dados:</span>
-<span class="k-kw">let</span> db = sqlite_open(<span class="k-str">"banco.db"</span>);
+            <pre><span class="k-kw">let</span> db = <span class="k-fn">db_connect</span>(<span class="k-str">"sqlite"</span>, <span class="k-str">"dados.db"</span>);
+<span class="k-fn">db_exec</span>(db, <span class="k-str">"CREATE TABLE IF NOT EXISTS clientes (id INTEGER PRIMARY KEY, nome TEXT, saldo REAL);"</span>);
+<span class="k-fn">db_exec</span>(db, <span class="k-str">"INSERT INTO clientes (nome, saldo) VALUES ('Mariana', 2450.0);"</span>);
 
-<span class="k-com">// 2. Criação de tabela (DDL):</span>
-sqlite_exec(db, <span class="k-str">"CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY, nome TEXT, email TEXT);"</span>);
-
-<span class="k-com">// 3. Inserção de registro (DML):</span>
-sqlite_exec(db, <span class="k-str">"INSERT INTO usuarios (nome, email) VALUES ('Ana Souza', 'ana@vox.org');"</span>);
-
-<span class="k-com">// 4. Consulta estruturada (retorna array de mapas):</span>
-<span class="k-kw">let</span> usuarios = sqlite_query(db, <span class="k-str">"SELECT * FROM usuarios;"</span>);
-<span class="k-kw">for</span> u <span class="k-kw">in</span> usuarios {
-    <span class="k-macro">println!</span>(<span class="k-str">"ID: "</span> + (u[<span class="k-str">"id"</span>] <span class="k-kw">as</span> <span class="k-type">str</span>) + <span class="k-str">" | Nome: "</span> + u[<span class="k-str">"nome"</span>]);
+<span class="k-kw">let</span> linhas = <span class="k-fn">db_query</span>(db, <span class="k-str">"SELECT * FROM clientes;"</span>);
+<span class="k-kw">for</span> c <span class="k-kw">in</span> linhas {
+    <span class="k-fn">println</span>(<span class="k-str">"Cliente: "</span> + <span class="k-fn">str</span>(c[<span class="k-str">"nome"</span>]) + <span class="k-str">" | Saldo: R$ "</span> + <span class="k-fn">str</span>(c[<span class="k-str">"saldo"</span>]));
 }
+<span class="k-fn">db_close</span>(db);</pre>
+          </div>
 
-<span class="k-com">// 5. Fechamento da conexão:</span>
-sqlite_close(db);</pre>
+          <h3>3. MySQL / MariaDB</h3>
+          <p>
+            Conecte-se a servidores MySQL ou MariaDB através de URI ou formato de pares chave-valor:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — MySQL</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-com">// Conexão via URI padrão ou chave-valor:</span>
+<span class="k-kw">let</span> conn_str = <span class="k-str">"mysql://root:minhasenha@127.0.0.1:3306/erp_corporativo"</span>;
+<span class="k-kw">let</span> mysql = <span class="k-fn">mysql_connect</span>(conn_str);
+
+<span class="k-fn">mysql_exec</span>(mysql, <span class="k-str">"UPDATE pedidos SET status = 'PROCESSADO' WHERE status = 'PENDENTE';"</span>);
+<span class="k-kw">let</span> relatorio = <span class="k-fn">mysql_query</span>(mysql, <span class="k-str">"SELECT id, cliente, valor_total FROM pedidos WHERE status = 'PROCESSADO';"</span>);
+
+<span class="k-kw">for</span> p <span class="k-kw">in</span> relatorio {
+    <span class="k-fn">println</span>(<span class="k-str">"Pedido #"</span> + <span class="k-fn">str</span>(p[<span class="k-str">"id"</span>]) + <span class="k-str">" - Total: R$ "</span> + <span class="k-fn">str</span>(p[<span class="k-str">"valor_total"</span>]));
+}
+<span class="k-fn">mysql_close</span>(mysql);</pre>
+          </div>
+
+          <h3>4. Microsoft SQL Server (MSSQL / T-SQL)</h3>
+          <p>
+            Suporte a instâncias SQL Server rodando em Windows, Linux, containers Docker ou Azure SQL:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Microsoft SQL Server</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> mssql_conn = <span class="k-str">"Server=localhost,1433;Database=VendasDB;User Id=sa;Password=SenhaForte123!;Encrypt=false;"</span>;
+<span class="k-kw">let</span> mssql = <span class="k-fn">mssql_connect</span>(mssql_conn);
+
+<span class="k-kw">let</span> resultados = <span class="k-fn">mssql_query</span>(mssql, <span class="k-str">"SELECT TOP 10 Codigo, Descricao, Estoque FROM Produtos ORDER BY Estoque DESC;"</span>);
+<span class="k-kw">for</span> item <span class="k-kw">in</span> resultados {
+    <span class="k-fn">println</span>(<span class="k-str">"Item: "</span> + <span class="k-fn">str</span>(item[<span class="k-str">"Descricao"</span>]) + <span class="k-str">" | Qtd: "</span> + <span class="k-fn">str</span>(item[<span class="k-str">"Estoque"</span>]));
+}
+<span class="k-fn">mssql_close</span>(mssql);</pre>
+          </div>
+
+          <h3>5. Firebird Database (.FDB)</h3>
+          <p>
+            Tradicional banco de dados relacional amplamente utilizado em sistemas de automação comercial e ERPs de chão de fábrica:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Firebird</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> fb_conn = <span class="k-str">"host=127.0.0.1;port=3050;database=/var/db/empresa.fdb;user=SYSDBA;password=masterkey"</span>;
+<span class="k-kw">let</span> fb = <span class="k-fn">firebird_connect</span>(fb_conn);
+
+<span class="k-fn">firebird_exec</span>(fb, <span class="k-str">"UPDATE NOTAS_FISCAIS SET EMITIDA = 'S' WHERE DATA = CURRENT_DATE;"</span>);
+<span class="k-kw">let</span> notas = <span class="k-fn">firebird_query</span>(fb, <span class="k-str">"SELECT NUMERO, VALOR_TOTAL FROM NOTAS_FISCAIS;"</span>);
+<span class="k-kw">for</span> n <span class="k-kw">in</span> notas {
+    <span class="k-fn">println</span>(<span class="k-str">"NF-e: "</span> + <span class="k-fn">str</span>(n[<span class="k-str">"NUMERO"</span>]) + <span class="k-str">" | Valor: R$ "</span> + <span class="k-fn">str</span>(n[<span class="k-str">"VALOR_TOTAL"</span>]));
+}
+<span class="k-fn">firebird_close</span>(fb);</pre>
           </div>
         </section>
 
