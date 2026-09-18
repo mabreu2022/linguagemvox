@@ -12,7 +12,8 @@
     "dev": "tsc --watch",
     "test": "npx jest",
     "vox": "npx ts-node src/cli/index.ts",
-    "kael": "npx ts-node src/cli/index.ts"
+    "kael": "npx ts-node src/cli/index.ts",
+    "crud:web": "node tools/web/server.js"
   },
   "keywords": ["compiler", "programming-language", "oop"],
   "license": "MIT",

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VoxDB — Sistema de Gestão de Clientes (SQLite)</title>
+  <meta name="description" content="Dashboard interativa de cadastro e gestão de clientes utilizando a linguagem Vox integrada nativamente ao banco de dados relacional SQLite." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Barra Superior / Header -->
+    <header class="top-nav" id="top-nav">
+      <div class="nav-brand">
+        <div class="brand-logo" id="brand-logo">V</div>
+        <div class="brand-info">
+          <h1>VoxDB <span class="brand-subtitle">Clientes & SQLite</span></h1>
+          <span class="db-badge" id="db-status-badge">
+            <span class="pulse-dot"></span> SQLite Conectado (clientes_vox.db)
+          </span>
+        </div>
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn btn-secondary" id="btn-seed-data" title="Restaurar dados iniciais">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+          Restaurar Demo
+        </button>
+        <button class="btn btn-secondary" id="btn-export-csv" title="Exportar tabela para CSV">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar CSV
+        </button>
+        <button class="btn btn-primary" id="btn-open-create-modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Cliente
+        </button>
+      </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="main-content" id="main-content">
+      <!-- Seção de KPIs / Métricas -->
+      <section class="kpi-grid" id="kpi-section" aria-label="Métricas do Sistema">
+        <div class="kpi-card" id="kpi-total-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Total de Clientes</span>
+            <div class="kpi-icon icon-purple">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-total">0</div>
+          <div class="kpi-meta">Registros ativos na base SQLite</div>
+        </div>
+
+        <div class="kpi-card" id="kpi-saldo-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Saldo em Custódia</span>
+            <div class="kpi-icon icon-teal">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-saldo-total">R$ 0,00</div>
+          <div class="kpi-meta">Soma de saldos acumulados</div>
+        </div>
+
+        <div class="kpi-card" id="kpi-media-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Saldo Médio</span>
+            <div class="kpi-icon icon-blue">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-saldo-medio">R$ 0,00</div>
+          <div class="kpi-meta">Ticket médio por cliente</div>
+        </div>
+
+        <div class="kpi-card" id="kpi-cidades-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Cidades Atendidas</span>
+            <div class="kpi-icon icon-pink">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-cidades">0</div>
+          <div class="kpi-meta">Abrangência geográfica</div>
+        </div>
+      </section>
+
+      <!-- Barra de Filtros e Busca -->
+      <section class="toolbar-section" id="toolbar-section">
+        <div class="search-box">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="input-search" placeholder="Pesquisar por nome, e-mail ou cidade..." autocomplete="off" />
+          <button class="clear-search-btn" id="btn-clear-search" style="display: none;" title="Limpar busca">&times;</button>
+        </div>
+
+        <div class="toolbar-stats">
+          <span id="label-table-count">Mostrando 0 clientes</span>
+        </div>
+      </section>
+
+      <!-- Tabela Principal de Clientes -->
+      <section class="table-section" id="table-section">
+        <div class="table-container">
+          <table class="data-table" id="clientes-table">
+            <thead>
+              <tr>
+                <th style="width: 70px;">ID</th>
+                <th>Cliente</th>
+                <th>Telefone</th>
+                <th>Cidade</th>
+                <th>Saldo em Conta</th>
+                <th style="width: 140px; text-align: center;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="clientes-table-body">
+              <!-- Linhas geradas dinamicamente -->
+            </tbody>
+          </table>
+          <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-icon">📂</div>
+            <h3>Nenhum cliente encontrado</h3>
+            <p>Não há registros que correspondam aos termos da pesquisa ou a base está vazia.</p>
+            <button class="btn btn-primary" id="btn-empty-action">Cadastrar Primeiro Cliente</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal de Criação / Edição de Cliente -->
+  <div class="modal-backdrop" id="client-modal" style="display: none;">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title">Cadastrar Novo Cliente</h2>
+        <button class="modal-close-btn" id="btn-close-modal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="client-form" novalidate>
+        <input type="hidden" id="field-client-id" value="" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="field-nome">Nome Completo <span class="required">*</span></label>
+            <input type="text" id="field-nome" class="form-input" placeholder="Ex: Roberto Carlos" required />
+            <div class="field-error" id="error-nome"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="field-email">E-mail <span class="required">*</span></label>
+            <input type="email" id="field-email" class="form-input" placeholder="roberto@empresa.com" required />
+            <div class="field-error" id="error-email"></div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="field-telefone">Telefone</label>
+              <input type="text" id="field-telefone" class="form-input" placeholder="(11) 98888-7777" />
+            </div>
+
+            <div class="form-group">
+              <label for="field-cidade">Cidade / UF</label>
+              <input type="text" id="field-cidade" class="form-input" placeholder="Rio de Janeiro" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="field-saldo">Saldo Inicial (R$)</label>
+            <input type="number" step="0.01" min="0" id="field-saldo" class="form-input" placeholder="0,00" value="0.00" />
+            <div class="field-help">Valor financeiro disponível para operações do cliente.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-client">
+            <span class="btn-text" id="btn-save-text">Salvar Cliente</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação de Exclusão -->
+  <div class="modal-backdrop" id="delete-modal" style="display: none;">
+    <div class="modal-dialog modal-dialog-sm" role="alertdialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>Confirmar Exclusão</h2>
+        <button class="modal-close-btn" id="btn-close-delete-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza de que deseja remover permanentemente o cliente <strong id="delete-client-name"></strong>?</p>
+        <p class="modal-warning">Esta ação excluirá o registro da base de dados SQLite e não poderá ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-cancel-delete">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="btn-confirm-delete">Excluir Registro</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container de Notificações Toast -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
