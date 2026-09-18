@@ -1,0 +1,141 @@
+// ==============================================================================
+// clientes/controllers/pdv_controller.vox — Camada CONTROLLER: PDV & Caixa
+// ==============================================================================
+
+class PdvController {
+    pub repo_pdv: PdvRepository;
+    pub repo_prod: ProdutoRepository;
+    pub repo_est: EstoqueRepository;
+    pub view: PdvView;
+
+    pub cliente_id: int;
+    pub cliente_nome: str;
+    pub itens_carrinho: Array;
+    pub total_bruto: float;
+    pub desconto: float;
+
+    new(caminho_banco: str) {
+        self.repo_pdv = new PdvRepository(caminho_banco);
+        self.repo_prod = new ProdutoRepository(caminho_banco);
+        self.repo_est = new EstoqueRepository(caminho_banco);
+        self.view = new PdvView();
+
+        self.cliente_id = 0;
+        self.cliente_nome = "";
+        self.itens_carrinho = [];
+        self.total_bruto = 0.0;
+        self.desconto = 0.0;
+    }
+
+    pub fn iniciar() -> void {
+        self.repo_pdv.conectar();
+        self.repo_prod.conectar();
+        self.repo_est.conectar();
+        self.repo_pdv.resetar_tabelas();
+        self.view.exibir_sucesso("Modulo PDV (Ponto de Venda) pronto para operacao.");
+    }
+
+    pub fn abrir_venda(cliente_id: int, cliente_nome: str) -> void {
+        self.cliente_id = cliente_id;
+        self.cliente_nome = cliente_nome;
+        self.itens_carrinho = [];
+        self.total_bruto = 0.0;
+        self.desconto = 0.0;
+        self.view.exibir_sucesso("Venda iniciada no PDV para o cliente: " + cliente_nome);
+    }
+
+    pub fn bipar_item(codigo_produto: str, quantidade: int) -> bool {
+        let busca = self.repo_prod.buscar_por_codigo(codigo_produto);
+        if len(busca) == 0 {
+            self.view.exibir_alerta("Item rejeitado no PDV: codigo nao cadastrado (" + codigo_produto + ")");
+            return false;
+        }
+
+        let p = busca[0];
+        let estoque_atual = int(p["estoque"]);
+        if quantidade > estoque_atual {
+            self.view.exibir_alerta("ESTOQUE INSUFICIENTE para " + str(p["nome"]) + "! Solicitado: " + str(quantidade) + " un | Disponivel: " + str(estoque_atual) + " un");
+            return false;
+        }
+
+        let prod_id = int(p["id"]);
+        let nome = str(p["nome"]);
+        let preco_un = float(p["preco"]);
+
+        let item = new ItemVenda(prod_id, codigo_produto, nome, quantidade, preco_un);
+        self.itens_carrinho.push(item);
+        self.total_bruto = self.total_bruto + item.subtotal;
+
+        self.view.exibir_sucesso("Item adicionado: " + str(quantidade) + "x " + nome + " = R$ " + str(item.subtotal));
+        return true;
+    }
+
+    pub fn conceder_desconto(valor_desconto: float) -> void {
+        if valor_desconto > self.total_bruto {
+            self.desconto = self.total_bruto;
+        } else {
+            self.desconto = valor_desconto;
+        }
+        self.view.exibir_sucesso("Desconto aplicado no cupom: R$ " + str(self.desconto));
+    }
+
+    pub fn finalizar_venda(forma_pagamento: str, valor_pago: float, data_hora: str) -> bool {
+        if len(self.itens_carrinho) == 0 {
+            self.view.exibir_alerta("Nao e possivel finalizar cupom sem itens.");
+            return false;
+        }
+
+        let total_liquido = self.total_bruto - self.desconto;
+        if valor_pago < total_liquido {
+            self.view.exibir_alerta("Pagamento insuficiente! Total: R$ " + str(total_liquido) + " | Valor pago: R$ " + str(valor_pago));
+            return false;
+        }
+
+        let troco = valor_pago - total_liquido;
+
+        // 1. Salva o cabeçalho da venda
+        let venda_id = self.repo_pdv.salvar_venda(
+            self.cliente_id,
+            self.cliente_nome,
+            self.total_bruto,
+            self.desconto,
+            total_liquido,
+            forma_pagamento,
+            data_hora
+        );
+
+        // 2. Grava cada item e realiza a baixa do saldo de estoque
+        let mut i = 0;
+        while i < len(self.itens_carrinho) {
+            let it = self.itens_carrinho[i];
+            self.repo_pdv.salvar_item(venda_id, it.produto_id, it.codigo, it.nome, it.quantidade, it.preco_unitario, it.subtotal);
+
+            // Baixa do estoque físico
+            self.repo_prod.baixar_estoque(it.produto_id, it.quantidade);
+
+            // Registro no histórico de movimentação
+            let prod_data = self.repo_prod.buscar_por_id(it.produto_id);
+            let saldo_pos_baixa = int(prod_data[0]["estoque"]);
+            let saldo_ant = saldo_pos_baixa + it.quantidade;
+            self.repo_est.registrar_movimento(it.produto_id, "SAIDA_PDV", it.quantidade, saldo_ant, saldo_pos_baixa, "Cupom PDV #" + str(venda_id), data_hora);
+
+            i = i + 1;
+        }
+
+        // 3. Emite o Cupom Fiscal de Venda formatado
+        self.view.exibir_cupom_fiscal(
+            venda_id,
+            self.cliente_nome,
+            self.itens_carrinho,
+            self.total_bruto,
+            self.desconto,
+            total_liquido,
+            forma_pagamento,
+            valor_pago,
+            troco,
+            data_hora
+        );
+
+        return true;
+    }
+}

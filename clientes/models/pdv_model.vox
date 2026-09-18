@@ -1,0 +1,110 @@
+// ==============================================================================
+// clientes/models/pdv_model.vox — Camada MODEL: PDV (Ponto de Venda)
+// ==============================================================================
+
+class ItemVenda {
+    pub produto_id: int;
+    pub codigo: str;
+    pub nome: str;
+    pub quantidade: int;
+    pub preco_unitario: float;
+    pub subtotal: float;
+
+    new(produto_id: int, codigo: str, nome: str, quantidade: int, preco_unitario: float) {
+        self.produto_id = produto_id;
+        self.codigo = codigo;
+        self.nome = nome;
+        self.quantidade = quantidade;
+        self.preco_unitario = preco_unitario;
+        self.subtotal = float(quantidade) * preco_unitario;
+    }
+}
+
+class Venda {
+    pub id: int;
+    pub cliente_id: int;
+    pub cliente_nome: str;
+    pub total_bruto: float;
+    pub desconto: float;
+    pub total_liquido: float;
+    pub forma_pagamento: str;
+    pub data_hora: str;
+
+    new(id: int, cliente_id: int, cliente_nome: str, total_bruto: float, desconto: float, total_liquido: float, forma_pagamento: str, data_hora: str) {
+        self.id = id;
+        self.cliente_id = cliente_id;
+        self.cliente_nome = cliente_nome;
+        self.total_bruto = total_bruto;
+        self.desconto = desconto;
+        self.total_liquido = total_liquido;
+        self.forma_pagamento = forma_pagamento;
+        self.data_hora = data_hora;
+    }
+}
+
+class PdvRepository {
+    pub caminho_banco: str;
+    pub db: int;
+
+    new(caminho_banco: str) {
+        self.caminho_banco = caminho_banco;
+        self.db = 0;
+    }
+
+    pub fn conectar() -> void {
+        self.db = sqlite_open(self.caminho_banco);
+    }
+
+    pub fn inicializar_tabelas() -> void {
+        let ddl_vendas = "CREATE TABLE IF NOT EXISTS vendas (" +
+                         "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                         "  cliente_id INTEGER NOT NULL," +
+                         "  cliente_nome TEXT NOT NULL," +
+                         "  total_bruto REAL NOT NULL," +
+                         "  desconto REAL DEFAULT 0.0," +
+                         "  total_liquido REAL NOT NULL," +
+                         "  forma_pagamento TEXT NOT NULL," +
+                         "  data_hora TEXT" +
+                         ");";
+        sqlite_exec(self.db, ddl_vendas);
+
+        let ddl_itens = "CREATE TABLE IF NOT EXISTS venda_itens (" +
+                        "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                        "  venda_id INTEGER NOT NULL," +
+                        "  produto_id INTEGER NOT NULL," +
+                        "  codigo TEXT," +
+                        "  nome TEXT," +
+                        "  quantidade INTEGER NOT NULL," +
+                        "  preco_unit REAL NOT NULL," +
+                        "  subtotal REAL NOT NULL" +
+                        ");";
+        sqlite_exec(self.db, ddl_itens);
+    }
+
+    pub fn resetar_tabelas() -> void {
+        sqlite_exec(self.db, "DROP TABLE IF EXISTS venda_itens;");
+        sqlite_exec(self.db, "DROP TABLE IF EXISTS vendas;");
+        self.inicializar_tabelas();
+    }
+
+    pub fn salvar_venda(cliente_id: int, cliente_nome: str, total_bruto: float, desconto: float, total_liquido: float, forma_pagamento: str, data_hora: str) -> int {
+        let sql = "INSERT INTO vendas (cliente_id, cliente_nome, total_bruto, desconto, total_liquido, forma_pagamento, data_hora) VALUES (" +
+                  str(cliente_id) + ", '" + cliente_nome + "', " + str(total_bruto) + ", " + str(desconto) + ", " + str(total_liquido) + ", '" + forma_pagamento + "', '" + data_hora + "');";
+        sqlite_exec(self.db, sql);
+        let id_rows = sqlite_query(self.db, "SELECT last_insert_rowid() as last_id;");
+        if len(id_rows) > 0 {
+            return int(id_rows[0]["last_id"]);
+        }
+        return 1;
+    }
+
+    pub fn salvar_item(venda_id: int, produto_id: int, codigo: str, nome: str, quantidade: int, preco_unit: float, subtotal: float) -> bool {
+        let sql = "INSERT INTO venda_itens (venda_id, produto_id, codigo, nome, quantidade, preco_unit, subtotal) VALUES (" +
+                  str(venda_id) + ", " + str(produto_id) + ", '" + codigo + "', '" + nome + "', " + str(quantidade) + ", " + str(preco_unit) + ", " + str(subtotal) + ");";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn listar_vendas() -> Array {
+        return sqlite_query(self.db, "SELECT id, cliente_id, cliente_nome, total_bruto, desconto, total_liquido, forma_pagamento, data_hora FROM vendas ORDER BY id DESC;");
+    }
+}

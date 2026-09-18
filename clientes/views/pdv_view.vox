@@ -1,0 +1,60 @@
+// ==============================================================================
+// clientes/views/pdv_view.vox — Camada VIEW: PDV (Cupom Fiscal e Checkout)
+// ==============================================================================
+
+class PdvView {
+    new() {}
+
+    pub fn exibir_sucesso(msg: str) -> void {
+        println("  [PDV-OK]    " + msg);
+    }
+
+    pub fn exibir_alerta(msg: str) -> void {
+        println("  [PDV-AVISO] " + msg);
+    }
+
+    pub fn exibir_cupom_fiscal(venda_id: int, cliente_nome: str, itens: Array, total_bruto: float, desconto: float, total_liquido: float, forma_pagamento: str, valor_pago: float, troco: float, data_hora: str) -> void {
+        println("");
+        println("================================================================");
+        println("                    VOX MEGA STORE TECH LTDA                    ");
+        println("            CNPJ: 12.345.678/0001-99 - IE: 88.777.666           ");
+        println("           RUA DA INOVACAO, 1000 - POLO TECNOLOGICO             ");
+        println("================================================================");
+        println("                   EXTRATO DE VENDA - CUPOM PDV                 ");
+        println("----------------------------------------------------------------");
+        println("CUPOM Nº: " + str(venda_id) + "                         DATA: " + data_hora);
+        println("CLIENTE:  " + cliente_nome);
+        println("----------------------------------------------------------------");
+        println("ITEM | CODIGO   | DESCRICAO               | QTD | VL UNIT | SUBTOT");
+        println("-----+----------+-------------------------+-----+---------+-------");
+
+        let mut i = 0;
+        while i < len(itens) {
+            let it = itens[i];
+            let seq = str(i + 1);
+            let cod = str(it.codigo);
+            let nome = str(it.nome);
+            let qtd = str(it.quantidade);
+            let un = str(it.preco_unitario);
+            let sub = str(it.subtotal);
+
+            println(" " + seq + "   | " + cod + " | " + nome + " | " + qtd + "  | R$ " + un + " | R$ " + sub);
+            i = i + 1;
+        }
+
+        println("----------------------------------------------------------------");
+        println("TOTAL BRUTO DOS ITENS:                      R$ " + str(total_bruto));
+        if desconto > 0.0 {
+            println("DESCONTO PROMOCIONAL:                     - R$ " + str(desconto));
+        }
+        println("VALOR LIQUIDO A PAGAR:                      R$ " + str(total_liquido));
+        println("----------------------------------------------------------------");
+        println("FORMA DE PAGAMENTO:                         " + forma_pagamento);
+        println("VALOR RECEBIDO:                             R$ " + str(valor_pago));
+        println("TROCO:                                      R$ " + str(troco));
+        println("================================================================");
+        println("      OBRIGADO PELA PREFERENCIA! VOLTE SEMPRE AO NOSSO PDV      ");
+        println("================================================================");
+        println("");
+    }
+}

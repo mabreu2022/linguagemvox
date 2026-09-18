@@ -1967,42 +1967,88 @@ primos.push(<span class="k-num">11</span>);
         <section id="cap19" class="chapter">
           <div class="chapter-header">
             <span class="chapter-tag">Capítulo 19</span>
-            <h2 class="chapter-title">Arquitetura Corporativa MVC na Prática</h2>
+            <h2 class="chapter-title">Arquitetura Corporativa MVC: Clientes, Produtos, Estoque e PDV</h2>
           </div>
 
           <p>
-            A diretiva <code>include "caminho/arquivo.vox";</code> permite modularizar aplicações de grande escala mantendo coesão e baixo acoplamento:
+            A diretiva <code>include "caminho/arquivo.vox";</code> permite decompor sistemas de grande porte em módulos altamente coesos e desacoplados, implementando o padrão arquitetural corporativo <strong>Model-View-Controller (MVC)</strong>.
           </p>
 
           <div class="table-wrapper">
             <table>
               <thead>
                 <tr>
+                  <th>Módulo</th>
                   <th>Camada</th>
                   <th>Arquivo Canônico</th>
-                  <th>Responsabilidade</th>
+                  <th>Responsabilidade Técnica</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>Model</strong></td>
+                  <td rowspan="3"><strong>Clientes</strong></td>
+                  <td>Model</td>
                   <td><code>cliente_model.vox</code></td>
-                  <td>Encapsula a entidade <code>Cliente</code> e todas as transações SQL com o banco</td>
+                  <td>Entidade <code>Cliente</code> e persistência no banco relacional SQLite</td>
                 </tr>
                 <tr>
-                  <td><strong>View</strong></td>
+                  <td>View</td>
                   <td><code>cliente_view.vox</code></td>
-                  <td>Renderiza tabelas limpas, menus interativos e formulários para o usuário</td>
+                  <td>Renderização de relatórios e fichas de clientes</td>
                 </tr>
                 <tr>
-                  <td><strong>Controller</strong></td>
+                  <td>Controller</td>
                   <td><code>cliente_controller.vox</code></td>
-                  <td>Aplica regras de validação (ex: e-mail obrigatório) e orquestra o fluxo</td>
+                  <td>Validação cadastral e regras de negócio</td>
                 </tr>
                 <tr>
-                  <td><strong>App</strong></td>
+                  <td rowspan="3"><strong>Produtos</strong></td>
+                  <td>Model</td>
+                  <td><code>produto_model.vox</code></td>
+                  <td>Entidade <code>Produto</code> com SKU, preço unitário e estoque em prateleira</td>
+                </tr>
+                <tr>
+                  <td>View</td>
+                  <td><code>produto_view.vox</code></td>
+                  <td>Exibição tabular de catálogo e alertas de estoque crítico</td>
+                </tr>
+                <tr>
+                  <td>Controller</td>
+                  <td><code>produto_controller.vox</code></td>
+                  <td>Regras de precificação, cadastro e alteração de saldo</td>
+                </tr>
+                <tr>
+                  <td rowspan="2"><strong>Estoque</strong></td>
+                  <td>Model</td>
+                  <td><code>estoque_model.vox</code></td>
+                  <td>Tabela de auditoria de movimentações e cálculo de alertas de estoque mínimo</td>
+                </tr>
+                <tr>
+                  <td>Controller</td>
+                  <td><code>estoque_controller.vox</code></td>
+                  <td>Processamento de entradas de notas fiscais e histórico</td>
+                </tr>
+                <tr>
+                  <td rowspan="3"><strong>PDV (Caixa)</strong></td>
+                  <td>Model</td>
+                  <td><code>pdv_model.vox</code></td>
+                  <td>Tabelas <code>vendas</code> e <code>venda_itens</code> com transações atômicas</td>
+                </tr>
+                <tr>
+                  <td>View</td>
+                  <td><code>pdv_view.vox</code></td>
+                  <td>Formatação visual do <strong>Cupom Fiscal de Venda</strong> (com troco e itens)</td>
+                </tr>
+                <tr>
+                  <td>Controller</td>
+                  <td><code>pdv_controller.vox</code></td>
+                  <td>Carrinho ativo, bloqueio de venda por estoque insuficiente e baixa automática</td>
+                </tr>
+                <tr>
+                  <td><strong>Core</strong></td>
+                  <td>App</td>
                   <td><code>app.vox</code></td>
-                  <td>Ponto de entrada único que inclui as camadas e inicia a aplicação</td>
+                  <td>Orquestrador único que inicializa a aplicação comercial completa</td>
                 </tr>
               </tbody>
             </table>
@@ -2010,17 +2056,25 @@ primos.push(<span class="k-num">11</span>);
 
           <div class="code-box">
             <div class="code-header">
-              <span class="code-tag">VOX — app.vox</span>
+              <span class="code-tag">VOX — app.vox (Orquestrador Comercial)</span>
               <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
             </div>
             <pre><span class="k-kw">include</span> <span class="k-str">"models/cliente_model.vox"</span>;
-<span class="k-kw">include</span> <span class="k-str">"views/cliente_view.vox"</span>;
-<span class="k-kw">include</span> <span class="k-str">"controllers/cliente_controller.vox"</span>;
+<span class="k-kw">include</span> <span class="k-str">"models/produto_model.vox"</span>;
+<span class="k-kw">include</span> <span class="k-str">"models/pdv_model.vox"</span>;
+<span class="k-kw">include</span> <span class="k-str">"controllers/pdv_controller.vox"</span>;
 
-<span class="k-kw">fn</span> <span class="k-fn">main</span>() {
-    <span class="k-kw">let</span> ctrl = ClienteController.new(<span class="k-str">"db/clientes_vox.db"</span>);
-    ctrl.executar();
-}</pre>
+<span class="k-com">// Inicia o Caixa PDV conectado ao banco relacional:</span>
+<span class="k-kw">let</span> pdv = new PdvController(<span class="k-str">"clientes/db/clientes_vox.db"</span>);
+pdv.iniciar();
+
+<span class="k-com">// Inicia a venda e adiciona produtos com validação em tempo real:</span>
+pdv.abrir_venda(<span class="k-num">1</span>, <span class="k-str">"Mauricio Abreu"</span>);
+pdv.bipar_item(<span class="k-str">"PROD-001"</span>, <span class="k-num">2</span>); <span class="k-com">// Teclados Mecânicos</span>
+pdv.conceder_desconto(<span class="k-num">50.0</span>);
+
+<span class="k-com">// Finaliza a venda, emite o Cupom Fiscal e abate o estoque:</span>
+pdv.finalizar_venda(<span class="k-str">"PIX"</span>, <span class="k-num">549.80</span>, <span class="k-str">"18/09/2026 15:00:00"</span>);</pre>
           </div>
         </section>
 

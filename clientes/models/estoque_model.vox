@@ -1,0 +1,74 @@
+// ==============================================================================
+// clientes/models/estoque_model.vox — Camada MODEL: Movimentação de Estoque
+// ==============================================================================
+
+class EstoqueMovimento {
+    pub id: int;
+    pub produto_id: int;
+    pub tipo: str;
+    pub quantidade: int;
+    pub saldo_anterior: int;
+    pub saldo_novo: int;
+    pub motivo: str;
+    pub data_hora: str;
+
+    new(id: int, produto_id: int, tipo: str, quantidade: int, saldo_anterior: int, saldo_novo: int, motivo: str, data_hora: str) {
+        self.id = id;
+        self.produto_id = produto_id;
+        self.tipo = tipo;
+        self.quantidade = quantidade;
+        self.saldo_anterior = saldo_anterior;
+        self.saldo_novo = saldo_novo;
+        self.motivo = motivo;
+        self.data_hora = data_hora;
+    }
+}
+
+class EstoqueRepository {
+    pub caminho_banco: str;
+    pub db: int;
+
+    new(caminho_banco: str) {
+        self.caminho_banco = caminho_banco;
+        self.db = 0;
+    }
+
+    pub fn conectar() -> void {
+        self.db = sqlite_open(self.caminho_banco);
+    }
+
+    pub fn inicializar_tabela() -> void {
+        let ddl = "CREATE TABLE IF NOT EXISTS estoque_movimentos (" +
+                  "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                  "  produto_id INTEGER NOT NULL," +
+                  "  tipo TEXT NOT NULL," +
+                  "  quantidade INTEGER NOT NULL," +
+                  "  saldo_anterior INTEGER NOT NULL," +
+                  "  saldo_novo INTEGER NOT NULL," +
+                  "  motivo TEXT," +
+                  "  data_hora TEXT" +
+                  ");";
+        sqlite_exec(self.db, ddl);
+    }
+
+    pub fn resetar_tabela() -> void {
+        sqlite_exec(self.db, "DROP TABLE IF EXISTS estoque_movimentos;");
+        self.inicializar_tabela();
+    }
+
+    pub fn registrar_movimento(produto_id: int, tipo: str, quantidade: int, saldo_anterior: int, saldo_novo: int, motivo: str, data_hora: str) -> bool {
+        let sql = "INSERT INTO estoque_movimentos (produto_id, tipo, quantidade, saldo_anterior, saldo_novo, motivo, data_hora) VALUES (" +
+                  str(produto_id) + ", '" + tipo + "', " + str(quantidade) + ", " + str(saldo_anterior) + ", " + str(saldo_novo) + ", '" + motivo + "', '" + data_hora + "');";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn listar_alertas_estoque_baixo() -> Array {
+        let sql = "SELECT id, codigo, nome, estoque, estoque_min FROM produtos WHERE estoque <= estoque_min ORDER BY estoque ASC;";
+        return sqlite_query(self.db, sql);
+    }
+
+    pub fn listar_historico(produto_id: int) -> Array {
+        let sql = "SELECT id, tipo, quantidade, saldo_anterior, saldo_novo, motivo, data_hora FROM estoque_movimentos WHERE produto_id = " + str(produto_id) + " ORDER BY id DESC;";
+        return sqlite_query(self.db, sql);
+    }
+}

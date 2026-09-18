@@ -1,42 +1,104 @@
 // ==============================================================================
-// clientes/app.vox — Ponto de Entrada da Aplicação MVC em Vox
+// clientes/app.vox — Ponto de Entrada da Aplicacao Comercial MVC em Vox
+// Abrangendo: Clientes, Catalogo de Produtos, Controle de Estoque e PDV
 // ==============================================================================
 
 include "models/cliente_model.vox";
 include "views/cliente_view.vox";
 include "controllers/cliente_controller.vox";
 
-// 1. Inicializa o Controller passando o banco de dados SQLite
-let controller = new ClienteController("clientes/db/clientes_vox.db");
-controller.iniciar();
+include "models/produto_model.vox";
+include "views/produto_view.vox";
+include "controllers/produto_controller.vox";
 
-// 2. Operações de Criação (CREATE)
-println("\n[ETAPA 1: CADASTRO DE CLIENTES]");
-controller.cadastrar("Mauricio Abreu", "mauricio@voxlang.org", "(21) 98888-1111", "Rio de Janeiro", 1500.50);
-controller.cadastrar("Beatriz Lima", "beatriz@email.com", "(11) 97777-2222", "Sao Paulo", 3200.00);
-controller.cadastrar("Carlos Eduardo", "carlos@empresa.com", "(31) 96666-3333", "Belo Horizonte", 450.75);
-controller.cadastrar("Fernanda Souza", "fernanda@tech.io", "(41) 95555-4444", "Curitiba", 8900.20);
+include "models/estoque_model.vox";
+include "controllers/estoque_controller.vox";
 
-// 3. Operação de Leitura Geral (READ ALL)
-println("\n[ETAPA 2: LISTAGEM COMPLETA VIA VIEW]");
-controller.listar();
+include "models/pdv_model.vox";
+include "views/pdv_view.vox";
+include "controllers/pdv_controller.vox";
 
-// 4. Operação de Consulta Individual (READ BY ID)
-println("\n[ETAPA 3: CONSULTA INDIVIDUAL VIA CONTROLLER]");
-controller.consultar(2);
+let caminho_banco = "clientes/db/clientes_vox.db";
 
-// 5. Operação de Atualização (UPDATE)
-println("\n[ETAPA 4: ATUALIZACAO CADASTRAL E FINANCEIRA]");
-controller.atualizar(1, "(21) 99999-9999", 3500.00);
-controller.consultar(1);
+println("==================================================================");
+println("     SISTEMA DE GESTAO COMERCIAL MVC (CLIENTES, ESTOQUE E PDV)    ");
+println("               LINGUAGEM VOX v1.0 COM BANCO SQLITE                ");
+println("==================================================================");
 
-// 6. Operação de Exclusão (DELETE)
-println("\n[ETAPA 5: REMOCAO DE CLIENTE]");
-controller.remover(3);
+// ------------------------------------------------------------------------------
+// ETAPA 1: INICIALIZACAO DOS CONTROLADORES E BANCO DE DADOS
+// ------------------------------------------------------------------------------
+println("\n[ETAPA 1: INICIALIZACAO DO BANCO DE DADOS RELACIONAL]");
+let ctrl_clientes = new ClienteController(caminho_banco);
+ctrl_clientes.iniciar();
 
-// 7. Relatório Final
-println("\n[ETAPA 6: RELATORIO FINAL APOS ALTERACOES]");
-controller.listar();
+let ctrl_produtos = new ProdutoController(caminho_banco);
+ctrl_produtos.iniciar();
 
-// 8. Encerramento
-controller.finalizar();
+let ctrl_estoque = new EstoqueController(caminho_banco);
+ctrl_estoque.iniciar();
+
+let ctrl_pdv = new PdvController(caminho_banco);
+ctrl_pdv.iniciar();
+
+// ------------------------------------------------------------------------------
+// ETAPA 2: CADASTRO DE CLIENTES
+// ------------------------------------------------------------------------------
+println("\n[ETAPA 2: CADASTRO DE CLIENTES]");
+ctrl_clientes.cadastrar("Mauricio Abreu", "mauricio@voxlang.org", "(21) 98888-1111", "Rio de Janeiro", 1500.0);
+ctrl_clientes.cadastrar("Beatriz Lima", "beatriz@empresa.com", "(11) 97777-2222", "Sao Paulo", 3200.0);
+ctrl_clientes.cadastrar("Carlos Eduardo", "carlos@tech.io", "(31) 96666-3333", "Belo Horizonte", 500.0);
+ctrl_clientes.listar();
+
+// ------------------------------------------------------------------------------
+// ETAPA 3: CADASTRO DO CATALOGO DE PRODUTOS
+// ------------------------------------------------------------------------------
+println("\n[ETAPA 3: CADASTRO DO CATALOGO DE PRODUTOS E ESTOQUE INICIAL]");
+ctrl_produtos.cadastrar("PROD-001", "Teclado Mecanico RGB", "Perifericos", 299.90, 15, 5);
+ctrl_produtos.cadastrar("PROD-002", "Mouse Gamer 16000 DPI", "Perifericos", 179.50, 4, 5); // Estoque já abaixo do mínimo (4 < 5)
+ctrl_produtos.cadastrar("PROD-003", "Monitor 27 Pol 165Hz", "Monitores", 1450.00, 8, 3);
+ctrl_produtos.cadastrar("PROD-004", "Headset Surround 7.1", "Audio", 349.00, 20, 6);
+ctrl_produtos.cadastrar("PROD-005", "SSD NVMe 1TB PCIe 4.0", "Armazenamento", 489.90, 3, 5); // Estoque crítico (3 < 5)
+ctrl_produtos.listar();
+
+// ------------------------------------------------------------------------------
+// ETAPA 4: ENTRADA DE ESTOQUE E VERIFICACAO DE ALERTAS
+// ------------------------------------------------------------------------------
+println("\n[ETAPA 4: MOVIMENTACAO DE ENTRADA DE ESTOQUE]");
+ctrl_estoque.dar_entrada("PROD-002", 10, "Compra NF-e 4521 Fornecedor Razer", "18/09/2026 14:00");
+println("\n[VERIFICACAO DE ALERTAS DE ESTOQUE MINIMO]");
+ctrl_estoque.verificar_alertas();
+
+// ------------------------------------------------------------------------------
+// ETAPA 5: OPERACAO DE VENDA NO PDV (PONTO DE VENDA)
+// ------------------------------------------------------------------------------
+println("\n[ETAPA 5: ABERTURA DE VENDA NO PDV COM VALIDACAO DE ESTOQUE]");
+ctrl_pdv.abrir_venda(1, "Mauricio Abreu");
+
+// Tentativa de bipar mais unidades do que o disponível no estoque (Validação de Saldo!)
+println("\n-> Testando tentativa de compra acima do estoque disponivel:");
+ctrl_pdv.bipar_item("PROD-005", 10); // Disponível apenas 3! Bloqueia com sucesso.
+
+// Bipando itens com saldo garantido
+println("\n-> Bipando itens no carrinho do PDV:");
+ctrl_pdv.bipar_item("PROD-001", 2); // 2x Teclado Mecânico (R$ 299.90 x 2 = R$ 599.80)
+ctrl_pdv.bipar_item("PROD-002", 1); // 1x Mouse Gamer (R$ 179.50 x 1 = R$ 179.50)
+ctrl_pdv.bipar_item("PROD-003", 1); // 1x Monitor 27" (R$ 1450.00 x 1 = R$ 1450.00)
+
+// Aplicando desconto especial de fidelidade
+println("\n-> Aplicando desconto promocional no cupom:");
+ctrl_pdv.conceder_desconto(129.30);
+
+// Finalizando a venda no Caixa
+println("\n-> Fechando a venda com pagamento e emissao de Cupom:");
+ctrl_pdv.finalizar_venda("CARTAO DE CREDITO", 2100.00, "18/09/2026 14:35:10");
+
+// ------------------------------------------------------------------------------
+// ETAPA 6: VERIFICACAO FINAL DA POSICAO DE ESTOQUE APOS A VENDA
+// ------------------------------------------------------------------------------
+println("\n[ETAPA 6: POSICAO ATUALIZADA DE ESTOQUE APOS BAIXA DA VENDA]");
+ctrl_produtos.listar();
+
+println("\n==================================================================");
+println("   SISTEMA COMERCIAL MVC VOX EXECUTADO COM SUCESSO ABSOLUTO!     ");
+println("==================================================================");

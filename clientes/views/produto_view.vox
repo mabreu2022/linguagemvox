@@ -1,0 +1,60 @@
+// ==============================================================================
+// clientes/views/produto_view.vox — Camada VIEW: Produtos e Estoque
+// ==============================================================================
+
+class ProdutoView {
+    new() {}
+
+    pub fn exibir_sucesso(mensagem: str) -> void {
+        println("  [SUCESSO] " + mensagem);
+    }
+
+    pub fn exibir_alerta(mensagem: str) -> void {
+        println("  [ALERTA]  " + mensagem);
+    }
+
+    pub fn exibir_tabela_produtos(produtos: Array) -> void {
+        println("");
+        println("------------------- CATALOGO GERAL DE PRODUTOS -------------------");
+        println("CODIGO   | NOME DO PRODUTO        | CATEGORIA   | PRECO UN | ESTOQUE");
+        println("---------+------------------------+-------------+----------+--------");
+
+        if len(produtos) == 0 {
+            println("            Nenhum produto cadastrado no catálogo.              ");
+            println("------------------------------------------------------------------");
+            return;
+        }
+
+        let mut i = 0;
+        while i < len(produtos) {
+            let p = produtos[i];
+            let cod = str(p["codigo"]);
+            let nome = str(p["nome"]);
+            let cat = str(p["categoria"]);
+            let preco = str(p["preco"]);
+            let est = str(p["estoque"]);
+
+            println(cod + " | " + nome + " | " + cat + " | R$ " + preco + " | " + est + " un");
+            i = i + 1;
+        }
+        println("------------------------------------------------------------------");
+        println("Total de itens em linha: " + str(len(produtos)));
+    }
+
+    pub fn exibir_alertas_estoque(produtos_criticos: Array) -> void {
+        println("");
+        println("!!! AVISO DE ESTOQUE MINIMO / REPOSICAO NECESSARIA !!!");
+        if len(produtos_criticos) == 0 {
+            println("  Todos os itens estao com saldo confortavel acima do limite minimo.");
+            return;
+        }
+
+        let mut i = 0;
+        while i < len(produtos_criticos) {
+            let p = produtos_criticos[i];
+            println("  [CRITICO] " + str(p["codigo"]) + " - " + str(p["nome"]) + ": Restam apenas " + str(p["estoque"]) + " un (Minimo: " + str(p["estoque_min"]) + " un)");
+            i = i + 1;
+        }
+        println("------------------------------------------------------");
+    }
+}

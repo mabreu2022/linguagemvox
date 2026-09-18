@@ -1,0 +1,94 @@
+// ==============================================================================
+// clientes/models/produto_model.vox — Camada MODEL: Produtos
+// ==============================================================================
+
+class Produto {
+    pub id: int;
+    pub codigo: str;
+    pub nome: str;
+    pub categoria: str;
+    pub preco: float;
+    pub estoque: int;
+    pub estoque_min: int;
+
+    new(id: int, codigo: str, nome: str, categoria: str, preco: float, estoque: int, estoque_min: int) {
+        self.id = id;
+        self.codigo = codigo;
+        self.nome = nome;
+        self.categoria = categoria;
+        self.preco = preco;
+        self.estoque = estoque;
+        self.estoque_min = estoque_min;
+    }
+
+    pub fn to_string() -> str {
+        return "[" + self.codigo + "] " + self.nome + " (" + self.categoria + ") - R$ " + str(self.preco) + " | Saldo: " + str(self.estoque) + " un";
+    }
+}
+
+class ProdutoRepository {
+    pub caminho_banco: str;
+    pub db: int;
+
+    new(caminho_banco: str) {
+        self.caminho_banco = caminho_banco;
+        self.db = 0;
+    }
+
+    pub fn conectar() -> void {
+        self.db = sqlite_open(self.caminho_banco);
+    }
+
+    pub fn inicializar_tabela() -> void {
+        let ddl = "CREATE TABLE IF NOT EXISTS produtos (" +
+                  "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                  "  codigo TEXT NOT NULL UNIQUE," +
+                  "  nome TEXT NOT NULL," +
+                  "  categoria TEXT," +
+                  "  preco REAL NOT NULL," +
+                  "  estoque INTEGER DEFAULT 0," +
+                  "  estoque_min INTEGER DEFAULT 5" +
+                  ");";
+        sqlite_exec(self.db, ddl);
+    }
+
+    pub fn resetar_tabela() -> void {
+        sqlite_exec(self.db, "DROP TABLE IF EXISTS produtos;");
+        self.inicializar_tabela();
+    }
+
+    pub fn inserir(codigo: str, nome: str, categoria: str, preco: float, estoque: int, estoque_min: int) -> bool {
+        let sql = "INSERT INTO produtos (codigo, nome, categoria, preco, estoque, estoque_min) VALUES ('" +
+                  codigo + "', '" + nome + "', '" + categoria + "', " + str(preco) + ", " + str(estoque) + ", " + str(estoque_min) + ");";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn listar_todos() -> Array {
+        return sqlite_query(self.db, "SELECT id, codigo, nome, categoria, preco, estoque, estoque_min FROM produtos ORDER BY id ASC;");
+    }
+
+    pub fn buscar_por_codigo(codigo: str) -> Array {
+        let sql = "SELECT id, codigo, nome, categoria, preco, estoque, estoque_min FROM produtos WHERE codigo = '" + codigo + "';";
+        return sqlite_query(self.db, sql);
+    }
+
+    pub fn buscar_por_id(id: int) -> Array {
+        let sql = "SELECT id, codigo, nome, categoria, preco, estoque, estoque_min FROM produtos WHERE id = " + str(id) + ";";
+        return sqlite_query(self.db, sql);
+    }
+
+    pub fn atualizar_preco(id: int, novo_preco: float) -> bool {
+        let sql = "UPDATE produtos SET preco = " + str(novo_preco) + " WHERE id = " + str(id) + ";";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn atualizar_estoque(id: int, novo_estoque: int) -> bool {
+        let sql = "UPDATE produtos SET estoque = " + str(novo_estoque) + " WHERE id = " + str(id) + ";";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn baixar_estoque(id: int, quantidade_baixa: int) -> bool {
+        let sql = "UPDATE produtos SET estoque = estoque - " + str(quantidade_baixa) + " WHERE id = " + str(id) + ";";
+        return sqlite_exec(self.db, sql);
+    }
+}

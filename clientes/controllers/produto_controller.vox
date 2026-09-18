@@ -1,0 +1,43 @@
+// ==============================================================================
+// clientes/controllers/produto_controller.vox — Camada CONTROLLER: Produtos
+// ==============================================================================
+
+class ProdutoController {
+    pub repo: ProdutoRepository;
+    pub view: ProdutoView;
+
+    new(caminho_banco: str) {
+        self.repo = new ProdutoRepository(caminho_banco);
+        self.view = new ProdutoView();
+    }
+
+    pub fn iniciar() -> void {
+        self.repo.conectar();
+        self.repo.resetar_tabela();
+        self.view.exibir_sucesso("Modulo de Produtos inicializado com sucesso.");
+    }
+
+    pub fn cadastrar(codigo: str, nome: str, categoria: str, preco: float, estoque_inicial: int, estoque_min: int) -> bool {
+        if len(codigo) == 0 {
+            self.view.exibir_alerta("Codigo do produto nao pode ser vazio.");
+            return false;
+        }
+        if preco <= 0.0 {
+            self.view.exibir_alerta("Preco unitario deve ser superior a zero.");
+            return false;
+        }
+
+        let sucesso = self.repo.inserir(codigo, nome, categoria, preco, estoque_inicial, estoque_min);
+        if sucesso {
+            self.view.exibir_sucesso("Produto cadastrado: " + codigo + " - " + nome + " (R$ " + str(preco) + ")");
+        } else {
+            self.view.exibir_alerta("Falha ao salvar produto no banco.");
+        }
+        return sucesso;
+    }
+
+    pub fn listar() -> void {
+        let lista = self.repo.listar_todos();
+        self.view.exibir_tabela_produtos(lista);
+    }
+}

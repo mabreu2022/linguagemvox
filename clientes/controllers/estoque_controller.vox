@@ -1,0 +1,46 @@
+// ==============================================================================
+// clientes/controllers/estoque_controller.vox — Camada CONTROLLER: Estoque
+// ==============================================================================
+
+class EstoqueController {
+    pub repo_estoque: EstoqueRepository;
+    pub repo_produto: ProdutoRepository;
+    pub view: ProdutoView;
+
+    new(caminho_banco: str) {
+        self.repo_estoque = new EstoqueRepository(caminho_banco);
+        self.repo_produto = new ProdutoRepository(caminho_banco);
+        self.view = new ProdutoView();
+    }
+
+    pub fn iniciar() -> void {
+        self.repo_estoque.conectar();
+        self.repo_produto.conectar();
+        self.repo_estoque.resetar_tabela();
+        self.view.exibir_sucesso("Modulo de Controle de Estoque inicializado.");
+    }
+
+    pub fn dar_entrada(codigo_produto: str, quantidade: int, motivo: str, data_hora: str) -> bool {
+        let busca = self.repo_produto.buscar_por_codigo(codigo_produto);
+        if len(busca) == 0 {
+            self.view.exibir_alerta("Produto nao localizado para entrada: " + codigo_produto);
+            return false;
+        }
+
+        let row = busca[0];
+        let id = int(row["id"]);
+        let saldo_ant = int(row["estoque"]);
+        let saldo_novo = saldo_ant + quantidade;
+
+        self.repo_produto.atualizar_estoque(id, saldo_novo);
+        self.repo_estoque.registrar_movimento(id, "ENTRADA", quantidade, saldo_ant, saldo_novo, motivo, data_hora);
+
+        self.view.exibir_sucesso("Entrada de estoque: +" + str(quantidade) + " un no produto " + codigo_produto + " | Novo Saldo: " + str(saldo_novo) + " un");
+        return true;
+    }
+
+    pub fn verificar_alertas() -> void {
+        let criticos = self.repo_estoque.listar_alertas_estoque_baixo();
+        self.view.exibir_alertas_estoque(criticos);
+    }
+}
