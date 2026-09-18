@@ -1,22 +1,53 @@
 {
-  "name": "vox-vscode",
+  "name": "vox-lang",
   "displayName": "Vox Language Support",
-  "description": "Rich language support and syntax highlighting for the Vox programming language",
-  "version": "0.7.0",
-  "publisher": "vox-lang",
+  "description": "Suporte oficial à linguagem de programação Vox v1.0 para o Visual Studio Code (syntax highlighting, snippets, configuração de linguagem e integração de ferramentas).",
+  "version": "1.0.0",
+  "publisher": "mabreu2022",
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Programming Languages",
     "Snippets"
   ],
+  "keywords": [
+    "vox",
+    "programming language",
+    "ownership",
+    "traits",
+    "systems programming",
+    "concurrency",
+    "c99"
+  ],
+  "icon": "icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mabreu2022/linguagemvox.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mabreu2022/linguagemvox/issues"
+  },
+  "homepage": "https://github.com/mabreu2022/linguagemvox#readme",
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "echo Extension ready",
+    "package": "npx @vscode/vsce package",
+    "publish": "npx @vscode/vsce publish",
+    "test": "echo No tests required for declarative grammar"
+  },
   "contributes": {
     "languages": [
       {
         "id": "vox",
-        "aliases": ["Vox", "vox", "Kael", "kael"],
-        "extensions": [".vox", ".kael"],
+        "aliases": [
+          "Vox",
+          "vox"
+        ],
+        "extensions": [
+          ".vox"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -26,6 +57,15 @@
         "scopeName": "source.vox",
         "path": "./syntaxes/vox.tmLanguage.json"
       }
+    ],
+    "snippets": [
+      {
+        "language": "vox",
+        "path": "./snippets/vox.json"
+      }
     ]
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.1"
   }
 }

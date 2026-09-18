@@ -1,0 +1,80 @@
+{
+  "Function declaration": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2:params}): ${3:void} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Define a function in Vox"
+  },
+  "Struct declaration": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:Name} {",
+      "\t${2:field}: ${3:type},",
+      "}"
+    ],
+    "description": "Define a struct in Vox"
+  },
+  "Trait declaration": {
+    "prefix": "trait",
+    "body": [
+      "trait ${1:Name} {",
+      "\tfn ${2:method}(self): ${3:void};",
+      "}"
+    ],
+    "description": "Define a trait interface in Vox"
+  },
+  "Impl block": {
+    "prefix": "impl",
+    "body": [
+      "impl ${1:Trait} for ${2:Struct} {",
+      "\tfn ${3:method}(self): ${4:void} {",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Implement a trait for a struct"
+  },
+  "Match expression": {
+    "prefix": "match",
+    "body": [
+      "match ${1:target} {",
+      "\t${2:pattern} => ${3:result},",
+      "\t_ => ${4:default},",
+      "}"
+    ],
+    "description": "Pattern matching block"
+  },
+  "Spawn goroutine": {
+    "prefix": "spawn",
+    "body": [
+      "spawn {",
+      "\t$0",
+      "};"
+    ],
+    "description": "Spawn a lightweight concurrent coroutine"
+  },
+  "Channel declaration": {
+    "prefix": "chan",
+    "body": [
+      "let ${1:ch} = chan_new(${2:10});"
+    ],
+    "description": "Create a new CSP channel"
+  },
+  "Let mutable": {
+    "prefix": "letm",
+    "body": [
+      "let mut ${1:name} = ${2:value};"
+    ],
+    "description": "Declare a mutable variable"
+  },
+  "Println": {
+    "prefix": "pl",
+    "body": [
+      "println(\"${1:text}\");"
+    ],
+    "description": "Print line to console"
+  }
+}
