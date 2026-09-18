@@ -56,14 +56,14 @@ fn main(): void {
 1. Open Visual Studio Code.
 2. Press `Ctrl+P` (or `Cmd+P` on macOS) and type:
    ```text
-   ext install MauricioAbreu.vox-programming-language
+   ext install MauricioAbreu.voxlang-tools
    ```
 3. Open any `.vox` file and start coding with full syntax highlighting!
 
 ### Manual Installation (.vsix)
 If you built or downloaded the `.vsix` package manually:
 ```bash
-code --install-extension vox-programming-language-1.0.0.vsix
+code --install-extension voxlang-tools-1.0.0.vsix
 ```
 
 ---
