@@ -13,11 +13,29 @@
 
 ---
 
-### 📚 Manuais e Documentação em HTML
+### 📚 O Livro Oficial e Manuais em HTML
 
-- 📖 **[Manual Completo da Linguagem (HTML)](docs/index.html)**: Guia completo de sintaxe, OOP, traits, generics, ownership, concorrência e compilação nativa.
+- 📘 **[O Livro Oficial da Linguagem Vox (The Vox Book)](docs/livro_vox.html)**: Livro completo do básico ao avançado em 21 capítulos com design editorial e suporte nativo a **exportação em PDF** (`npm run livro`).
+- 📖 **[Documentação de Referência da Linguagem (HTML)](docs/index.html)**: Guia completo de sintaxe, OOP, traits, generics, ownership, concorrência e compilação nativa.
 - ⚡ **[Manual Interativo de Comandos (HTML)](clientes/manual.html)**: Guia prático com botões de cópia para rodar o CRUD no terminal e na web.
 - 🔌 **[Extensão Oficial para VS Code](https://marketplace.visualstudio.com/items?itemName=MauricioAbreu.voxlang-tools)**: Disponível no Visual Studio Marketplace (`mauricioabreu.voxlang-tools`).
+
+---
+
+## 📘 O Livro Oficial: A Linguagem de Programação Vox (Do Básico ao Avançado)
+
+Construído nos mesmos moldes dos livros canônicos de outras linguagens consagradas (*The Rust Programming Language*, *Eloquent JavaScript*, *The Go Programming Language*), o **Livro Oficial da Linguagem Vox** oferece um percurso didático e aprofundado do nível iniciante ao nível sênior de engenharia de sistemas.
+
+### O Que o Livro Cobre (21 Capítulos):
+1. **Parte I — Fundamentos e Ambiente**: Filosofia, instalação, variáveis, imutabilidade por padrão (`let` vs `let mut`), sistema de tipos primitivos (`int`, `float`, `str`, `bool`, `char`, `void`, `any`), operadores (`??`, `?.`, `|>`), e controle de fluxo estruturado.
+2. **Parte II — Procedimentos, Dados e Estruturação**: Funções, procedures com efeitos colaterais, lambdas, arrays, maps, tuplas, orientação a objetos moderna com `class` e construtor `new`, structs, traits, blocos `impl` e tipos genéricos (*Generics*).
+3. **Parte III — Gestão de Memória e Concorrência**: Semântica de *Affine Ownership*, tempos de vida e o *Borrow Checker*, concorrência CSP com canais leves (`spawn`, `chan_new`), pattern matching com `match`, tratamento funcional de erros com `Option<T>` e `Result<T, E>` e programação assíncrona (`async`/`await`).
+4. **Parte IV — Engenharia e Sistemas**: Decoradores (`@timed`, `@logged`), macros embutidas (`println!`, `dbg!`, `assert!`, `panic!`), banco relacional SQLite nativo, arquitetura corporativa **MVC**, compilação direta para C99 nativo e ferramentas de produtividade.
+5. **Apêndices**: Tabela de precedência de operadores, catálogo completo de erros do compilador (E0101 a E0500) e guia de migração (de Rust, Go, Python, C e TypeScript).
+
+### Como Ler e Exportar para PDF:
+- **No Navegador**: Execute `npm run livro` ou abra [docs/livro_vox.html](docs/livro_vox.html). O livro possui sumário dinâmico, busca rápida, modo escuro/claro e botões de cópia de código.
+- **Exportação em PDF**: Graças à folha de estilos editorial `@media print`, basta clicar no botão **"📄 Imprimir / Salvar PDF"** no topo da página ou pressionar `Ctrl + P` no navegador e selecionar "Salvar como PDF". O documento sairá diagramado no padrão A4 com margens de livro e quebras de capítulo limpas.
 
 ---
 

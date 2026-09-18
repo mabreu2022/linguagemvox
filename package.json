@@ -14,7 +14,9 @@
     "vox": "npx ts-node src/cli/index.ts",
     "kael": "npx ts-node src/cli/index.ts",
     "crud:web": "node tools/web/server.js",
-    "crud:mvc": "node dist/cli/index.js run clientes/app.vox"
+    "crud:mvc": "node dist/cli/index.js run clientes/app.vox",
+    "livro": "powershell -Command Start-Process docs/livro_vox.html",
+    "livro:build": "node tools/build_book.js"
   },
   "keywords": ["compiler", "programming-language", "oop"],
   "license": "MIT",

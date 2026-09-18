@@ -1,0 +1,2274 @@
+// tools/build_book.js
+// Script de geração do Livro Oficial da Linguagem Vox em HTML e PDF (The Vox Book)
+const fs = require('fs');
+const path = require('path');
+
+const bookHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A Linguagem de Programação Vox — Do Básico ao Avançado (Livro Oficial)</title>
+  <meta name="description" content="O Livro Oficial da Linguagem Vox v1.0. Do básico ao avançado: sintaxe, variáveis, tipos, funções, orientação a objetos, structs, traits, generics, ownership, concorrência CSP, SQLite e compilação nativa C99." />
+  <meta name="author" content="Maurício Abreu" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ==========================================================================
+       RESET & ROOT VARIABLES
+       ========================================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-serif: 'Lora', Georgia, serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+      --font-display: 'Cinzel', serif;
+
+      /* Dark Theme (Default) */
+      --bg: #0d1117;
+      --bg-surface: #161b22;
+      --bg-surface2: #21262d;
+      --bg-code: #0b0e14;
+      --border: rgba(240, 246, 252, 0.1);
+      --border-accent: rgba(124, 111, 247, 0.3);
+      --text: #c9d1d9;
+      --text-heading: #f0f6fc;
+      --text-muted: #8b949e;
+      --text-faint: #484f58;
+
+      --accent: #7c6ff7;
+      --accent-hover: #9084f9;
+      --accent-bg: rgba(124, 111, 247, 0.12);
+      
+      --teal: #2dd4bf;
+      --green: #34d399;
+      --pink: #f472b6;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --blue: #60a5fa;
+
+      --sidebar-w: 320px;
+      --topbar-h: 60px;
+      --radius: 8px;
+      --radius-lg: 14px;
+      --shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface2: #f1f5f9;
+      --bg-code: #0f172a;
+      --border: rgba(15, 23, 42, 0.1);
+      --border-accent: rgba(124, 111, 247, 0.3);
+      --text: #334155;
+      --text-heading: #0f172a;
+      --text-muted: #64748b;
+      --text-faint: #94a3b8;
+
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-bg: rgba(99, 102, 241, 0.08);
+      --shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+      overflow-x: hidden;
+      transition: background-color .3s ease, color .3s ease;
+    }
+
+    ::selection {
+      background: rgba(124, 111, 247, 0.35);
+      color: #ffffff;
+    }
+
+    /* ==========================================================================
+       TOPBAR NAVIGATION
+       ========================================================================== */
+    #topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--topbar-h);
+      background: rgba(13, 17, 23, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      z-index: 100;
+    }
+
+    [data-theme="light"] #topbar {
+      background: rgba(255, 255, 255, 0.88);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .menu-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 1.25rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+    }
+
+    .book-title-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-heading);
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+
+    .vox-symbol {
+      background: linear-gradient(135deg, var(--accent), var(--pink));
+      color: #fff;
+      font-family: var(--font-mono);
+      font-weight: 900;
+      font-size: 0.85rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      box-shadow: 0 0 12px rgba(124, 111, 247, 0.4);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: var(--bg-surface2);
+      border: 1px solid var(--border);
+      color: var(--text-heading);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      background: var(--border-accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .action-btn.print-btn {
+      background: linear-gradient(135deg, var(--accent), #9b6cf0);
+      color: #fff;
+      border: none;
+      box-shadow: 0 2px 10px rgba(124, 111, 247, 0.3);
+    }
+
+    .action-btn.print-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(124, 111, 247, 0.5);
+    }
+
+    /* Reading Progress Bar */
+    #progress-bar {
+      position: fixed;
+      top: var(--topbar-h);
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--teal));
+      width: 0%;
+      z-index: 99;
+      transition: width 0.1s ease;
+    }
+
+    /* ==========================================================================
+       SIDEBAR / TABLE OF CONTENTS
+       ========================================================================== */
+    #layout {
+      display: flex;
+      min-height: 100vh;
+      padding-top: var(--topbar-h);
+    }
+
+    #sidebar {
+      position: fixed;
+      top: var(--topbar-h);
+      bottom: 0;
+      left: 0;
+      width: var(--sidebar-w);
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 1.25rem 0.75rem 3rem;
+      z-index: 90;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-search {
+      position: sticky;
+      top: 0;
+      background: var(--bg-surface);
+      padding: 0 0.5rem 1rem;
+      z-index: 2;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-surface2);
+      border: 1px solid var(--border);
+      color: var(--text-heading);
+      padding: 0.55rem 0.85rem;
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      font-family: var(--font-body);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+
+    .toc-part-title {
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 1rem 0.6rem 0.4rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.8rem;
+    }
+
+    .toc-part-title:first-of-type {
+      border-top: none;
+      margin-top: 0;
+    }
+
+    .toc-item {
+      display: block;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.86rem;
+      padding: 0.4rem 0.65rem;
+      border-radius: 6px;
+      margin-bottom: 2px;
+      line-height: 1.4;
+      transition: all 0.15s;
+    }
+
+    .toc-item:hover {
+      background: var(--bg-surface2);
+      color: var(--text-heading);
+    }
+
+    .toc-item.active {
+      background: var(--accent-bg);
+      color: var(--accent);
+      font-weight: 600;
+      border-left: 3px solid var(--accent);
+    }
+
+    .toc-chapter-num {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-right: 0.35rem;
+    }
+
+    /* ==========================================================================
+       MAIN READING AREA
+       ========================================================================== */
+    #content-container {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      justify-content: center;
+      padding: 3rem 2rem 6rem;
+    }
+
+    #book-article {
+      width: 100%;
+      max-width: 880px;
+    }
+
+    /* ==========================================================================
+       COVER & FRONT MATTER
+       ========================================================================== */
+    .book-cover {
+      text-align: center;
+      padding: 4rem 2rem 5rem;
+      background: radial-gradient(circle at 50% 30%, rgba(124, 111, 247, 0.12) 0%, transparent 70%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      margin-bottom: 5rem;
+      position: relative;
+    }
+
+    .cover-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .cover-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-weight: 900;
+      line-height: 1.15;
+      color: var(--text-heading);
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .cover-subtitle {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-style: italic;
+      color: var(--text-muted);
+      max-width: 650px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.5;
+    }
+
+    .cover-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.25rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      border-radius: var(--radius);
+      max-width: 720px;
+      margin: 0 auto 2rem;
+      text-align: left;
+    }
+
+    .meta-item-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .meta-item-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-heading);
+      margin-top: 0.2rem;
+    }
+
+    /* ==========================================================================
+       TYPOGRAPHY & CHAPTER SECTIONS
+       ========================================================================== */
+    .part-banner {
+      margin-top: 5rem;
+      margin-bottom: 3rem;
+      padding: 1.5rem 2rem;
+      background: linear-gradient(135deg, rgba(124, 111, 247, 0.15), rgba(45, 212, 191, 0.08));
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius);
+    }
+
+    .part-banner-num {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    .part-banner-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      color: var(--text-heading);
+      margin-top: 0.25rem;
+    }
+
+    .chapter {
+      margin-bottom: 5.5rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .chapter:first-of-type {
+      border-top: none;
+    }
+
+    .chapter-header {
+      margin-bottom: 2rem;
+    }
+
+    .chapter-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--teal);
+      background: rgba(45, 212, 191, 0.1);
+      border: 1px solid rgba(45, 212, 191, 0.25);
+      padding: 0.2rem 0.65rem;
+      border-radius: 99px;
+      margin-bottom: 0.75rem;
+    }
+
+    h2.chapter-title {
+      font-family: var(--font-body);
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1.25;
+      color: var(--text-heading);
+      letter-spacing: -0.03em;
+    }
+
+    h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin: 2.25rem 0 1rem;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h4 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-heading);
+      margin: 1.5rem 0 0.75rem;
+    }
+
+    p {
+      margin-bottom: 1.25rem;
+      font-size: 1.02rem;
+      color: var(--text);
+    }
+
+    strong {
+      color: var(--text-heading);
+      font-weight: 600;
+    }
+
+    ul, ol {
+      margin: 1rem 0 1.5rem 1.8rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    /* ==========================================================================
+       CALLOUT BOXES
+       ========================================================================== */
+    .callout {
+      margin: 1.75rem 0;
+      padding: 1.25rem 1.5rem;
+      border-radius: var(--radius);
+      border-left: 4px solid;
+      background: var(--bg-surface);
+    }
+
+    .callout-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .callout-tip {
+      border-left-color: var(--green);
+      background: rgba(52, 211, 153, 0.06);
+    }
+    .callout-tip .callout-title { color: var(--green); }
+
+    .callout-note {
+      border-left-color: var(--blue);
+      background: rgba(96, 165, 250, 0.06);
+    }
+    .callout-note .callout-title { color: var(--blue); }
+
+    .callout-warning {
+      border-left-color: var(--amber);
+      background: rgba(251, 191, 36, 0.06);
+    }
+    .callout-warning .callout-title { color: var(--amber); }
+
+    .callout-compiler {
+      border-left-color: var(--red);
+      background: rgba(248, 113, 113, 0.06);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+    }
+    .callout-compiler .callout-title { color: var(--red); font-family: var(--font-body); }
+
+    .callout-arch {
+      border-left-color: var(--accent);
+      background: rgba(124, 111, 247, 0.08);
+    }
+    .callout-arch .callout-title { color: var(--accent); }
+
+    /* ==========================================================================
+       CODE BLOCKS & INLINE CODE
+       ========================================================================== */
+    code:not(pre code) {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: var(--bg-surface2);
+      color: var(--pink);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .code-box {
+      margin: 1.75rem 0;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .code-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: var(--font-body);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: var(--bg-surface2);
+      color: var(--text-heading);
+    }
+
+    pre {
+      padding: 1.25rem 1.25rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #e6edf3;
+      tab-size: 4;
+    }
+
+    /* Code Syntax Highlighting Classes */
+    .k-kw { color: #ff7b72; font-weight: 600; } /* Keywords: fn, let, mut, class, struct, trait, impl */
+    .k-type { color: #79c0ff; font-weight: 600; } /* Types: int, float, str, bool, void */
+    .k-str { color: #a5d6ff; } /* Strings */
+    .k-fn { color: #d2a8ff; font-weight: 600; } /* Function names */
+    .k-num { color: #79c0ff; } /* Numbers */
+    .k-com { color: #8b949e; font-style: italic; } /* Comments */
+    .k-macro { color: #ffa657; font-weight: 600; } /* Macros: println!, format!, dbg! */
+    .k-mod { color: #f2cc60; } /* Modifiers: pub, priv, stat */
+
+    /* ==========================================================================
+       TABLES
+       ========================================================================== */
+    .table-wrapper {
+      margin: 1.75rem 0;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-surface2);
+      color: var(--text-heading);
+      padding: 0.75rem 1rem;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(255,255,255,0.015);
+    }
+
+    /* ==========================================================================
+       FOOTER
+       ========================================================================== */
+    #book-footer {
+      margin-top: 6rem;
+      padding: 3rem 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* ==========================================================================
+       PRINT STYLES (@media print) FOR CLEAN A4 PDF EXPORT
+       ========================================================================== */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 20mm 15mm 20mm 15mm;
+        @bottom-right {
+          content: counter(page);
+          font-family: 'Inter', sans-serif;
+          font-size: 9pt;
+          color: #666;
+        }
+        @top-center {
+          content: "A Linguagem de Programação Vox — Livro Oficial";
+          font-family: 'Inter', sans-serif;
+          font-size: 8pt;
+          color: #888;
+        }
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-size: 10.5pt;
+        line-height: 1.6;
+      }
+
+      #topbar, #progress-bar, #sidebar, .copy-btn, .menu-btn, .action-btn {
+        display: none !important;
+      }
+
+      #layout {
+        display: block !important;
+        padding-top: 0 !important;
+      }
+
+      #content-container {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+
+      #book-article {
+        max-width: 100% !important;
+      }
+
+      .book-cover {
+        background: #ffffff !important;
+        border: 2px solid #111827 !important;
+        page-break-after: always;
+        break-after: page;
+        padding: 80mm 10mm 40mm !important;
+        margin-bottom: 0 !important;
+      }
+
+      .cover-title {
+        color: #000000 !important;
+        font-size: 32pt !important;
+      }
+
+      .part-banner {
+        page-break-before: always;
+        break-before: page;
+        background: #f3f4f6 !important;
+        border-left: 5px solid #4f46e5 !important;
+        color: #000000 !important;
+      }
+
+      .part-banner-title {
+        color: #000000 !important;
+      }
+
+      .chapter {
+        page-break-before: always;
+        break-before: page;
+        border-top: none !important;
+        padding-top: 0 !important;
+      }
+
+      .chapter-header {
+        margin-bottom: 15mm !important;
+      }
+
+      h2.chapter-title {
+        color: #000000 !important;
+        font-size: 20pt !important;
+      }
+
+      h3 {
+        color: #111827 !important;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .code-box {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .code-header {
+        background: #edf2f7 !important;
+        color: #475569 !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+      }
+
+      pre {
+        color: #0f172a !important;
+      }
+
+      .callout {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-left-width: 4px !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      table {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      th {
+        background: #e2e8f0 !important;
+        color: #000 !important;
+      }
+
+      td {
+        border-color: #cbd5e1 !important;
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .menu-btn { display: block; }
+      #sidebar {
+        transform: translateX(-100%);
+      }
+      #sidebar.open {
+        transform: translateX(0);
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+      }
+      #content-container {
+        margin-left: 0;
+        padding: 2rem 1.25rem 4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Reading Progress Bar -->
+  <div id="progress-bar"></div>
+
+  <!-- Topbar -->
+  <header id="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" id="menuToggle" title="Alternar Sumário">☰</button>
+      <a href="#capa" class="book-title-badge">
+        <span class="vox-symbol">VOX</span>
+        <span>The Vox Book</span>
+      </a>
+    </div>
+    <div class="topbar-actions">
+      <button class="action-btn" id="themeToggle" title="Mudar tema claro/escuro">🌓 Tema</button>
+      <button class="action-btn print-btn" onclick="window.print()" title="Imprimir livro ou salvar como PDF formatado">📄 Imprimir / Salvar PDF</button>
+    </div>
+  </header>
+
+  <div id="layout">
+    <!-- Sidebar Navigation / Table of Contents -->
+    <nav id="sidebar">
+      <div class="sidebar-search">
+        <input type="text" id="tocSearch" class="search-input" placeholder="🔍 Filtrar capítulos..." />
+      </div>
+
+      <div class="toc-group">
+        <a href="#capa" class="toc-item"><strong>Capa & Apresentação</strong></a>
+        <a href="#prefacio" class="toc-item"><strong>Prefácio: A Visão do Vox</strong></a>
+
+        <div class="toc-part-title">Parte I: Fundamentos e Ambiente</div>
+        <a href="#cap1" class="toc-item"><span class="toc-chapter-num">01.</span> O Que é Vox? Filosofia</a>
+        <a href="#cap2" class="toc-item"><span class="toc-chapter-num">02.</span> Instalação e Olá Mundo</a>
+        <a href="#cap3" class="toc-item"><span class="toc-chapter-num">03.</span> Variáveis e Mutabilidade</a>
+        <a href="#cap4" class="toc-item"><span class="toc-chapter-num">04.</span> Sistema de Tipos Primitivos</a>
+        <a href="#cap5" class="toc-item"><span class="toc-chapter-num">05.</span> Operadores e Expressões</a>
+        <a href="#cap6" class="toc-item"><span class="toc-chapter-num">06.</span> Controle de Fluxo</a>
+
+        <div class="toc-part-title">Parte II: Dados e Estruturação</div>
+        <a href="#cap7" class="toc-item"><span class="toc-chapter-num">07.</span> Funções, Procedures e Lambdas</a>
+        <a href="#cap8" class="toc-item"><span class="toc-chapter-num">08.</span> Coleções: Array, Map e Tuplas</a>
+        <a href="#cap9" class="toc-item"><span class="toc-chapter-num">09.</span> Orientação a Objetos Moderna</a>
+        <a href="#cap10" class="toc-item"><span class="toc-chapter-num">10.</span> Structs, Traits e Blocos Impl</a>
+        <a href="#cap11" class="toc-item"><span class="toc-chapter-num">11.</span> Tipos Genéricos (Generics)</a>
+
+        <div class="toc-part-title">Parte III: Memória e Concorrência</div>
+        <a href="#cap12" class="toc-item"><span class="toc-chapter-num">12.</span> Ownership e Borrow Checker</a>
+        <a href="#cap13" class="toc-item"><span class="toc-chapter-num">13.</span> Concorrência CSP e Canais</a>
+        <a href="#cap14" class="toc-item"><span class="toc-chapter-num">14.</span> Pattern Matching Avançado</a>
+        <a href="#cap15" class="toc-item"><span class="toc-chapter-num">15.</span> Option e Result (Tratamento)</a>
+        <a href="#cap16" class="toc-item"><span class="toc-chapter-num">16.</span> Programação Assíncrona</a>
+
+        <div class="toc-part-title">Parte IV: Engenharia e Sistemas</div>
+        <a href="#cap17" class="toc-item"><span class="toc-chapter-num">17.</span> Decoradores e Macros Builtin</a>
+        <a href="#cap18" class="toc-item"><span class="toc-chapter-num">18.</span> Banco de Dados: SQLite Nativo</a>
+        <a href="#cap19" class="toc-item"><span class="toc-chapter-num">19.</span> Arquitetura Corporativa MVC</a>
+        <a href="#cap20" class="toc-item"><span class="toc-chapter-num">20.</span> Compilação Nativa via C99</a>
+        <a href="#cap21" class="toc-item"><span class="toc-chapter-num">21.</span> Ferramental e Produtividade</a>
+
+        <div class="toc-part-title">Apêndices</div>
+        <a href="#apendice-a" class="toc-item"><span class="toc-chapter-num">A.</span> Tabela de Precedência</a>
+        <a href="#apendice-b" class="toc-item"><span class="toc-chapter-num">B.</span> Catálogo de Erros E0101+</a>
+        <a href="#apendice-c" class="toc-item"><span class="toc-chapter-num">C.</span> Guia de Migração</a>
+      </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main id="content-container">
+      <article id="book-article">
+
+        <!-- ===================================================================
+             COVER & FRONT MATTER
+             =================================================================== -->
+        <section id="capa" class="book-cover">
+          <div class="cover-eyebrow">Edição Oficial de Referência — Vox 1.0</div>
+          <h1 class="cover-title">A Linguagem de Programação Vox</h1>
+          <p class="cover-subtitle">Do Básico ao Avançado: Tipagem Estática, Ownership Afim, Concorrência CSP, SQLite e Compilação C99</p>
+
+          <div class="cover-meta-grid">
+            <div class="meta-item">
+              <div class="meta-item-label">Autor</div>
+              <div class="meta-item-value">Maurício Abreu</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-item-label">Linguagem</div>
+              <div class="meta-item-value">Vox v1.0.0</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-item-label">Alvo de Compilação</div>
+              <div class="meta-item-value">C99 Nativo / Bytecode</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-item-label">Licença</div>
+              <div class="meta-item-value">MIT Open Source</div>
+            </div>
+          </div>
+
+          <p style="font-size:0.95rem; color:var(--text-muted); max-width:620px; margin:0 auto;">
+            Este livro é a referência definitiva para estudantes, arquitetos de software e desenvolvedores de sistemas que desejam dominar a linguagem Vox, combinando a alta velocidade de execução do C com a ergonomia, segurança de tipos e clareza das linguagens modernas.
+          </p>
+        </section>
+
+        <!-- ===================================================================
+             PREFÁCIO
+             =================================================================== -->
+        <section id="prefacio" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Introdução</span>
+            <h2 class="chapter-title">Prefácio: A Gênese e Filosofia do Vox</h2>
+          </div>
+
+          <p>
+            Durante décadas, a engenharia de software foi forçada a escolher entre dois mundos polarizados: de um lado, linguagens de sistemas clássicas como <strong>C e C++</strong>, que oferecem controle absoluto de memória e desempenho sem concessões, mas cobram um preço altíssimo em erros humanos fatais (como <em>buffer overflows</em>, <em>segmentation faults</em> e vazamentos de memória); do outro lado, linguagens de alto nível dotadas de <strong>coletores de lixo (Garbage Collectors)</strong> pesados, que compram segurança sacrificando a previsibilidade temporal, consumindo gigabytes de memória e introduzindo pausas aleatórias no runtime.
+          </p>
+
+          <p>
+            A linguagem <strong>Vox</strong> nasceu para dissolver esse falso dilema. Seu objetivo primordial é propiciar:
+          </p>
+
+          <ul>
+            <li><strong>Velocidade de C99 pura:</strong> Compilação direta para C padronizado ISO/IEC 9899:1999, gerando executáveis que iniciam em menos de 1 milissegundo e consomem poucos megabytes.</li>
+            <li><strong>Segurança de Memória Afim:</strong> Um modelo de posse (<em>Affine Ownership</em>) e checagem de empréstimo (<em>Borrow Checker</em>) que impede ponteiros pendentes e liberações duplas em tempo de compilação, sem depender de Garbage Collector de pausa total.</li>
+            <li><strong>Concorrência CSP Segura:</strong> Corotinas leves disparadas com <code>spawn</code> e canais tipados, permitindo que threads comuniquem dados sem criar condições de corrida (<em>data races</em>).</li>
+            <li><strong>Ergonomia e Simplicidade:</strong> Uma sintaxe elegante, inspirada no melhor de TypeScript, Rust e Go, eliminando herança clássica frágil em favor de Composição e Traits.</li>
+          </ul>
+
+          <div class="callout callout-arch">
+            <div class="callout-title">🏛️ Decisão de Arquitetura: Por que C99 como Alvo?</div>
+            <p>
+              Ao gerar código fonte em C99 intermediário, o compilador Vox se beneficia instantaneamente de mais de 50 anos de engenharia de compiladores e otimizadores industriais (GCC, Clang e MSVC), rodando em qualquer CPU existente no planeta, desde supercomputadores x86_64 e ARM64 até pequenos microcontroladores embarcados.
+            </p>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             PARTE I: FUNDAMENTOS E AMBIENTE
+             =================================================================== -->
+        <div class="part-banner">
+          <div class="part-banner-num">PARTE I</div>
+          <div class="part-banner-title">Fundamentos e Ambiente de Desenvolvimento</div>
+        </div>
+
+        <!-- CAPÍTULO 1 -->
+        <section id="cap1" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 01</span>
+            <h2 class="chapter-title">O Que é o Vox? Filosofia e Arquitetura</h2>
+          </div>
+
+          <p>
+            O Vox é uma linguagem compilada de tipagem estática e gradual, projetada para a construção de sistemas modernos de alta confiabilidade. Ela opera sob o paradigma de <strong>abstrações de custo zero</strong> (<em>zero-cost abstractions</em>): nenhuma funcionalidade de alto nível do Vox impõe penalidade de runtime se você não a utilizar.
+          </p>
+
+          <h3>O Pipeline do Compilador</h3>
+          <p>
+            Quando você executa o comando <code>vox build main.vox</code>, seu código passa por cinco estágios sequenciais rigorosos:
+          </p>
+
+          <ol>
+            <li><strong>Análise Léxica (Lexer):</strong> O código-fonte bruto em texto é convertido em um fluxo de tokens tipados.</li>
+            <li><strong>Análise Sintática (Parser):</strong> O fluxo de tokens é transformado em uma Árvore Sintática Abstrata (AST - <em>Abstract Syntax Tree</em>).</li>
+            <li><strong>Análise Semântica e Borrow Checker:</strong> O compilador valida tipos, resolve escopos de identificadores e checa a árvore de posse de memória afim.</li>
+            <li><strong>Geração de Código C99:</strong> A AST validada é transpilada para C99 idiomático de alta performance, incluindo o runtime leve <code>vox_runtime.h</code>.</li>
+            <li><strong>Montagem do Binário Nativo:</strong> O compilador de C local (GCC, Clang ou MSVC) gera o executável final de máquina (<code>.exe</code> no Windows, binário ELF no Linux).</li>
+          </ol>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">TERMINAL</span>
+            </div>
+            <pre>$ vox check app.vox    <span class="k-com"># Valida tipos e ownership em 15ms</span>
+$ vox build app.vox -O3 <span class="k-com"># Gera app.exe nativo hiperotimizado</span>
+$ ./app                 <span class="k-com"># Executa diretamente na CPU</span></pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 2 -->
+        <section id="cap2" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 02</span>
+            <h2 class="chapter-title">Instalação, Ambiente e o Primeiro Programa</h2>
+          </div>
+
+          <p>
+            Iniciar com o Vox é um processo imediato. A ferramenta unificada de linha de comando gerencia todas as etapas do ciclo de vida:
+          </p>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Comando</th>
+                  <th>Finalidade</th>
+                  <th>Exemplo de Uso</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>vox run &lt;arquivo&gt;</code></td>
+                  <td>Executa o arquivo imediatamente via interpretador</td>
+                  <td><code>vox run main.vox</code></td>
+                </tr>
+                <tr>
+                  <td><code>vox build &lt;arquivo&gt;</code></td>
+                  <td>Compila para executável binário nativo (.exe)</td>
+                  <td><code>vox build main.vox -o app</code></td>
+                </tr>
+                <tr>
+                  <td><code>vox check &lt;arquivo&gt;</code></td>
+                  <td>Realiza análise semântica e do borrow checker sem gerar binário</td>
+                  <td><code>vox check main.vox</code></td>
+                </tr>
+                <tr>
+                  <td><code>vox test</code></td>
+                  <td>Executa a suíte de testes unitários do projeto</td>
+                  <td><code>vox test</code></td>
+                </tr>
+                <tr>
+                  <td><code>vox repl</code></td>
+                  <td>Abre o console iterativo de experimentação rápida</td>
+                  <td><code>vox repl</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Seu Primeiro Programa: Olá, Mundo!</h3>
+          <p>
+            Crie um arquivo chamado <code>ola.vox</code> com o seguinte conteúdo:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — ola.vox</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-com">/// Ponto de entrada canônico de um programa Vox</span>
+<span class="k-kw">fn</span> <span class="k-fn">main</span>() {
+    <span class="k-macro">println!</span>(<span class="k-str">"Olá, Mundo! Bem-vindo à linguagem Vox v1.0."</span>);
+}</pre>
+          </div>
+
+          <p>
+            Execute o programa diretamente pelo terminal:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">TERMINAL</span>
+            </div>
+            <pre>$ vox run ola.vox
+Olá, Mundo! Bem-vindo à linguagem Vox v1.0.</pre>
+          </div>
+
+          <p>
+            <strong>Anatomia do código:</strong> A palavra-chave <code>fn</code> declara uma função. A função <code>main()</code> é o ponto de partida onde o sistema operacional transfere a execução. A macro <code>println!</code> (notada pelo ponto de exclamação no final) é uma macro embutida do compilador que formata o texto e envia a string diretamente para a saída padrão (stdout), acrescentando quebra de linha.
+          </p>
+        </section>
+
+        <!-- CAPÍTULO 3 -->
+        <section id="cap3" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 03</span>
+            <h2 class="chapter-title">Variáveis, Constantes e Imutabilidade por Padrão</h2>
+          </div>
+
+          <p>
+            Um dos maiores causadores de defeitos em softwares é o estado compartilhado mutável concorrente. Para erradicar essa classe inteira de falhas, o Vox adota <strong>imutabilidade por padrão</strong>.
+          </p>
+
+          <h3>Declaração com <code>let</code></h3>
+          <p>
+            Quando você vincula um valor a um nome utilizando a instrução <code>let</code>, essa ligação é imutável:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> limite: <span class="k-type">int</span> = <span class="k-num">100</span>;
+<span class="k-com">// limite = 200; // &lt;-- ERRO DE COMPILAÇÃO!</span></pre>
+          </div>
+
+          <p>
+            Caso você tente reatribuir uma variável declarada com <code>let</code>, o compilador emitirá o erro semântico <strong>[E0106]</strong> antes que qualquer código possa ser executado:
+          </p>
+
+          <div class="callout callout-compiler">
+            <div class="callout-title">❌ Erro Semântico E0106</div>
+            <code>[E0106]: Cannot reassign immutable variable 'limite'. Tip: Declare it as 'let mut limite' if mutation is intended.</code>
+          </div>
+
+          <h3>Mutabilidade Explícita com <code>let mut</code></h3>
+          <p>
+            Se a variável precisa ter seu valor alterado no decorrer do algoritmo, a palavra-chave <code>mut</code> deve ser expressa de forma clara:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> <span class="k-kw">mut</span> contador: <span class="k-type">int</span> = <span class="k-num">0</span>;
+contador = contador + <span class="k-num">1</span>;
+<span class="k-macro">println!</span>(<span class="k-str">"Contador atual: "</span> + (contador <span class="k-kw">as</span> <span class="k-type">str</span>));</pre>
+          </div>
+
+          <h3>Constantes com <code>const</code></h3>
+          <p>
+            Constantes são sempre imutáveis, devem ser explicitamente tipadas e calculáveis em tempo de compilação. Por convenção, seus identificadores utilizam letras maiúsculas:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">const</span> <span class="k-type">TAXA_PADRAO</span>: <span class="k-type">float</span> = <span class="k-num">0.15</span>;
+<span class="k-kw">const</span> <span class="k-type">NOME_SISTEMA</span>: <span class="k-type">str</span> = <span class="k-str">"Vox Core Engine"</span>;</pre>
+          </div>
+
+          <h3>Escopos em Bloco e Shadowing</h3>
+          <p>
+            Variáveis declaradas dentro de um par de chaves <code>{ ... }</code> existem apenas dentro daquele bloco:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> x = <span class="k-num">10</span>;
+{
+    <span class="k-kw">let</span> x = <span class="k-num">20</span>; <span class="k-com">// Shadowing: oculta o x externo temporariamente</span>
+    <span class="k-macro">println!</span>(<span class="k-str">"x interno: "</span> + (x <span class="k-kw">as</span> <span class="k-type">str</span>)); <span class="k-com">// 20</span>
+}
+<span class="k-macro">println!</span>(<span class="k-str">"x externo: "</span> + (x <span class="k-kw">as</span> <span class="k-type">str</span>)); <span class="k-com">// 10</span></pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 4 -->
+        <section id="cap4" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 04</span>
+            <h2 class="chapter-title">Sistema de Tipos Gradual e Primitivos</h2>
+          </div>
+
+          <p>
+            O Vox possui um sistema de tipos estático e robusto com inferência de tipos bidirecional. Você pode anotar os tipos explicitamente ou permitir que o compilador deduza o tipo com base no valor atribuído.
+          </p>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo Primitivo</th>
+                  <th>Descrição</th>
+                  <th>Exemplo Literal</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>int</code></td>
+                  <td>Inteiro de 64 bits com sinal (-9.223.372.036.854.775.808 a 9.223.372.036.854.775.807)</td>
+                  <td><code>42</code>, <code>-1500</code>, <code>0</code></td>
+                </tr>
+                <tr>
+                  <td><code>float</code></td>
+                  <td>Ponto flutuante IEEE-754 de precisão dupla (64-bit)</td>
+                  <td><code>3.14159</code>, <code>-0.005</code>, <code>2.0</code></td>
+                </tr>
+                <tr>
+                  <td><code>bool</code></td>
+                  <td>Booleano lógico estrito</td>
+                  <td><code>true</code>, <code>false</code></td>
+                </tr>
+                <tr>
+                  <td><code>str</code></td>
+                  <td>Cadeia de caracteres UTF-8 gerenciada e imutável</td>
+                  <td><code>"Vox Language"</code></td>
+                </tr>
+                <tr>
+                  <td><code>char</code></td>
+                  <td>Ponto de código de caractere Unicode de 32 bits</td>
+                  <td><code>'A'</code>, <code>'λ'</code>, <code>'€'</code></td>
+                </tr>
+                <tr>
+                  <td><code>void</code></td>
+                  <td>Ausência de valor (retorno de procedimentos sem resultado)</td>
+                  <td><code>fn log(): void</code></td>
+                </tr>
+                <tr>
+                  <td><code>any</code></td>
+                  <td>Tipo dinâmico para interoperabilidade gradual</td>
+                  <td>Qualquer valor</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Coerção e Conversão Explícita de Tipos com <code>as</code></h3>
+          <p>
+            Ao contrário de C, o Vox <strong>nunca realiza coerção implícita com perda de precisão</strong> entre tipos numéricos. Se você tentar somar um <code>int</code> com um <code>float</code>, o compilador exigirá a conversão explícita através da palavra-chave <code>as</code>:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> quantidade: <span class="k-type">int</span> = <span class="k-num">5</span>;
+<span class="k-kw">let</span> preco_unitario: <span class="k-type">float</span> = <span class="k-num">19.90</span>;
+
+<span class="k-com">// Conversão segura e explícita:</span>
+<span class="k-kw">let</span> total: <span class="k-type">float</span> = (quantidade <span class="k-kw">as</span> <span class="k-type">float</span>) * preco_unitario;
+<span class="k-macro">println!</span>(<span class="k-str">"Total calculado: "</span> + (total <span class="k-kw">as</span> <span class="k-type">str</span>));</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 5 -->
+        <section id="cap5" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 05</span>
+            <h2 class="chapter-title">Operadores e Expressões</h2>
+          </div>
+
+          <p>
+            O Vox oferece um conjunto expressivo de operadores projetados tanto para computação de sistemas de baixo nível quanto para manipulação de dados fluente de alto nível.
+          </p>
+
+          <h3>Operador de Coalescência Nula: <code>??</code></h3>
+          <p>
+            O operador <code>??</code> avalia o lado esquerdo e, caso seja nulo ou indefinido, retorna a expressão do lado direito como fallback seguro:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> configuracao_usuario = <span class="k-kw">none</span>;
+<span class="k-kw">let</span> porta = configuracao_usuario ?? <span class="k-num">8080</span>;
+<span class="k-macro">println!</span>(<span class="k-str">"Porta em uso: "</span> + (porta <span class="k-kw">as</span> <span class="k-type">str</span>)); <span class="k-com">// 8080</span></pre>
+          </div>
+
+          <h3>Operador de Navegação Segura: <code>?.</code></h3>
+          <p>
+            Previne falhas de acesso a propriedades em ponteiros e referências que possam estar vazias:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> rua = usuario?.endereco?.rua ?? <span class="k-str">"Rua Não Informada"</span>;</pre>
+          </div>
+
+          <h3>O Operador Pipe: <code>|&gt;</code></h3>
+          <p>
+            Permite encadear transformações de dados de forma linear e altamente legível, eliminando parênteses aninhados profundos:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">fn</span> <span class="k-fn">dobrar</span>(n: <span class="k-type">int</span>) -> <span class="k-type">int</span> { <span class="k-kw">return</span> n * <span class="k-num">2</span>; }
+<span class="k-kw">fn</span> <span class="k-fn">adicionar_dez</span>(n: <span class="k-type">int</span>) -> <span class="k-type">int</span> { <span class="k-kw">return</span> n + <span class="k-num">10</span>; }
+
+<span class="k-kw">let</span> resultado = <span class="k-num">5</span> |> dobrar |> adicionar_dez;
+<span class="k-macro">println!</span>(<span class="k-str">"Resultado via Pipe: "</span> + (resultado <span class="k-kw">as</span> <span class="k-type">str</span>)); <span class="k-com">// 20</span></pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 6 -->
+        <section id="cap6" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 06</span>
+            <h2 class="chapter-title">Controle de Fluxo Estruturado</h2>
+          </div>
+
+          <p>
+            O controle de fluxo em Vox é conciso, prescindindo de parênteses redundantes em torno de expressões de teste condicional:
+          </p>
+
+          <h3>Bifurcação Condicional: <code>if / elif / else</code></h3>
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> nota: <span class="k-type">float</span> = <span class="k-num">8.5</span>;
+
+<span class="k-kw">if</span> nota >= <span class="k-num">9.0</span> {
+    <span class="k-macro">println!</span>(<span class="k-str">"Desempenho: Excelente"</span>);
+} <span class="k-kw">elif</span> nota >= <span class="k-num">7.0</span> {
+    <span class="k-macro">println!</span>(<span class="k-str">"Desempenho: Aprovado"</span>);
+} <span class="k-kw">else</span> {
+    <span class="k-macro">println!</span>(<span class="k-str">"Desempenho: Recuperação"</span>);
+}</pre>
+          </div>
+
+          <h3>Laços de Repetição: <code>for</code> e <code>while</code></h3>
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-com">// Iteração sobre intervalo numérico com range sintético:</span>
+<span class="k-kw">for</span> i <span class="k-kw">in</span> <span class="k-num">1</span>..<span class="k-num">5</span> {
+    <span class="k-macro">println!</span>(<span class="k-str">"Passo: "</span> + (i <span class="k-kw">as</span> <span class="k-type">str</span>));
+}
+
+<span class="k-com">// Laço com predicado while:</span>
+<span class="k-kw">let</span> <span class="k-kw">mut</span> vida = <span class="k-num">3</span>;
+<span class="k-kw">while</span> vida > <span class="k-num">0</span> {
+    <span class="k-macro">println!</span>(<span class="k-str">"Vidas restantes: "</span> + (vida <span class="k-kw">as</span> <span class="k-type">str</span>));
+    vida = vida - <span class="k-num">1</span>;
+}</pre>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             PARTE II: DADOS E ESTRUTURAÇÃO
+             =================================================================== -->
+        <div class="part-banner">
+          <div class="part-banner-num">PARTE II</div>
+          <div class="part-banner-title">Procedimentos, Dados e Estruturação</div>
+        </div>
+
+        <!-- CAPÍTULO 7 -->
+        <section id="cap7" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 07</span>
+            <h2 class="chapter-title">Funções, Procedimentos e Lambdas</h2>
+          </div>
+
+          <p>
+            No Vox, funções são cidadãs de primeira classe (<em>first-class citizens</em>). Elas podem ser atribuídas a variáveis, passadas como parâmetros para outras funções e retornadas como resultado.
+          </p>
+
+          <h3>Assinatura de Funções e Procedimentos</h3>
+          <p>
+            Uma função declara explicitamente os tipos de seus parâmetros e seu tipo de retorno precedido pela seta <code>-&gt;</code>:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">fn</span> <span class="k-fn">calcular_juros</span>(capital: <span class="k-type">float</span>, taxa: <span class="k-type">float</span>, meses: <span class="k-type">int</span>) -> <span class="k-type">float</span> {
+    <span class="k-kw">return</span> capital * (taxa / <span class="k-num">100.0</span>) * (meses <span class="k-kw">as</span> <span class="k-type">float</span>);
+}
+
+<span class="k-com">// Procedimento: função com efeito colateral sem retorno</span>
+<span class="k-kw">fn</span> <span class="k-fn">notificar_usuario</span>(destinatario: <span class="k-type">str</span>, mensagem: <span class="k-type">str</span>): <span class="k-type">void</span> {
+    <span class="k-macro">println!</span>(<span class="k-str">"[SMS para "</span> + destinatario + <span class="k-str">"]: "</span> + mensagem);
+}</pre>
+          </div>
+
+          <h3>Expressões Lambda e Closures</h3>
+          <p>
+            Lambdas são funções anônimas declaradas com a sintaxe de barras verticais <code>|args| =&gt; expressao</code>. Elas fecham sobre o escopo léxico onde foram definidas:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> multiplicador = <span class="k-num">3</span>;
+<span class="k-kw">let</span> triplicar = |x: <span class="k-type">int</span>| => x * multiplicador;
+
+<span class="k-macro">println!</span>(<span class="k-str">"Triplo de 7: "</span> + (triplicar(<span class="k-num">7</span>) <span class="k-kw">as</span> <span class="k-type">str</span>)); <span class="k-com">// 21</span></pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 8 -->
+        <section id="cap8" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 08</span>
+            <h2 class="chapter-title">Coleções: Array, Map e Tuplas</h2>
+          </div>
+
+          <p>
+            O Vox disponibiliza três estruturas essenciais em nível de linguagem:
+          </p>
+
+          <h3>1. Arrays</h3>
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> <span class="k-kw">mut</span> primos = [<span class="k-num">2</span>, <span class="k-num">3</span>, <span class="k-num">5</span>, <span class="k-num">7</span>];
+primos.push(<span class="k-num">11</span>);
+
+<span class="k-macro">println!</span>(<span class="k-str">"Primeiro elemento: "</span> + (primos[<span class="k-num">0</span>] <span class="k-kw">as</span> <span class="k-type">str</span>));
+<span class="k-macro">println!</span>(<span class="k-str">"Total de primos: "</span> + (primos.len() <span class="k-kw">as</span> <span class="k-type">str</span>));</pre>
+          </div>
+
+          <h3>2. Mapas / Dicionários</h3>
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> cliente = {
+    <span class="k-str">"id"</span>: <span class="k-num">101</span>,
+    <span class="k-str">"nome"</span>: <span class="k-str">"Carlos Silva"</span>,
+    <span class="k-str">"ativo"</span>: <span class="k-kw">true</span>
+};
+
+<span class="k-macro">println!</span>(<span class="k-str">"Nome do cliente: "</span> + cliente[<span class="k-str">"nome"</span>]);</pre>
+          </div>
+
+          <h3>3. Tuplas</h3>
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">fn</span> <span class="k-fn">obter_coordenadas</span>() -> (<span class="k-type">float</span>, <span class="k-type">float</span>) {
+    <span class="k-kw">return</span> (<span class="k-num">-23.5505</span>, <span class="k-num">-46.6333</span>);
+}
+
+<span class="k-kw">let</span> coords = obter_coordenadas();
+<span class="k-macro">println!</span>(<span class="k-str">"Latitude: "</span> + (coords.<span class="k-num">0</span> <span class="k-kw">as</span> <span class="k-type">str</span>));</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 9 -->
+        <section id="cap9" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 09</span>
+            <h2 class="chapter-title">Orientação a Objetos Moderna</h2>
+          </div>
+
+          <p>
+            O Vox oferece classes de alta performance focadas em encapsulamento estrito e clareza de dados.
+          </p>
+
+          <div class="callout callout-arch">
+            <div class="callout-title">🏛️ Por Que o Vox Eliminou <code>extends</code>?</div>
+            <p>
+              A herança de classes tradicional (hierarquias profundas com <code>extends</code>) é mundialmente reconhecida como uma fonte de fragilidade arquitetural e acoplamento desnecessário, além de causar <em>object slicing</em> e sobrecarga de tabelas de métodos virtuais (vtable). O Vox adotou a melhor prática moderna de engenharia: <strong>Composição sobre Herança</strong>, combinada com <strong>Traits</strong>.
+            </p>
+          </div>
+
+          <h3>Definição de Classes e Construtor <code>new</code></h3>
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Exemplo de Classe</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">class</span> <span class="k-type">ContaBancaria</span> {
+    <span class="k-mod">pub</span> numero: <span class="k-type">str</span>;
+    <span class="k-mod">pub</span> titular: <span class="k-type">str</span>;
+    <span class="k-mod">priv</span> saldo: <span class="k-type">float</span>;
+
+    <span class="k-mod">pub</span> <span class="k-kw">new</span>(numero: <span class="k-type">str</span>, titular: <span class="k-type">str</span>, saldo_inicial: <span class="k-type">float</span>) {
+        <span class="k-kw">self</span>.numero = numero;
+        <span class="k-kw">self</span>.titular = titular;
+        <span class="k-kw">self</span>.saldo = saldo_inicial;
+    }
+
+    <span class="k-mod">pub</span> <span class="k-kw">fn</span> <span class="k-fn">depositar</span>(<span class="k-kw">self</span>, valor: <span class="k-type">float</span>) -> <span class="k-type">bool</span> {
+        <span class="k-kw">if</span> valor <= <span class="k-num">0.0</span> {
+            <span class="k-kw">return</span> <span class="k-kw">false</span>;
+        }
+        <span class="k-kw">self</span>.saldo = <span class="k-kw">self</span>.saldo + valor;
+        <span class="k-kw">return</span> <span class="k-kw">true</span>;
+    }
+
+    <span class="k-mod">pub</span> <span class="k-kw">fn</span> <span class="k-fn">obter_saldo</span>(<span class="k-kw">self</span>) -> <span class="k-type">float</span> {
+        <span class="k-kw">return</span> <span class="k-kw">self</span>.saldo;
+    }
+}</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 10 -->
+        <section id="cap10" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 10</span>
+            <h2 class="chapter-title">Structs, Traits e Blocos Impl</h2>
+          </div>
+
+          <p>
+            Quando necessitamos de estruturas de dados de baixo custo de memória, declaramos <code>struct</code>. Quando queremos definir contratos de comportamento polimórfico, declaramos <code>trait</code> e implementamos com blocos <code>impl</code>.
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Structs & Traits</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-com">// Registro de dados enxuto:</span>
+<span class="k-kw">struct</span> <span class="k-type">Ponto2D</span>(<span class="k-mod">pub</span> x: <span class="k-type">float</span>, <span class="k-mod">pub</span> y: <span class="k-type">float</span>);
+
+<span class="k-com">// Contrato de interface formal:</span>
+<span class="k-kw">trait</span> <span class="k-type">Desenhavel</span> {
+    <span class="k-kw">fn</span> <span class="k-fn">desenhar</span>(<span class="k-kw">self</span>) -> <span class="k-type">str</span>;
+}
+
+<span class="k-com">// Implementação explícita do comportamento:</span>
+<span class="k-kw">impl</span> <span class="k-type">Desenhavel</span> <span class="k-kw">for</span> <span class="k-type">Ponto2D</span> {
+    <span class="k-kw">fn</span> <span class="k-fn">desenhar</span>(<span class="k-kw">self</span>) -> <span class="k-type">str</span> {
+        <span class="k-kw">return</span> <span class="k-str">"Ponto("</span> + (<span class="k-kw">self</span>.x <span class="k-kw">as</span> <span class="k-type">str</span>) + <span class="k-str">", "</span> + (<span class="k-kw">self</span>.y <span class="k-kw">as</span> <span class="k-type">str</span>) + <span class="k-str">")"</span>;
+    }
+}</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 11 -->
+        <section id="cap11" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 11</span>
+            <h2 class="chapter-title">Tipos Genéricos (Generics)</h2>
+          </div>
+
+          <p>
+            Generics possibilitam escrever algoritmos e estruturas de dados reutilizáveis sem abrir mão da checagem estática de tipos e sem o custo de empacotamento (<em>boxing</em>).
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Generics</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-com">/// Função genérica que inverte pares de qualquer tipo T e U</span>
+<span class="k-kw">fn</span> <span class="k-fn">inverter_par</span>&lt;<span class="k-type">T</span>, <span class="k-type">U</span>&gt;(primeiro: <span class="k-type">T</span>, segundo: <span class="k-type">U</span>) -> (<span class="k-type">U</span>, <span class="k-type">T</span>) {
+    <span class="k-kw">return</span> (segundo, primeiro);
+}
+
+<span class="k-kw">let</span> invertido = inverter_par(<span class="k-num">100</span>, <span class="k-str">"OK"</span>);
+<span class="k-macro">println!</span>(invertido.<span class="k-num">0</span>); <span class="k-com">// "OK"</span>
+<span class="k-macro">println!</span>(invertido.<span class="k-num">1</span> <span class="k-kw">as</span> <span class="k-type">str</span>); <span class="k-com">// 100</span></pre>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             PARTE III: GESTÃO DE MEMÓRIA E CONCORRÊNCIA
+             =================================================================== -->
+        <div class="part-banner">
+          <div class="part-banner-num">PARTE III</div>
+          <div class="part-banner-title">Gestão de Memória e Concorrência</div>
+        </div>
+
+        <!-- CAPÍTULO 12 -->
+        <section id="cap12" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 12</span>
+            <h2 class="chapter-title">Ownership e o Borrow Checker</h2>
+          </div>
+
+          <p>
+            O gerenciamento de memória no Vox é governado pelo sistema de <strong>Posse Afim (Affine Ownership)</strong>. Ele garante segurança absoluta em tempo de compilação sem a necessidade de um Garbage Collector pausar a aplicação.
+          </p>
+
+          <h3>As Três Leis Fundamentais do Ownership</h3>
+          <ol>
+            <li><strong>Posse Única:</strong> Cada pedaço de memória alocado dinamicamente pertence a exatamente uma variável proprietária (<em>owner</em>).</li>
+            <li><strong>Liberação Determinística (RAII):</strong> No instante exato em que a variável dona sai de escopo (ao fechar das chaves <code>}</code>), sua memória é desalocada automaticamente.</li>
+            <li><strong>Move Semantics:</strong> Atribuir uma variável dona a outra variável transfere a posse definitiva do recurso. O identificador original é invalidado imediatamente.</li>
+          </ol>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Move Semantics</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> recurso = abrir_buffer_pesado();
+<span class="k-kw">let</span> destino = recurso; <span class="k-com">// POSSE TRANSFERIDA (MOVE)</span>
+
+<span class="k-com">// utilizar 'recurso' agora causará erro de compilação:</span>
+<span class="k-com">// recurso.processar(); // [E0201: Use of moved value]</span></pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 13 -->
+        <section id="cap13" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 13</span>
+            <h2 class="chapter-title">Concorrência CSP e Canais</h2>
+          </div>
+
+          <p>
+            O Vox implementa o modelo <strong>CSP (Communicating Sequential Processes)</strong>: <em>"Não se comunique compartilhando memória; compartilhe memória comunicando"</em>.
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Canais CSP</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> canal = chan_new();
+
+<span class="k-com">// Dispara corotina em segundo plano:</span>
+<span class="k-kw">spawn</span> {
+    <span class="k-macro">println!</span>(<span class="k-str">"[Worker] Processando lote de transações..."</span>);
+    chan_send(canal, <span class="k-str">"Lote 1 Concluído com Sucesso!"</span>);
+};
+
+<span class="k-com">// Thread principal recebe a mensagem com segurança:</span>
+<span class="k-kw">let</span> resposta = chan_recv(canal);
+<span class="k-macro">println!</span>(<span class="k-str">"[Main] Recebido: "</span> + resposta);</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 14 -->
+        <section id="cap14" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 14</span>
+            <h2 class="chapter-title">Pattern Matching Avançado</h2>
+          </div>
+
+          <p>
+            O comando <code>match</code> do Vox substitui as antigas e frágeis declarações <code>switch</code> por uma correspondência exaustiva de padrões com checagem rigorosa pelo compilador:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — match</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">let</span> codigo_http = <span class="k-num">404</span>;
+
+<span class="k-kw">let</span> status_desc = <span class="k-kw">match</span> codigo_http {
+    <span class="k-num">200</span> => <span class="k-str">"OK - Requisição bem-sucedida"</span>,
+    <span class="k-num">400</span> => <span class="k-str">"Bad Request - Dados inválidos"</span>,
+    <span class="k-num">404</span> => <span class="k-str">"Not Found - Recurso não localizado"</span>,
+    <span class="k-num">500</span>..<span class="k-num">599</span> => <span class="k-str">"Internal Server Error - Falha no servidor"</span>,
+    _ => <span class="k-str">"Código de status desconhecido"</span>
+};
+
+<span class="k-macro">println!</span>(status_desc);</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 15 -->
+        <section id="cap15" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 15</span>
+            <h2 class="chapter-title">Tratamento de Erros: Option e Result</h2>
+          </div>
+
+          <p>
+            O Vox elimina exceções não tratadas e ponteiros nulos não controlados através de dois tipos canônicos: <code>Option&lt;T&gt;</code> e <code>Result&lt;T, E&gt;</code>.
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Result</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">fn</span> <span class="k-fn">dividir</span>(numerador: <span class="k-type">float</span>, denominador: <span class="k-type">float</span>) -> <span class="k-type">Result</span>&lt;<span class="k-type">float</span>, <span class="k-type">str</span>&gt; {
+    <span class="k-kw">if</span> denominador == <span class="k-num">0.0</span> {
+        <span class="k-kw">return</span> <span class="k-kw">err</span>(<span class="k-str">"Divisão por zero não é permitida!"</span>);
+    }
+    <span class="k-kw">return</span> <span class="k-kw">ok</span>(numerador / denominador);
+}
+
+<span class="k-kw">let</span> res = dividir(<span class="k-num">10.0</span>, <span class="k-num">2.0</span>);
+<span class="k-kw">match</span> res {
+    <span class="k-kw">ok</span>(valor) => <span class="k-macro">println!</span>(<span class="k-str">"Resultado: "</span> + (valor <span class="k-kw">as</span> <span class="k-type">str</span>)),
+    <span class="k-kw">err</span>(erro)  => <span class="k-macro">println!</span>(<span class="k-str">"Falha: "</span> + erro)
+};</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 16 -->
+        <section id="cap16" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 16</span>
+            <h2 class="chapter-title">Programação Assíncrona (Async/Await)</h2>
+          </div>
+
+          <p>
+            Tarefas de I/O intensivo em rede e disco são tratadas de forma não bloqueante com <code>async</code> e <code>await</code>:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Async / Await</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">async</span> <span class="k-kw">fn</span> <span class="k-fn">obter_cotacao</span>(moeda: <span class="k-type">str</span>) -> <span class="k-type">float</span> {
+    <span class="k-com">// Simula busca em API remota não-bloqueante</span>
+    <span class="k-kw">return</span> <span class="k-num">5.42</span>;
+}
+
+<span class="k-kw">async</span> <span class="k-kw">fn</span> <span class="k-fn">executar</span>() {
+    <span class="k-kw">let</span> taxa = <span class="k-kw">await</span> obter_cotacao(<span class="k-str">"USD"</span>);
+    <span class="k-macro">println!</span>(<span class="k-str">"Cotação obtida: R$ "</span> + (taxa <span class="k-kw">as</span> <span class="k-type">str</span>));
+}</pre>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             PARTE IV: SISTEMAS E ENGENHARIA DE SOFTWARE
+             =================================================================== -->
+        <div class="part-banner">
+          <div class="part-banner-num">PARTE IV</div>
+          <div class="part-banner-title">Sistemas e Engenharia de Software</div>
+        </div>
+
+        <!-- CAPÍTULO 17 -->
+        <section id="cap17" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 17</span>
+            <h2 class="chapter-title">Decoradores e Macros Builtin</h2>
+          </div>
+
+          <p>
+            O Vox fornece decoradores de primeira linha para instrumentação de código sem poluir a lógica de negócios:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — Decoradores</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre>@timed  <span class="k-com">// Mede e exibe automaticamente o tempo de execução em microssegundos</span>
+@logged <span class="k-com">// Registra argumentos recebidos e valores retornados</span>
+<span class="k-kw">fn</span> <span class="k-fn">processar_faturamento</span>(ano: <span class="k-type">int</span>) -> <span class="k-type">int</span> {
+    <span class="k-kw">return</span> <span class="k-num">1500000</span>;
+}</pre>
+          </div>
+
+          <h3>Macros do Compilador</h3>
+          <ul>
+            <li><code>println!(...)</code>: Formata dados e imprime com salto de linha.</li>
+            <li><code>format!(...)</code>: Retorna uma string formatada sem imprimir.</li>
+            <li><code>dbg!(expr)</code>: Imprime o arquivo, linha, expressão avaliada e seu valor (essencial para depuração).</li>
+            <li><code>assert!(cond, msg)</code>: Garante uma invariante em runtime.</li>
+            <li><code>panic!(msg)</code>: Aborta graciosamente exibindo a pilha de chamadas.</li>
+          </ul>
+        </section>
+
+        <!-- CAPÍTULO 18 -->
+        <section id="cap18" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 18</span>
+            <h2 class="chapter-title">Banco de Dados: SQLite Nativo no Vox</h2>
+          </div>
+
+          <p>
+            A versão v1.0 do Vox traz integração direta e síncrona com SQLite, proporcionando persistência relacional sem a complexidade de drivers externos:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — SQLite</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-com">// 1. Abertura da base de dados:</span>
+<span class="k-kw">let</span> db = sqlite_open(<span class="k-str">"banco.db"</span>);
+
+<span class="k-com">// 2. Criação de tabela (DDL):</span>
+sqlite_exec(db, <span class="k-str">"CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY, nome TEXT, email TEXT);"</span>);
+
+<span class="k-com">// 3. Inserção de registro (DML):</span>
+sqlite_exec(db, <span class="k-str">"INSERT INTO usuarios (nome, email) VALUES ('Ana Souza', 'ana@vox.org');"</span>);
+
+<span class="k-com">// 4. Consulta estruturada (retorna array de mapas):</span>
+<span class="k-kw">let</span> usuarios = sqlite_query(db, <span class="k-str">"SELECT * FROM usuarios;"</span>);
+<span class="k-kw">for</span> u <span class="k-kw">in</span> usuarios {
+    <span class="k-macro">println!</span>(<span class="k-str">"ID: "</span> + (u[<span class="k-str">"id"</span>] <span class="k-kw">as</span> <span class="k-type">str</span>) + <span class="k-str">" | Nome: "</span> + u[<span class="k-str">"nome"</span>]);
+}
+
+<span class="k-com">// 5. Fechamento da conexão:</span>
+sqlite_close(db);</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 19 -->
+        <section id="cap19" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 19</span>
+            <h2 class="chapter-title">Arquitetura Corporativa MVC na Prática</h2>
+          </div>
+
+          <p>
+            A diretiva <code>include "caminho/arquivo.vox";</code> permite modularizar aplicações de grande escala mantendo coesão e baixo acoplamento:
+          </p>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Camada</th>
+                  <th>Arquivo Canônico</th>
+                  <th>Responsabilidade</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Model</strong></td>
+                  <td><code>cliente_model.vox</code></td>
+                  <td>Encapsula a entidade <code>Cliente</code> e todas as transações SQL com o banco</td>
+                </tr>
+                <tr>
+                  <td><strong>View</strong></td>
+                  <td><code>cliente_view.vox</code></td>
+                  <td>Renderiza tabelas limpas, menus interativos e formulários para o usuário</td>
+                </tr>
+                <tr>
+                  <td><strong>Controller</strong></td>
+                  <td><code>cliente_controller.vox</code></td>
+                  <td>Aplica regras de validação (ex: e-mail obrigatório) e orquestra o fluxo</td>
+                </tr>
+                <tr>
+                  <td><strong>App</strong></td>
+                  <td><code>app.vox</code></td>
+                  <td>Ponto de entrada único que inclui as camadas e inicia a aplicação</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">VOX — app.vox</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><span class="k-kw">include</span> <span class="k-str">"models/cliente_model.vox"</span>;
+<span class="k-kw">include</span> <span class="k-str">"views/cliente_view.vox"</span>;
+<span class="k-kw">include</span> <span class="k-str">"controllers/cliente_controller.vox"</span>;
+
+<span class="k-kw">fn</span> <span class="k-fn">main</span>() {
+    <span class="k-kw">let</span> ctrl = ClienteController.new(<span class="k-str">"db/clientes_vox.db"</span>);
+    ctrl.executar();
+}</pre>
+          </div>
+        </section>
+
+        <!-- CAPÍTULO 20 -->
+        <section id="cap20" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 20</span>
+            <h2 class="chapter-title">Compilação Nativa via C99</h2>
+          </div>
+
+          <p>
+            O compilador Vox traduz a AST diretamente para C99 estritamente compatível com os padrões POSIX e Win32, gerando executáveis que iniciam em menos de 1 milissegundo:
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">C99 GERADO (Trecho ilustrativo)</span>
+            </div>
+            <pre><span class="k-com">/* Gerado pelo Vox Compiler v1.0 */</span>
+#include "vox_runtime.h"
+
+int main(int argc, char** argv) {
+    vox_init();
+    printf("Execução nativa de altíssima performance.\\n");
+    vox_shutdown();
+    return 0;
+}</pre>
+          </div>
+
+          <p>
+            Ao executar <code>vox build main.vox -O3</code>, o compilador C aplica vetorização SIMD de instruções, desenrolamento de loops (<em>loop unrolling</em>) e inlining automático, entregando <strong>a mesma performance computacional de C puro</strong>.
+          </p>
+        </section>
+
+        <!-- CAPÍTULO 21 -->
+        <section id="cap21" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Capítulo 21</span>
+            <h2 class="chapter-title">Ferramental, Produtividade e Extensão VS Code</h2>
+          </div>
+
+          <p>
+            O ecossistema oficial do Vox inclui a extensão para o Visual Studio Code (<strong>mauricioabreu.voxlang-tools</strong>), disponível publicamente no Marketplace da Microsoft.
+          </p>
+
+          <ul>
+            <li><strong>Syntax Highlighting:</strong> Coloração semântica completa para todas as palavras-chave, tipos, macros e decoradores do Vox.</li>
+            <li><strong>Snippets Produtivos:</strong> Atalhos para geração instantânea de classes (<code>class</code>), structs (<code>struct</code>), traits (<code>trait</code>) e conexões com banco SQLite.</li>
+            <li><strong>Diagnóstico em Tempo Real:</strong> Checagem imediata de sintaxe e exibição de erros inline no próprio editor.</li>
+          </ul>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span class="code-tag">TERMINAL — INSTALAÇÃO DA EXTENSÃO</span>
+            </div>
+            <pre>$ code --install-extension mauricioabreu.voxlang-tools</pre>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             APÊNDICES
+             =================================================================== -->
+        <div class="part-banner">
+          <div class="part-banner-num">APÊNDICES</div>
+          <div class="part-banner-title">Tabelas de Referência e Manuais</div>
+        </div>
+
+        <!-- APÊNDICE A -->
+        <section id="apendice-a" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Apêndice A</span>
+            <h2 class="chapter-title">Tabela de Precedência de Operadores</h2>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nível</th>
+                  <th>Operadores</th>
+                  <th>Descrição</th>
+                  <th>Associatividade</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td><code>()</code>, <code>[]</code>, <code>.</code>, <code>?.</code>, <code>::</code></td>
+                  <td>Agrupamento, Indexação, Acesso a membros</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td><code>!</code>, <code>~</code>, <code>-</code> (unário), <code>+</code> (unário)</td>
+                  <td>Negação lógica, bitwise e sinais unários</td>
+                  <td>Direita para a esquerda</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td><code>**</code></td>
+                  <td>Exponenciação</td>
+                  <td>Direita para a esquerda</td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td><code>*</code>, <code>/</code>, <code>%</code></td>
+                  <td>Multiplicação, Divisão, Resto</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>5</td>
+                  <td><code>+</code>, <code>-</code></td>
+                  <td>Adição e Subtração</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>6</td>
+                  <td><code>&lt;&lt;</code>, <code>&gt;&gt;</code></td>
+                  <td>Deslocamento de bits (Shift)</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>7</td>
+                  <td><code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code></td>
+                  <td>Comparação relacional</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>8</td>
+                  <td><code>==</code>, <code>!=</code></td>
+                  <td>Igualdade e desigualdade</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>9</td>
+                  <td><code>&amp;</code>, <code>^</code>, <code>|</code></td>
+                  <td>Operações Bitwise (AND, XOR, OR)</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td><code>&amp;&amp;</code>, <code>||</code></td>
+                  <td>Operações Lógicas booleanas com curto-circuito</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>11</td>
+                  <td><code>??</code></td>
+                  <td>Coalescência Nula</td>
+                  <td>Direita para a esquerda</td>
+                </tr>
+                <tr>
+                  <td>12</td>
+                  <td><code>|&gt;</code></td>
+                  <td>Operador Pipe de encadeamento</td>
+                  <td>Esquerda para a direita</td>
+                </tr>
+                <tr>
+                  <td>13</td>
+                  <td><code>=</code>, <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code></td>
+                  <td>Atribuição e Atribuição composta</td>
+                  <td>Direita para a esquerda</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- APÊNDICE B -->
+        <section id="apendice-b" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Apêndice B</span>
+            <h2 class="chapter-title">Catálogo Completo de Erros do Compilador</h2>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nome do Erro</th>
+                  <th>Causa Provável e Solução Recomendada</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>E0101</code></td>
+                  <td>Undefined Variable</td>
+                  <td>A variável utilizada não foi declarada com <code>let</code> no escopo.</td>
+                </tr>
+                <tr>
+                  <td><code>E0102</code></td>
+                  <td>Type Mismatch</td>
+                  <td>Atribuição de valor com tipo incompatível sem conversão <code>as</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>E0106</code></td>
+                  <td>Cannot Reassign Immutable</td>
+                  <td>Tentativa de reatribuir variável <code>let</code> sem o modificador <code>mut</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>E0201</code></td>
+                  <td>Use of Moved Value</td>
+                  <td>Uso de variável cujo recurso já teve sua posse movida (ownership).</td>
+                </tr>
+                <tr>
+                  <td><code>E0202</code></td>
+                  <td>Double Free Prevented</td>
+                  <td>O compilador evitou uma liberação dupla de memória no fechamento de escopo.</td>
+                </tr>
+                <tr>
+                  <td><code>E0301</code></td>
+                  <td>Non-Exhaustive Match</td>
+                  <td>A declaração <code>match</code> não cobriu todas as variantes possíveis. Adicione <code>_</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>E0401</code></td>
+                  <td>Trait Not Implemented</td>
+                  <td>Chamada de método de um trait em um tipo que não possui o bloco <code>impl</code> correspondente.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- APÊNDICE C -->
+        <section id="apendice-c" class="chapter">
+          <div class="chapter-header">
+            <span class="chapter-tag">Apêndice C</span>
+            <h2 class="chapter-title">Guia de Migração para Desenvolvedores</h2>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Conceito</th>
+                  <th>Rust</th>
+                  <th>Go</th>
+                  <th>TypeScript</th>
+                  <th>Vox v1.0</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Imutabilidade</strong></td>
+                  <td><code>let x = 1;</code></td>
+                  <td>Não há suporte padrão</td>
+                  <td><code>const x = 1;</code></td>
+                  <td><code>let x = 1;</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Mutabilidade</strong></td>
+                  <td><code>let mut x = 1;</code></td>
+                  <td><code>var x = 1</code></td>
+                  <td><code>let x = 1;</code></td>
+                  <td><code>let mut x = 1;</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Concorrência</strong></td>
+                  <td><code>thread::spawn</code></td>
+                  <td><code>go func()</code></td>
+                  <td><code>Promise / Worker</code></td>
+                  <td><code>spawn { ... }</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Canais</strong></td>
+                  <td><code>mpsc::channel()</code></td>
+                  <td><code>make(chan int)</code></td>
+                  <td>N/A</td>
+                  <td><code>chan_new()</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Polimorfismo</strong></td>
+                  <td><code>trait / impl</code></td>
+                  <td><code>interface</code></td>
+                  <td><code>interface / class</code></td>
+                  <td><code>trait / impl</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Saída Formatada</strong></td>
+                  <td><code>println!("...")</code></td>
+                  <td><code>fmt.Println("...")</code></td>
+                  <td><code>console.log(...)</code></td>
+                  <td><code>println!("...")</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             FOOTER
+             =================================================================== -->
+        <footer id="book-footer">
+          <p><strong>A Linguagem de Programação Vox — Livro Oficial v1.0</strong></p>
+          <p>© 2026 Maurício Abreu. Distribuído sob a Licença MIT de Código Aberto.</p>
+          <p style="margin-top:0.5rem; font-size:0.8rem;">Compilador Vox, Documentação, Especificações e Ferramental de Engenharia.</p>
+        </footer>
+
+      </article>
+    </main>
+  </div>
+
+  <!-- Interactive JavaScript -->
+  <script>
+    // Copy Code Functionality
+    function copyCode(button) {
+      const pre = button.closest('.code-box').querySelector('pre');
+      const text = pre.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.innerText;
+        button.innerText = 'Copiado! ✓';
+        button.style.borderColor = 'var(--green)';
+        button.style.color = 'var(--green)';
+        setTimeout(() => {
+          button.innerText = originalText;
+          button.style.borderColor = '';
+          button.style.color = '';
+        }, 2000);
+      });
+    }
+
+    // Theme Toggle (Light / Dark)
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('vox_book_theme', newTheme);
+    });
+
+    // Restore Theme Preference
+    const savedTheme = localStorage.getItem('vox_book_theme');
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+
+    // Mobile Sidebar Toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+    });
+
+    // Close mobile sidebar on link click
+    document.querySelectorAll('.toc-item').forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 1024) {
+          sidebar.classList.remove('open');
+        }
+      });
+    });
+
+    // Reading Progress Bar
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress-bar').style.width = scrolled + '%';
+    });
+
+    // ScrollSpy / Active TOC item highlight
+    const chapters = document.querySelectorAll('section.chapter, section.book-cover');
+    const tocLinks = document.querySelectorAll('.toc-item');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      chapters.forEach(ch => {
+        const top = ch.offsetTop - 120;
+        if (pageYOffset >= top) {
+          current = ch.getAttribute('id');
+        }
+      });
+
+      tocLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+        }
+      });
+    });
+
+    // TOC Search Filter
+    const tocSearch = document.getElementById('tocSearch');
+    tocSearch.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      document.querySelectorAll('.toc-item').forEach(item => {
+        const text = item.innerText.toLowerCase();
+        if (text.includes(query) || query === '') {
+          item.style.display = 'block';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+`;
+
+const outputPath = path.join(__dirname, '../docs/livro_vox.html');
+fs.writeFileSync(outputPath, bookHtml, 'utf-8');
+console.log(`Livro Oficial da Linguagem Vox gerado com sucesso em: ${outputPath}`);
+console.log(`Tamanho do arquivo: ${(fs.statSync(outputPath).size / 1024).toFixed(2)} KB`);
