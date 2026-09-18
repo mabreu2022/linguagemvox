@@ -56,8 +56,11 @@ Examples:
 `);
 }
 
-function readFile(filePath: string): string {
+function readFile(filePath: string, visited: Set<string> = new Set()): string {
   const absPath = path.resolve(filePath);
+  if (visited.has(absPath)) return "";
+  visited.add(absPath);
+
   if (!fs.existsSync(absPath)) {
     console.error(`Error: File not found: ${filePath}`);
     process.exit(1);
@@ -66,7 +69,16 @@ function readFile(filePath: string): string {
   if (ext !== ".vox" && ext !== ".kael") {
     console.warn(`Warning: File extension is '${ext}', expected '.vox' or '.kael'`);
   }
-  return fs.readFileSync(absPath, "utf-8");
+  let content = fs.readFileSync(absPath, "utf-8");
+  const dir = path.dirname(absPath);
+
+  // Suporte modular a include / import de arquivos relativos
+  content = content.replace(/^[ \t]*(?:include|import)[ \t]+["']([^"']+)["'];?/gm, (_match, relPath) => {
+    const target = path.resolve(dir, relPath);
+    return readFile(target, visited);
+  });
+
+  return content;
 }
 
 function runFile(filePath: string): void {

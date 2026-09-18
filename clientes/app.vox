@@ -1,0 +1,42 @@
+// ==============================================================================
+// clientes/app.vox — Ponto de Entrada da Aplicação MVC em Vox
+// ==============================================================================
+
+include "models/cliente_model.vox";
+include "views/cliente_view.vox";
+include "controllers/cliente_controller.vox";
+
+// 1. Inicializa o Controller passando o banco de dados SQLite
+let controller = new ClienteController("clientes_vox.db");
+controller.iniciar();
+
+// 2. Operações de Criação (CREATE)
+println("\n[ETAPA 1: CADASTRO DE CLIENTES]");
+controller.cadastrar("Mauricio Abreu", "mauricio@voxlang.org", "(21) 98888-1111", "Rio de Janeiro", 1500.50);
+controller.cadastrar("Beatriz Lima", "beatriz@email.com", "(11) 97777-2222", "Sao Paulo", 3200.00);
+controller.cadastrar("Carlos Eduardo", "carlos@empresa.com", "(31) 96666-3333", "Belo Horizonte", 450.75);
+controller.cadastrar("Fernanda Souza", "fernanda@tech.io", "(41) 95555-4444", "Curitiba", 8900.20);
+
+// 3. Operação de Leitura Geral (READ ALL)
+println("\n[ETAPA 2: LISTAGEM COMPLETA VIA VIEW]");
+controller.listar();
+
+// 4. Operação de Consulta Individual (READ BY ID)
+println("\n[ETAPA 3: CONSULTA INDIVIDUAL VIA CONTROLLER]");
+controller.consultar(2);
+
+// 5. Operação de Atualização (UPDATE)
+println("\n[ETAPA 4: ATUALIZACAO CADASTRAL E FINANCEIRA]");
+controller.atualizar(1, "(21) 99999-9999", 3500.00);
+controller.consultar(1);
+
+// 6. Operação de Exclusão (DELETE)
+println("\n[ETAPA 5: REMOCAO DE CLIENTE]");
+controller.remover(3);
+
+// 7. Relatório Final
+println("\n[ETAPA 6: RELATORIO FINAL APOS ALTERACOES]");
+controller.listar();
+
+// 8. Encerramento
+controller.finalizar();

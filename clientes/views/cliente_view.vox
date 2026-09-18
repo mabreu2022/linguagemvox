@@ -1,0 +1,69 @@
+// ==============================================================================
+// clientes/views/cliente_view.vox — Camada VIEW da Arquitetura MVC
+// Responsável pela apresentação visual, formatação de dados e relatórios
+// ==============================================================================
+
+class ClienteView {
+    new() {}
+
+    pub fn exibir_banner() -> void {
+        println("==================================================================");
+        println("       SISTEMA DE CLIENTES MVC (VOX + BANCO DE DADOS SQLITE)     ");
+        println("==================================================================");
+    }
+
+    pub fn exibir_sucesso(mensagem: str) -> void {
+        println("  [SUCESSO] " + mensagem);
+    }
+
+    pub fn exibir_alerta(mensagem: str) -> void {
+        println("  [ALERTA]  " + mensagem);
+    }
+
+    pub fn exibir_tabela(clientes_raw: Array) -> void {
+        println("");
+        println("----------------- RELATORIO GERAL DE CLIENTES --------------------");
+        println("ID  | NOME              | E-MAIL              | CIDADE         | SALDO");
+        println("----+-------------------+---------------------+----------------+----------");
+
+        if len(clientes_raw) == 0 {
+            println("              Nenhum cliente cadastrado no momento.              ");
+            println("------------------------------------------------------------------");
+            return;
+        }
+
+        let mut i = 0;
+        while i < len(clientes_raw) {
+            let row = clientes_raw[i];
+            let id_str = str(row["id"]);
+            let nome = str(row["nome"]);
+            let email = str(row["email"]);
+            let cidade = str(row["cidade"]);
+            let saldo = str(row["saldo"]);
+
+            println("#" + id_str + "  | " + nome + " | " + email + " | " + cidade + " | R$ " + saldo);
+            i = i + 1;
+        }
+        println("------------------------------------------------------------------");
+        println("Total de registros exibidos: " + str(len(clientes_raw)));
+    }
+
+    pub fn exibir_detalhes(c: Cliente) -> void {
+        println("");
+        println("  >>> FICHA DO CLIENTE <<<");
+        println("  Identificador : #" + str(c.id));
+        println("  Nome Completo : " + c.nome);
+        println("  E-mail        : " + c.email);
+        println("  Telefone      : " + c.telefone);
+        println("  Cidade        : " + c.cidade);
+        println("  Saldo em Conta: R$ " + str(c.saldo));
+        println("  --------------------------------------");
+    }
+
+    pub fn exibir_rodape() -> void {
+        println("");
+        println("==================================================================");
+        println("       CICLO MVC EXECUTADO COM SUCESSO! OPERACOES CONCLUIDAS      ");
+        println("==================================================================");
+    }
+}

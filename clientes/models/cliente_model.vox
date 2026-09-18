@@ -1,0 +1,95 @@
+// ==============================================================================
+// clientes/models/cliente_model.vox — Camada MODEL da Arquitetura MVC
+// Responsável pela entidade de domínio e pelo repositório SQLite
+// ==============================================================================
+
+class Cliente {
+    pub id: int;
+    pub nome: str;
+    pub email: str;
+    pub telefone: str;
+    pub cidade: str;
+    pub saldo: float;
+
+    new(id: int, nome: str, email: str, telefone: str, cidade: str, saldo: float) {
+        self.id = id;
+        self.nome = nome;
+        self.email = email;
+        self.telefone = telefone;
+        self.cidade = cidade;
+        self.saldo = saldo;
+    }
+
+    pub fn to_string() -> str {
+        return "#" + str(self.id) + " " + self.nome + " <" + self.email + "> - " + self.cidade + " | Saldo: R$ " + str(self.saldo);
+    }
+}
+
+class ClienteRepository {
+    pub caminho_banco: str;
+    pub db: int;
+
+    new(caminho_banco: str) {
+        self.caminho_banco = caminho_banco;
+        self.db = 0;
+    }
+
+    pub fn conectar() -> void {
+        self.db = sqlite_open(self.caminho_banco);
+    }
+
+    pub fn inicializar_tabela() -> void {
+        let ddl = "CREATE TABLE IF NOT EXISTS clientes (" +
+                  "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                  "  nome TEXT NOT NULL," +
+                  "  email TEXT NOT NULL UNIQUE," +
+                  "  telefone TEXT," +
+                  "  cidade TEXT," +
+                  "  saldo REAL DEFAULT 0.0" +
+                  ");";
+        sqlite_exec(self.db, ddl);
+    }
+
+    pub fn resetar_tabela() -> void {
+        sqlite_exec(self.db, "DROP TABLE IF EXISTS clientes;");
+        self.inicializar_tabela();
+    }
+
+    pub fn inserir(nome: str, email: str, telefone: str, cidade: str, saldo: float) -> bool {
+        let sql = "INSERT INTO clientes (nome, email, telefone, cidade, saldo) VALUES ('" +
+                  nome + "', '" + email + "', '" + telefone + "', '" + cidade + "', " + str(saldo) + ");";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn listar_todos() -> Array {
+        return sqlite_query(self.db, "SELECT id, nome, email, telefone, cidade, saldo FROM clientes ORDER BY id ASC;");
+    }
+
+    pub fn buscar_por_id(id: int) -> Array {
+        let sql = "SELECT id, nome, email, telefone, cidade, saldo FROM clientes WHERE id = " + str(id) + ";";
+        return sqlite_query(self.db, sql);
+    }
+
+    pub fn atualizar(id: int, novo_telefone: str, novo_saldo: float) -> bool {
+        let sql = "UPDATE clientes SET telefone = '" + novo_telefone + "', saldo = " + str(novo_saldo) + " WHERE id = " + str(id) + ";";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn remover(id: int) -> bool {
+        let sql = "DELETE FROM clientes WHERE id = " + str(id) + ";";
+        return sqlite_exec(self.db, sql);
+    }
+
+    pub fn total() -> int {
+        let res = sqlite_query(self.db, "SELECT COUNT(*) as total FROM clientes;");
+        if len(res) > 0 {
+            let linha = res[0];
+            return int(linha["total"]);
+        }
+        return 0;
+    }
+
+    pub fn fechar() -> void {
+        sqlite_close(self.db);
+    }
+}

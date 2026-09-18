@@ -1,0 +1,91 @@
+// ==============================================================================
+// clientes/controllers/cliente_controller.vox — Camada CONTROLLER da Arquitetura MVC
+// Responsável pela coordenação, validações de negócio e mediação Model-View
+// ==============================================================================
+
+class ClienteController {
+    pub repo: ClienteRepository;
+    pub view: ClienteView;
+
+    new(caminho_banco: str) {
+        self.repo = new ClienteRepository(caminho_banco);
+        self.view = new ClienteView();
+    }
+
+    pub fn iniciar() -> void {
+        self.view.exibir_banner();
+        self.repo.conectar();
+        self.repo.resetar_tabela();
+        self.view.exibir_sucesso("Banco SQLite conectado e tabela 'clientes' inicializada.");
+    }
+
+    // Ação: Cadastrar novo cliente (CREATE)
+    pub fn cadastrar(nome: str, email: str, telefone: str, cidade: str, saldo: float) -> bool {
+        if len(nome) == 0 {
+            self.view.exibir_alerta("Falha no cadastro: o nome nao pode ser vazio.");
+            return false;
+        }
+
+        let sucesso = self.repo.inserir(nome, email, telefone, cidade, saldo);
+        if sucesso {
+            self.view.exibir_sucesso("Cliente cadastrado: " + nome + " (" + email + ")");
+        } else {
+            self.view.exibir_alerta("Erro ao gravar cliente no banco de dados.");
+        }
+        return sucesso;
+    }
+
+    // Ação: Listar todos os clientes (READ)
+    pub fn listar() -> void {
+        let lista = self.repo.listar_todos();
+        self.view.exibir_tabela(lista);
+    }
+
+    // Ação: Consultar cliente por identificador (READ)
+    pub fn consultar(id: int) -> void {
+        let resultado = self.repo.buscar_por_id(id);
+        if len(resultado) == 0 {
+            self.view.exibir_alerta("Nenhum cliente encontrado com o ID #" + str(id));
+            return;
+        }
+
+        let row = resultado[0];
+        let cliente = new Cliente(
+            int(row["id"]),
+            str(row["nome"]),
+            str(row["email"]),
+            str(row["telefone"]),
+            str(row["cidade"]),
+            float(row["saldo"])
+        );
+        self.view.exibir_detalhes(cliente);
+    }
+
+    // Ação: Atualizar telefone e saldo (UPDATE)
+    pub fn atualizar(id: int, novo_telefone: str, novo_saldo: float) -> bool {
+        let sucesso = self.repo.atualizar(id, novo_telefone, novo_saldo);
+        if sucesso {
+            self.view.exibir_sucesso("Cliente #" + str(id) + " atualizado -> Tel: " + novo_telefone + ", Saldo: R$ " + str(novo_saldo));
+        } else {
+            self.view.exibir_alerta("Falha ao atualizar o cliente #" + str(id));
+        }
+        return sucesso;
+    }
+
+    // Ação: Remover cliente (DELETE)
+    pub fn remover(id: int) -> bool {
+        let sucesso = self.repo.remover(id);
+        if sucesso {
+            self.view.exibir_sucesso("Cliente #" + str(id) + " excluido permanentemente.");
+        } else {
+            self.view.exibir_alerta("Nao foi possivel remover o cliente #" + str(id));
+        }
+        return sucesso;
+    }
+
+    pub fn finalizar() -> void {
+        self.repo.fechar();
+        self.view.exibir_sucesso("Conexao com o SQLite encerrada com seguranca.");
+        self.view.exibir_rodape();
+    }
+}
