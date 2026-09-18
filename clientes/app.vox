@@ -7,7 +7,7 @@ include "views/cliente_view.vox";
 include "controllers/cliente_controller.vox";
 
 // 1. Inicializa o Controller passando o banco de dados SQLite
-let controller = new ClienteController("clientes_vox.db");
+let controller = new ClienteController("clientes/db/clientes_vox.db");
 controller.iniciar();
 
 // 2. Operações de Criação (CREATE)

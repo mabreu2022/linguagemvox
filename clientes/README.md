@@ -8,6 +8,8 @@ Exemplo oficial da linguagem **Vox v1.0** demonstrando o padrão arquitetural **
 
 ```text
 clientes/
+├── db/
+│   └── clientes_vox.db          # BANCO DE DADOS: Arquivo relacional SQLite
 ├── models/
 │   └── cliente_model.vox        # MODEL: Entidade de Domínio e Acesso ao SQLite
 ├── views/
