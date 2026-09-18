@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Comandos — Sistema de Clientes (Vox + SQLite)</title>
+  <meta name="description" content="Guia prático e referência de comandos para executar, testar e gerenciar o sistema de clientes MVC e a interface web da linguagem Vox com SQLite." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090d16;
+      --bg-surface: #111625;
+      --bg-card: rgba(17, 22, 37, 0.85);
+      --border: rgba(124, 111, 247, 0.2);
+      --border-focus: rgba(124, 111, 247, 0.55);
+      --accent: #7c6ff7;
+      --accent-hover: #6a59f5;
+      --teal: #14b8a6;
+      --blue: #38bdf8;
+      --pink: #f43f5e;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(124, 111, 247, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(20, 184, 166, 0.12) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem 1.5rem 5rem 1.5rem;
+    }
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      margin-bottom: 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--teal), var(--pink));
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.85rem;
+      background: rgba(124, 111, 247, 0.15);
+      border: 1px solid rgba(124, 111, 247, 0.35);
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 1.2rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    h1 {
+      font-size: 2.3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(135deg, #fff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    /* Quick Nav */
+    .quick-nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-top: 1.8rem;
+    }
+    .nav-chip {
+      background: rgba(30, 38, 58, 0.6);
+      border: 1px solid var(--border);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.45rem 1rem;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+    .nav-chip:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      transform: translateY(-2px);
+    }
+    /* Section Cards */
+    .section-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+      transition: border-color 0.25s ease;
+    }
+    .section-card:hover {
+      border-color: var(--border-focus);
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.85rem;
+      border-bottom: 1px solid rgba(124, 111, 247, 0.15);
+    }
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+    .icon-term { background: rgba(124, 111, 247, 0.15); color: var(--accent); }
+    .icon-web  { background: rgba(20, 184, 166, 0.15); color: var(--teal); }
+    .icon-db   { background: rgba(56, 189, 248, 0.15); color: var(--blue); }
+    .icon-tool { background: rgba(244, 63, 94, 0.15); color: var(--pink); }
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    p {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    /* Command Box */
+    .cmd-group {
+      margin-bottom: 1.5rem;
+    }
+    .cmd-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tag-rec {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: var(--emerald);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-sm);
+      text-transform: uppercase;
+    }
+    .cmd-box {
+      background: #080c16;
+      border: 1px solid rgba(124, 111, 247, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.9rem 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: #38bdf8;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
+      position: relative;
+    }
+    .cmd-text {
+      overflow-x: auto;
+      white-space: nowrap;
+      padding-right: 0.5rem;
+    }
+    .cmd-prompt {
+      color: var(--text-dim);
+      user-select: none;
+      margin-right: 0.4rem;
+    }
+    .copy-btn {
+      background: rgba(124, 111, 247, 0.15);
+      border: 1px solid rgba(124, 111, 247, 0.3);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.4rem 0.8rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+    .copy-btn.copied {
+      background: var(--emerald);
+      border-color: var(--emerald);
+      color: #fff;
+    }
+    .cmd-info {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-top: 0.4rem;
+      line-height: 1.4;
+    }
+    /* Terminal Output Preview */
+    .term-preview {
+      background: #060911;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      padding: 1.15rem;
+      margin-top: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      overflow-x: auto;
+    }
+    .term-preview .term-header {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 0.75rem;
+    }
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+    .term-green { color: var(--emerald); font-weight: 600; }
+    .term-blue { color: var(--blue); }
+    .term-white { color: #fff; }
+
+    /* Table */
+    .docs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 0.88rem;
+    }
+    .docs-table th, .docs-table td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid rgba(124, 111, 247, 0.1);
+      text-align: left;
+    }
+    .docs-table th {
+      background: rgba(14, 18, 30, 0.75);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    .code-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      background: rgba(124, 111, 247, 0.12);
+      border: 1px solid rgba(124, 111, 247, 0.25);
+      color: var(--accent);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <span class="badge">⚡ GUIA DE EXECUÇÃO RÁPIDA</span>
+      <h1>Manual de Comandos — Vox + SQLite</h1>
+      <p class="header-desc">
+        Referência oficial com todos os comandos para compilar, executar no terminal (Console MVC), rodar no navegador (Web Dashboard) e gerenciar a base de dados SQLite.
+      </p>
+
+      <nav class="quick-nav" aria-label="Navegação Rápida">
+        <a href="#sec-terminal" class="nav-chip">1. Rodar no Terminal (MVC)</a>
+        <a href="#sec-web" class="nav-chip">2. Rodar no Navegador (Web)</a>
+        <a href="#sec-db" class="nav-chip">3. Banco de Dados SQLite</a>
+        <a href="#sec-cli" class="nav-chip">4. Utilitários & Compilador</a>
+      </nav>
+    </header>
+
+    <!-- 1. Execução no Terminal (MVC) -->
+    <section class="section-card" id="sec-terminal">
+      <div class="section-header">
+        <div class="section-icon icon-term">💻</div>
+        <div>
+          <h2>1. Rodar o Programa MVC no Terminal (Console)</h2>
+          <p>Executa a aplicação no padrão Model-View-Controller com persistência em <code>clientes/db/clientes_vox.db</code>.</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">
+          <span>Comando Recomendado (via script NPM)</span>
+          <span class="tag-rec">Recomendado</span>
+        </div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>npm run crud:mvc</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'npm run crud:mvc')">Copiar</button>
+        </div>
+        <div class="cmd-info">Executa automaticamente o interpretador Vox carregando o arquivo de entrada <code>clientes/app.vox</code>.</div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">Comando Direto (via CLI do Compilador Vox)</div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>node dist/cli/index.js run clientes/app.vox</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'node dist/cli/index.js run clientes/app.vox')">Copiar</button>
+        </div>
+        <div class="cmd-info">Útil caso queira invocar o binário do compilador diretamente sem o NPM.</div>
+      </div>
+
+      <div class="term-preview">
+        <div class="term-header">
+          <div class="term-dot dot-red"></div>
+          <div class="term-dot dot-yellow"></div>
+          <div class="term-dot dot-green"></div>
+        </div>
+        <div class="term-blue">==================================================================</div>
+        <div class="term-white">       SISTEMA DE CLIENTES MVC (VOX + BANCO DE DADOS SQLITE)     </div>
+        <div class="term-blue">==================================================================</div>
+        <div class="term-green">  [SUCESSO] Banco SQLite conectado e tabela 'clientes' inicializada.</div>
+        <br />
+        <div>[ETAPA 1: CADASTRO DE CLIENTES]</div>
+        <div class="term-green">  [SUCESSO] Cliente cadastrado: Mauricio Abreu (mauricio@voxlang.org)</div>
+        <div class="term-green">  [SUCESSO] Cliente cadastrado: Beatriz Lima (beatriz@email.com)</div>
+        <br />
+        <div>[ETAPA 2: LISTAGEM COMPLETA VIA VIEW]</div>
+        <div>#1 | Mauricio Abreu | mauricio@voxlang.org | Rio de Janeiro | R$ 1500.5</div>
+        <div>#2 | Beatriz Lima   | beatriz@email.com   | Sao Paulo      | R$ 3200</div>
+        <br />
+        <div class="term-green">==================================================================</div>
+        <div class="term-green">       CICLO MVC EXECUTADO COM SUCESSO! OPERACOES CONCLUIDAS      </div>
+        <div class="term-green">==================================================================</div>
+      </div>
+    </section>
+
+    <!-- 2. Execução no Navegador Web -->
+    <section class="section-card" id="sec-web">
+      <div class="section-header">
+        <div class="section-icon icon-web">🌐</div>
+        <div>
+          <h2>2. Rodar a Aplicação no Navegador Web</h2>
+          <p>Inicia o servidor HTTP nativo com API REST e abre a dashboard interativa com glassmorphism e busca dinâmica.</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">
+          <span>Passo 1: Iniciar o Servidor Web</span>
+          <span class="tag-rec">Recomendado</span>
+        </div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>npm run crud:web</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'npm run crud:web')">Copiar</button>
+        </div>
+        <div class="cmd-info">Inicia o servidor na porta <code>3000</code> conectado à base SQLite em <code>clientes_vox.db</code>.</div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">Passo 2: Abrir no Navegador</div>
+        <div class="cmd-box">
+          <div class="cmd-text">http://localhost:3000</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'http://localhost:3000')">Copiar URL</button>
+        </div>
+        <div class="cmd-info">Ou abra diretamente pelo terminal PowerShell com o comando abaixo:</div>
+        <div class="cmd-box" style="margin-top: 0.5rem;">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>Start-Process "http://localhost:3000"</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'Start-Process &quot;http://localhost:3000&quot;')">Copiar</button>
+        </div>
+      </div>
+
+      <table class="docs-table">
+        <thead>
+          <tr>
+            <th>Recurso Web</th>
+            <th>Como Usar</th>
+            <th>Efeito</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code-pill">+ Novo Cliente</span></td>
+            <td>Clique no botão azul superior</td>
+            <td>Abre modal de cadastro com validações</td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">Busca Dinâmica</span></td>
+            <td>Digite na barra de pesquisa</td>
+            <td>Filtra por Nome, E-mail ou Cidade em tempo real</td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">Editar (Lápis)</span></td>
+            <td>Clique no botão na linha da tabela</td>
+            <td>Abre modal preenchido para alterar telefone ou saldo</td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">Excluir (Lixeira)</span></td>
+            <td>Clique no botão vermelho da linha</td>
+            <td>Abre confirmação e remove o registro do SQLite</td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">Exportar CSV</span></td>
+            <td>Clique no botão da barra superior</td>
+            <td>Faz o download da planilha de clientes instantaneamente</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 3. Gestão do Banco de Dados SQLite -->
+    <section class="section-card" id="sec-db">
+      <div class="section-header">
+        <div class="section-icon icon-db">🗄️</div>
+        <div>
+          <h2>3. Gestão do Banco de Dados SQLite</h2>
+          <p>Localização dos arquivos de banco de dados e rotinas de manutenção.</p>
+        </div>
+      </div>
+
+      <table class="docs-table">
+        <thead>
+          <tr>
+            <th>Arquivo</th>
+            <th>Finalidade</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code-pill">clientes/db/clientes_vox.db</span></td>
+            <td>Banco de dados oficial utilizado pela arquitetura MVC</td>
+            <td>Ativo & Persistente</td>
+          </tr>
+          <tr>
+            <td><span class="code-pill">clientes_vox.db</span></td>
+            <td>Banco de dados utilizado pelo servidor Web Dashboard</td>
+            <td>Ativo & Persistente</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="cmd-group" style="margin-top: 1.5rem;">
+        <div class="cmd-title">Sincronizar / Copiar o Banco Atualizado para a pasta MVC:</div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>Copy-Item "clientes_vox.db" -Destination "clientes/db/clientes_vox.db" -Force</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'Copy-Item &quot;clientes_vox.db&quot; -Destination &quot;clientes/db/clientes_vox.db&quot; -Force')">Copiar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Utilitários do Compilador Vox -->
+    <section class="section-card" id="sec-cli">
+      <div class="section-header">
+        <div class="section-icon icon-tool">⚙️</div>
+        <div>
+          <h2>4. Utilitários & Compilador da Linguagem Vox</h2>
+          <p>Comandos úteis do compilador Vox para desenvolvimento, verificação de tipos e compilação nativa.</p>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">Recompilar o Compilador Vox (TypeScript ➔ JavaScript):</div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>npm run build</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'npm run build')">Copiar</button>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">Verificar Sintaxe e Tipos sem Executar (Type Check):</div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>node dist/cli/index.js check clientes/app.vox</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'node dist/cli/index.js check clientes/app.vox')">Copiar</button>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">Executar a Suíte de Testes Automatizados:</div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>npm test</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'npm test')">Copiar</button>
+        </div>
+      </div>
+
+      <div class="cmd-group">
+        <div class="cmd-title">Compilar Código Vox para Executável Nativo (.exe via C99):</div>
+        <div class="cmd-box">
+          <div class="cmd-text"><span class="cmd-prompt">$</span>node dist/cli/index.js build examples/phase6_native.vox -o app.exe --run</div>
+          <button class="copy-btn" onclick="copyCommand(this, 'node dist/cli/index.js build examples/phase6_native.vox -o app.exe --run')">Copiar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Vox Programming Language v1.0 — Criado por <strong>Mauricio Abreu</strong></p>
+      <p style="margin-top: 0.35rem;">Código-fonte: <a href="https://github.com/mabreu2022/linguagemvox" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/mabreu2022/linguagemvox</a></p>
+    </footer>
+  </div>
+
+  <script>
+    function copyCommand(btn, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.textContent;
+        btn.textContent = '✓ Copiado';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
