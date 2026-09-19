@@ -1,7 +1,7 @@
 {
-  "name": "kael-lang",
-  "version": "0.1.0",
-  "description": "Kael — A modern object-oriented programming language",
+  "name": "vox-lang",
+  "version": "1.1.0",
+  "description": "Vox — A modern object-oriented programming language with native compilation and real-time concurrency",
   "main": "dist/index.js",
   "bin": {
     "vox": "./dist/cli/index.js",
