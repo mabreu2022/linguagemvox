@@ -1,4 +1,4 @@
-# 🪐 Vox Programming Language (v1.0)
+# 🪐 Vox Programming Language (v1.1)
 
 ```
 ██╗   ██╗ ██████╗ ██╗  ██╗
@@ -6,10 +6,10 @@
 ██║   ██║██║   ██║ ╚███╔╝ 
 ╚██╗ ██╔╝██║   ██║ ██╔██╗ 
  ╚████╔╝ ╚██████╔╝██╔╝ ██╗
-  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝   v1.0 — Production-Ready
+  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝   v1.1 — Production-Ready
 ```
 
-> **Vox** é uma linguagem de programação moderna, orientada a objetos e modular, com tipagem gradual, segurança de memória via *ownership & borrow checking* determinístico, concorrência CSP nativa, suporte embutido a **banco de dados SQLite** e **compilação direta para binários nativos de máquina (.exe)** via C99.
+> **Vox** é uma linguagem de programação moderna, orientada a objetos e modular, com tipagem gradual, segurança de memória via *ownership & borrow checking* determinístico, concorrência CSP nativa, suporte a **threads reais preemptivas do SO**, **banco de dados SQLite**, **tratamento estruturado de exceções** e **compilação direta para binários nativos de máquina (.exe)** via C99.
 
 ---
 
@@ -39,15 +39,65 @@ Construído nos mesmos moldes dos livros canônicos de outras linguagens consagr
 
 ---
 
+## 🚀 Novidades da Versão 1.1 (Recursos de Sistemas & Resiliência)
+
+A versão **v1.1** expande a Vox para o desenvolvimento de sistemas completos, com suporte integrado a chamadas de SO, threads reais e bibliotecas utilitárias de ponta:
+
+| Categoria | Recursos / Sintaxe | Descrição |
+| :--- | :--- | :--- |
+| **Exceções Estruturadas** | `try { ... } catch (e) { ... } finally { ... }`, `throw` | Controle de exceções de tempo de execução com `setjmp`/`longjmp` em C99 nativo. |
+| **Propagação de Erros** | `expr?` | Desempacota `Option<T>` (`some`/`none`) e `Result<T, E>` (`ok`/`err`) com retorno antecipado. |
+| **Threads Nativas & Mutex** | `thread_spawn`, `thread_join`, `thread_id`, `mutex_*` | Threads reais preemptivas (`CreateThread` / `pthread`) e exclusão mútua (`CRITICAL_SECTION`). |
+| **Sistema de Arquivos** | `file_read`, `file_write`, `file_append`, `file_exists`, `file_delete`, `dir_*` | Leitura, escrita e gerenciamento completo de arquivos e diretórios no disco. |
+| **Data, Hora & Sleep** | `time_now`, `time_millis`, `time_format`, `sleep(ms)` | Timestamps de alta resolução, formatação de datas e sleep real sem consumo de CPU. |
+| **JSON Embutido** | `json_parse`, `json_stringify` | Serialização e desserialização direta entre JSON e estruturas Vox. |
+| **Expressões Regulares** | `regex_test`, `regex_match`, `regex_replace` | Validação e manipulação avançada de textos com sintaxe Regex padrão. |
+| **Coleção Set** | `set_new`, `set_add`, `set_has`, `set_delete`, `set_size`, `set_to_array` | Conjuntos dinâmicos com descarte automático de itens duplicados. |
+| **Módulos Reais** | `import { a, b } from "modulo.vox"` | Importação seletiva com escopo de símbolos isolado e cache de módulos. |
+| **Cliente HTTP** | `http_get`, `http_post` | Requisições HTTP síncronas nativas para consumo e integração de APIs. |
+
+#### 💻 Exemplo Prático dos Novos Recursos:
+```vox
+// 1. Exceções e Propagação de Erro (?)
+fn buscar_porta(config: str) -> Option<str> {
+    if config == "server" { return some("8080"); }
+    return none();
+}
+
+try {
+    let porta = buscar_porta("server")?;
+    println("Servidor ativo na porta: " + porta);
+} catch (e) {
+    println("Falha ao iniciar servidor: " + str(e));
+}
+
+// 2. Threads Reais em Paralelo
+fn tarefa_paralela(id: int) -> int {
+    return id * 10;
+}
+let t = thread_spawn(tarefa_paralela, 5);
+println("Resultado da thread: " + str(thread_join(t))); // 50
+
+// 3. Arquivos e JSON
+file_write("info.json", json_stringify(set_to_array(set_new())));
+```
+
+> Execute a suíte de demonstração completa:
+> ```bash
+> node dist/cli/index.js run examples/novos_recursos_v1_1.vox
+> ```
+
+---
+
 ## 🌟 Principais Recursos
 
 - 💎 **Orientação a Objetos Moderna & Traits**: Classes com construtores explícitos (`new`), structs, traits com blocos `impl Trait for Struct`, modificadores de visibilidade (`pub`, `priv`, `prot`, `stat`) e sobrecarga de operadores (`+`, `-`, `*`, `==`, `!=`, `[]`, `[]=`).
+- 🧵 **Threads Reais & Concorrência CSP**: Concorrência híbrida combinando canais leves baseados em corotinas (`spawn`, `chan_new`) e threads preemptivas nativas do sistema operacional (`thread_spawn`, `mutex_new`).
 - 🗄️ **Bancos de Dados Multi-Engine (SQLite, MySQL, SQL Server, Firebird)**: Interface universal (`db_connect`, `db_query`, `db_exec`, `db_close`) e funções nativas por driver (`sqlite_*`, `mysql_*`, `mssql_*`, `firebird_*`) para conectar a qualquer banco relacional com alto desempenho.
 - 🔁 **Laços de Repetição e Controle de Fluxo**: Condicionais limpas (`if / elif / else`), laço `while` com suporte a loops contínuos e desvios (`break`, `continue`), e laço de iteração `for .. in` sobre coleções e intervalos numéricos (`1..10`).
-- 📦 **Sistema Modular (`include`)**: Organização desacoplada de código através da diretiva `include "modulo.vox";`, permitindo arquiteturas corporativas como **MVC**.
+- 📦 **Sistema Modular (`import` e `include`)**: Organização desacoplada de código através de `import { a } from "mod.vox"` com escopo isolado e `include "modulo.vox"`.
 - ⚡ **Compilação Nativa C99 Sub-Segundo**: Transpilação multi-pass para ANSI C99 e compilação direta para `.exe` nativo em ~60ms utilizando TCC embutido ou GCC/Clang/MSVC.
 - 🦀 **Gerenciamento de Memória por Ownership**: Sem garbage collector obrigatório! Semântica afim (`own`, `borrow`, `ref`, `move`) e borrow checker com detecção de *use-after-move* e conflitos de empréstimo.
-- 🔀 **Concorrência CSP (Canais & Goroutines)**: Corotinas leves (`spawn { ... }`) e canais bidirecionais (`chan_new`, `send`, `recv`, `close`) com buffers circulares seguros.
 - 🧩 **Pattern Matching de Expressão de Valor**: `let x = match ...` com literais, ranges numéricos (`1..10`), monads (`some`, `none`, `ok`, `err`), tuplas e guards condicionais (`if`).
 - 🌊 **Programação Funcional Fluida**: Lambdas compactas (`|x| => x * 2`), métodos de alta ordem (`.map()`, `.filter()`, `.reduce()`, `.find()`) e operador pipeline (`|>`).
 - 🛠️ **Metaprogramação & Macros**: Decoradores `@timed`, `@logged`, `@memoize`, além de macros essenciais `format!`, `assert!`, `dbg!`, `panic!`.
