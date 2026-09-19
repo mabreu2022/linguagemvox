@@ -26,6 +26,10 @@ export enum TokenType {
   CONTINUE   = 'continue',
   RETURN     = 'return',
   MATCH      = 'match',
+  TRY        = 'try',
+  CATCH      = 'catch',
+  FINALLY    = 'finally',
+  THROW      = 'throw',
 
   // Declarações
   LET        = 'let',
@@ -166,6 +170,10 @@ export const KEYWORDS: Map<string, TokenType> = new Map([
   ['continue',   TokenType.CONTINUE],
   ['return',     TokenType.RETURN],
   ['match',      TokenType.MATCH],
+  ['try',        TokenType.TRY],
+  ['catch',      TokenType.CATCH],
+  ['finally',    TokenType.FINALLY],
+  ['throw',      TokenType.THROW],
   ['let',        TokenType.LET],
   ['const',      TokenType.CONST],
   ['mut',        TokenType.MUT],

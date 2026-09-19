@@ -448,6 +448,47 @@ export class CGenerator {
         return parts.join('\n');
       }
 
+      case NodeKind.TryCatchStmt: {
+        const tc = node as any;
+        const frameVar = `_vox_frame_${this.tempVarCounter++}`;
+        const parts = [
+          `{`,
+          `    vox_exception_frame ${frameVar};`,
+          `    vox_push_try_frame(&${frameVar});`,
+          `    if (setjmp(${frameVar}.jmp) == 0) {`,
+        ];
+        this.pushDropScope();
+        for (const s of tc.tryBlock.body) parts.push(`        ${this.generateStmt(s)}`);
+        this.popDropScope().forEach(d => parts.push(`        ${d}`));
+        parts.push(`        vox_pop_try_frame();`);
+        parts.push(`    } else {`);
+        parts.push(`        vox_pop_try_frame();`);
+        if (tc.catchBlock) {
+          if (tc.catchParam) {
+            this.varTypeMap.set(tc.catchParam, 'vox_str*');
+            parts.push(`        vox_str* ${tc.catchParam} = (vox_str*)${frameVar}.thrown_val;`);
+          }
+          this.pushDropScope();
+          for (const s of tc.catchBlock.body) parts.push(`        ${this.generateStmt(s)}`);
+          this.popDropScope().forEach(d => parts.push(`        ${d}`));
+        }
+        parts.push(`    }`);
+        if (tc.finallyBlock) {
+          parts.push(`    {`);
+          this.pushDropScope();
+          for (const s of tc.finallyBlock.body) parts.push(`        ${this.generateStmt(s)}`);
+          this.popDropScope().forEach(d => parts.push(`        ${d}`));
+          parts.push(`    }`);
+        }
+        parts.push(`}`);
+        return parts.join('\n');
+      }
+
+      case NodeKind.ThrowStmt: {
+        const th = node as any;
+        return `vox_throw((void*)(intptr_t)${this.generateExpr(th.value)});`;
+      }
+
       case NodeKind.StructDecl:
       case NodeKind.TraitDecl:
       case NodeKind.ImplDecl:
@@ -578,6 +619,41 @@ export class CGenerator {
           if (name === 'chan_send')  return `vox_chan_send(${this.generateExpr(c.args[0])}, (void*)(intptr_t)${this.generateExpr(c.args[1])})`;
           if (name === 'chan_recv')  return `(intptr_t)vox_chan_recv(${this.generateExpr(c.args[0])})`;
           if (name === 'chan_close') return `vox_chan_close(${this.generateExpr(c.args[0])})`;
+          if (name === 'file_read')   return `vox_file_read(${this.generateExpr(c.args[0])})`;
+          if (name === 'file_write')  return `vox_file_write(${this.generateExpr(c.args[0])}, ${this.generateExpr(c.args[1])})`;
+          if (name === 'file_append') return `vox_file_append(${this.generateExpr(c.args[0])}, ${this.generateExpr(c.args[1])})`;
+          if (name === 'file_exists') return `vox_file_exists(${this.generateExpr(c.args[0])})`;
+          if (name === 'file_delete') return `vox_file_delete(${this.generateExpr(c.args[0])})`;
+          if (name === 'dir_list')    return `vox_dir_list(${this.generateExpr(c.args[0])})`;
+          if (name === 'dir_create')  return `vox_dir_create(${this.generateExpr(c.args[0])})`;
+          if (name === 'time_now')    return 'vox_time_now()';
+          if (name === 'time_millis') return 'vox_time_millis()';
+          if (name === 'time_format') return `vox_time_format(${this.generateExpr(c.args[0])}, ${this.generateExpr(c.args[1])})`;
+          if (name === 'sleep')       return `vox_sleep(${this.generateExpr(c.args[0])})`;
+          if (name === 'http_get')    return `vox_http_get(${this.generateExpr(c.args[0])})`;
+          if (name === 'http_post')   return `vox_http_post(${this.generateExpr(c.args[0])}, ${this.generateExpr(c.args[1])})`;
+          if (name === 'json_parse')  return `vox_json_parse(${this.generateExpr(c.args[0])})`;
+          if (name === 'json_stringify') return `vox_json_stringify((void*)(intptr_t)${this.generateExpr(c.args[0])})`;
+          if (name === 'regex_test')  return `vox_regex_test(${this.generateExpr(c.args[0])}, ${this.generateExpr(c.args[1])})`;
+          if (name === 'regex_match') return `vox_regex_match(${this.generateExpr(c.args[0])}, ${this.generateExpr(c.args[1])})`;
+          if (name === 'regex_replace') return `vox_regex_replace(${this.generateExpr(c.args[0])}, ${this.generateExpr(c.args[1])}, ${this.generateExpr(c.args[2])})`;
+          if (name === 'set_new')     return 'vox_set_new()';
+          if (name === 'set_add')     return `vox_set_add(${this.generateExpr(c.args[0])}, (void*)(intptr_t)${this.generateExpr(c.args[1])})`;
+          if (name === 'set_has')     return `vox_set_has(${this.generateExpr(c.args[0])}, (void*)(intptr_t)${this.generateExpr(c.args[1])})`;
+          if (name === 'set_delete')  return `vox_set_delete(${this.generateExpr(c.args[0])}, (void*)(intptr_t)${this.generateExpr(c.args[1])})`;
+          if (name === 'set_size')    return `vox_set_size(${this.generateExpr(c.args[0])})`;
+          if (name === 'set_to_array') return `vox_set_to_array(${this.generateExpr(c.args[0])})`;
+          if (name === 'thread_spawn') {
+            const fnArg = this.generateExpr(c.args[0]);
+            const extraArgs = c.args.slice(1).map(a => `(intptr_t)${this.generateExpr(a)}`);
+            const count = extraArgs.length;
+            return `vox_thread_spawn_n((void*)${fnArg}, ${count}${count > 0 ? ', ' + extraArgs.join(', ') : ''})`;
+          }
+          if (name === 'thread_join') return `vox_thread_join((vox_thread_t*)${this.generateExpr(c.args[0])})`;
+          if (name === 'thread_id')   return 'vox_thread_id()';
+          if (name === 'mutex_new')   return 'vox_mutex_new()';
+          if (name === 'mutex_lock')  return `vox_mutex_lock(${this.generateExpr(c.args[0])})`;
+          if (name === 'mutex_unlock') return `vox_mutex_unlock(${this.generateExpr(c.args[0])})`;
           if (name === 'some')      return `vox_some((void*)(intptr_t)${this.generateExpr(c.args[0])})`;
           if (name === 'none')      return 'vox_none()';
           if (name === 'ok')        return `vox_ok((void*)(intptr_t)${this.generateExpr(c.args[0])})`;
@@ -606,6 +682,9 @@ export class CGenerator {
 
       case NodeKind.IndexExpr: {
         const idx = node as IndexExprNode;
+        if (this.isLikelyString(idx.index)) {
+          return `(vox_str*)vox_map_get((vox_map*)${this.generateExpr(idx.object)}, ${this.generateExpr(idx.index)})`;
+        }
         return `(intptr_t)vox_array_get((vox_array*)${this.generateExpr(idx.object)}, (size_t)${this.generateExpr(idx.index)})`;
       }
 
@@ -651,6 +730,16 @@ export class CGenerator {
 
       case NodeKind.AwaitExpr:
         return this.generateExpr((node as any).value);
+
+      case NodeKind.TryPropagateExpr: {
+        const innerExpr = (node as any).expr;
+        const innerType = this.inferExprType(innerExpr);
+        const temp = `_prop_${this.tempVarCounter++}`;
+        if (innerType === 'vox_result') {
+          return `({ vox_result ${temp} = ${this.generateExpr(innerExpr)}; if (!${temp}.is_ok) return vox_err(${temp}.value); ${temp}.value; })`;
+        }
+        return `({ vox_option ${temp} = ${this.generateExpr(innerExpr)}; if (!${temp}.is_some) return vox_none(); ${temp}.value; })`;
+      }
 
       case NodeKind.MacroCall:
         return this.generateMacro(node as any);
@@ -832,6 +921,14 @@ export class CGenerator {
           if (fn === 'float')   return 'vox_float';
           if (fn === 'bool')    return 'vox_bool';
           if (fn === 'len')     return 'vox_int';
+          if (fn === 'file_read' || fn === 'http_get' || fn === 'http_post' || fn === 'time_format' || fn === 'json_stringify' || fn === 'regex_match' || fn === 'regex_replace') return 'vox_str*';
+          if (fn === 'file_write' || fn === 'file_append' || fn === 'file_exists' || fn === 'file_delete' || fn === 'dir_create' || fn === 'regex_test' || fn === 'set_has') return 'vox_bool';
+          if (fn === 'time_now' || fn === 'time_millis' || fn === 'thread_join' || fn === 'thread_id' || fn === 'set_size') return 'vox_int';
+          if (fn === 'dir_list' || fn === 'set_to_array') return 'vox_array*';
+          if (fn === 'json_parse') return 'vox_map*';
+          if (fn === 'set_new') return 'vox_set*';
+          if (fn === 'mutex_new') return 'vox_mutex_t*';
+          if (fn === 'thread_spawn') return 'vox_thread_t*';
           if (this.structMap.has(fn)) return `Vox_${fn}`;
           const decl = this.fnMap.get(fn);
           if (decl?.returnType) return this.mapType(decl.returnType);
@@ -859,6 +956,11 @@ export class CGenerator {
         if (cn) { const ft = this.getFieldType(cn, m.property); if (ft) return ft; }
         return 'vox_int';
       }
+      case NodeKind.IndexExpr: {
+        const idx = node as IndexExprNode;
+        if (this.isLikelyString(idx.index)) return 'vox_str*';
+        return 'vox_int';
+      }
       case NodeKind.BinaryExpr: {
         const b = node as BinaryExprNode;
         if (b.operator === '+' && (this.isLikelyString(b.left) || this.isLikelyString(b.right))) return 'vox_str*';
@@ -881,6 +983,23 @@ export class CGenerator {
           if (expr) return this.inferExprType(expr);
         }
         return 'vox_int';
+      }
+      case NodeKind.TryPropagateExpr: {
+        const inner = (node as any).expr;
+        if (inner.kind === NodeKind.CallExpr && inner.callee.kind === NodeKind.Identifier) {
+          const fnName = (inner.callee as IdentifierNode).name;
+          const decl = this.fnMap.get(fnName);
+          if (decl?.returnType) {
+            const rt = decl.returnType as any;
+            if (rt.kind === NodeKind.GenericType && rt.params && rt.params.length > 0) {
+              return this.mapType(rt.params[0]);
+            }
+            if (rt.inner) {
+              return this.mapType(rt.inner);
+            }
+          }
+        }
+        return 'vox_str*';
       }
       default: return 'vox_int';
     }
@@ -916,7 +1035,7 @@ export class CGenerator {
     if (node.kind === NodeKind.StringLiteral) return true;
     if (node.kind === NodeKind.MacroCall && (node as any).name === 'format!') return true;
     if (node.kind === NodeKind.Identifier) return this.varTypeMap.get((node as IdentifierNode).name) === 'vox_str*';
-    if (node.kind === NodeKind.MemberExpr || node.kind === NodeKind.CallExpr) return this.inferExprType(node) === 'vox_str*';
+    if (node.kind === NodeKind.MemberExpr || node.kind === NodeKind.CallExpr || node.kind === NodeKind.IndexExpr) return this.inferExprType(node) === 'vox_str*';
     if (node.kind === NodeKind.BinaryExpr && (node as BinaryExprNode).operator === '+') {
       const b = node as BinaryExprNode;
       return this.isLikelyString(b.left) || this.isLikelyString(b.right);
@@ -951,6 +1070,14 @@ export class CGenerator {
   }
 
   private toStrExpr(node: ExprNode, expr: string): string {
+    const type = this.inferExprType(node);
+    if (type === 'vox_option') return `vox_option_to_str(${expr})`;
+    if (type === 'vox_result') return `vox_result_to_str(${expr})`;
+    if (type === 'vox_set*') return `vox_set_to_str(${expr})`;
+    if (type === 'vox_mutex_t*') return `vox_mutex_to_str(${expr})`;
+    if (type === 'vox_thread_t*') return `vox_thread_to_str(${expr})`;
+    if (type === 'vox_map*') return `vox_map_to_str(${expr})`;
+    if (type === 'void*') return `((vox_str*)${expr})`;
     if (this.isLikelyString(node)) return expr;
     if (this.isLikelyFloat(node))  return `vox_float_to_str(${expr})`;
     if (this.isLikelyBool(node))   return `vox_bool_to_str(${expr})`;
@@ -971,6 +1098,14 @@ export class CGenerator {
 
   private genToStr(arg: ExprNode): string {
     const e = this.generateExpr(arg);
+    const type = this.inferExprType(arg);
+    if (type === 'vox_option') return `vox_option_to_str(${e})`;
+    if (type === 'vox_result') return `vox_result_to_str(${e})`;
+    if (type === 'vox_set*') return `vox_set_to_str(${e})`;
+    if (type === 'vox_mutex_t*') return `vox_mutex_to_str(${e})`;
+    if (type === 'vox_thread_t*') return `vox_thread_to_str(${e})`;
+    if (type === 'vox_map*') return `vox_map_to_str(${e})`;
+    if (type === 'void*') return `((vox_str*)${e})`;
     if (this.isLikelyString(arg)) return e;
     if (this.isLikelyFloat(arg))  return `vox_float_to_str(${e})`;
     if (this.isLikelyBool(arg))   return `vox_bool_to_str(${e})`;

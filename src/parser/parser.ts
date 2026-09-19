@@ -14,6 +14,7 @@ import {
   ClassMemberNode, DecoratorNode, ExprNode, TypeNode,
   IdentifierNode, MatchPattern, StmtNode, OwnershipKind, Visibility,
   LambdaExprNode, OwnershipExprNode, CoalesceExprNode,
+  TryCatchStmtNode, ThrowStmtNode, TryPropagateExprNode,
 } from "./ast";
 
 export class ParseError extends Error {
@@ -525,6 +526,8 @@ export class Parser {
     if (this.check(TokenType.FOR))      return this.parseFor();
     if (this.check(TokenType.MATCH))    return this.parseMatch();
     if (this.check(TokenType.SPAWN))    return this.parseSpawn();
+    if (this.check(TokenType.TRY))      return this.parseTryCatch();
+    if (this.check(TokenType.THROW))    return this.parseThrow();
     if (this.check(TokenType.BREAK)) {
       const pos = this.advance().position;
       this.matchSemicolon();
@@ -664,6 +667,41 @@ export class Parser {
   private parseSpawn(): SpawnStmtNode {
     const pos = this.advance().position;
     return { kind: NodeKind.SpawnStmt, body: this.parseBlock(), position: pos };
+  }
+
+  private parseTryCatch(): TryCatchStmtNode {
+    const pos = this.advance().position; // consume 'try'
+    const tryBlock = this.parseBlock();
+    let catchParam: string | undefined;
+    let catchBlock: BlockNode | undefined;
+    if (this.check(TokenType.CATCH)) {
+      this.advance(); // consume 'catch'
+      if (this.match(TokenType.LPAREN)) {
+        catchParam = this.expect(TokenType.IDENTIFIER, "Expected catch parameter name").value;
+        this.expect(TokenType.RPAREN, "Expected ')' after catch parameter");
+      }
+      catchBlock = this.parseBlock();
+    }
+    let finallyBlock: BlockNode | undefined;
+    if (this.check(TokenType.FINALLY)) {
+      this.advance(); // consume 'finally'
+      finallyBlock = this.parseBlock();
+    }
+    return {
+      kind: NodeKind.TryCatchStmt,
+      tryBlock,
+      catchParam,
+      catchBlock,
+      finallyBlock,
+      position: pos,
+    };
+  }
+
+  private parseThrow(): ThrowStmtNode {
+    const pos = this.advance().position; // consume 'throw'
+    const value = this.parseExpression();
+    this.matchSemicolon();
+    return { kind: NodeKind.ThrowStmt, value, position: pos };
   }
 
   private parseBlock(): BlockNode {
@@ -854,6 +892,9 @@ export class Parser {
         this.advance(); this.advance();
         const prop = this.parsePropertyName();
         expr = { kind: NodeKind.MemberExpr, object: expr, property: prop, isOptional: true, position: expr.position };
+      } else if (this.check(TokenType.QUESTION) && this.peekNext().type !== TokenType.QUESTION) {
+        const qPos = this.advance().position;
+        expr = { kind: NodeKind.TryPropagateExpr, expr, position: qPos };
       } else if (this.check(TokenType.LBRACKET)) {
         this.advance();
         const index = this.parseExpression();

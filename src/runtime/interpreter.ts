@@ -3,6 +3,9 @@
 // Executa código diretamente sem compilação
 // ============================================================
 
+import * as fs from 'fs';
+import * as path from 'path';
+import * as child_process from 'child_process';
 import {
   ASTNode, NodeKind, ProgramNode, VarDeclNode, FnDeclNode,
   ClassDeclNode, BlockNode, ExprNode, ExprStmtNode,
@@ -13,7 +16,10 @@ import {
   MatchArmNode, BreakStmtNode, ContinueStmtNode, SpawnStmtNode,
   ConstructorDeclNode, MapLiteralNode, OperatorDeclNode, Visibility,
   OwnershipExprNode, OwnershipKind, DecoratorNode,
+  TryCatchStmtNode, ThrowStmtNode, TryPropagateExprNode, ImportDeclNode,
 } from '../parser/ast';
+import { Lexer } from '../lexer/lexer';
+import { Parser } from '../parser/parser';
 import { DatabaseManager } from './database_manager';
 
 // ── Valores em runtime ────────────────────────────────────────
@@ -38,6 +44,7 @@ export type KaelValue =
   | null
   | KaelValue[]
   | Map<KaelValue, KaelValue>
+  | Set<KaelValue>
   | KaelFunction
   | KaelInstance
   | KaelClass
@@ -47,7 +54,10 @@ export type KaelValue =
   | { kind: 'mixin'; name: string; node: any }
   | { kind: 'option'; value: KaelValue | null }
   | { kind: 'result'; ok: boolean; value: KaelValue }
-  | { kind: 'moved'; name: string; __vox_moved: true };
+  | { kind: 'thread'; id: number; readonly result: KaelValue; readonly done: boolean; readonly error: any }
+  | { kind: 'mutex'; locked: boolean }
+  | { kind: 'moved'; name: string; __vox_moved: true }
+  | any;
 
 export interface KaelSuper {
   kind: 'super';
@@ -86,6 +96,7 @@ export interface KaelInstance {
 class ReturnSignal   { constructor(public value: KaelValue) {} }
 class BreakSignal    {}
 class ContinueSignal {}
+export class VoxThrowSignal { constructor(public value: KaelValue) {} }
 
 // ── Ambiente (Escopo) ─────────────────────────────────────────
 
@@ -128,7 +139,8 @@ export class RuntimeError extends Error {
 // ── Interpretador ─────────────────────────────────────────────
 
 export class Interpreter {
-  private globals: Environment;
+  public globals: Environment;
+  public moduleCache: Map<string, Environment> = new Map();
   private callingClassStack: string[] = [];
 
   constructor() {
@@ -419,11 +431,224 @@ export class Interpreter {
     this.defineNative('sleep', (ms) => {
       const waitMs = Number(ms) || 0;
       if (waitMs > 0) {
-        const start = Date.now();
-        while (Date.now() - start < waitMs) {
-          // busy wait
+        try {
+          const buf = new Int32Array(new SharedArrayBuffer(4));
+          Atomics.wait(buf, 0, 0, waitMs);
+        } catch {
+          const start = Date.now();
+          while (Date.now() - start < waitMs) {}
         }
       }
+      return null;
+    });
+
+    // ── File I/O ──────────────────────────────────────────────
+    this.defineNative('file_read', (filePath) => {
+      const p = String(filePath);
+      if (!fs.existsSync(p)) throw new RuntimeError(`file_read: file '${p}' not found`);
+      return fs.readFileSync(p, 'utf8');
+    });
+
+    this.defineNative('file_write', (filePath, content) => {
+      fs.writeFileSync(String(filePath), String(content ?? ''), 'utf8');
+      return true;
+    });
+
+    this.defineNative('file_append', (filePath, content) => {
+      fs.appendFileSync(String(filePath), String(content ?? ''), 'utf8');
+      return true;
+    });
+
+    this.defineNative('file_exists', (filePath) => {
+      return fs.existsSync(String(filePath));
+    });
+
+    this.defineNative('file_delete', (filePath) => {
+      const p = String(filePath);
+      if (fs.existsSync(p)) {
+        fs.unlinkSync(p);
+        return true;
+      }
+      return false;
+    });
+
+    this.defineNative('dir_list', (dirPath) => {
+      const p = String(dirPath);
+      if (!fs.existsSync(p)) throw new RuntimeError(`dir_list: directory '${p}' not found`);
+      return fs.readdirSync(p);
+    });
+
+    this.defineNative('dir_create', (dirPath) => {
+      fs.mkdirSync(String(dirPath), { recursive: true });
+      return true;
+    });
+
+    // ── HTTP ──────────────────────────────────────────────────
+    this.defineNative('http_get', (url) => {
+      try {
+        const out = child_process.execFileSync('curl', ['-s', '-L', String(url)], { encoding: 'utf8' });
+        return out;
+      } catch (e: any) {
+        throw new RuntimeError(`http_get failed: ${e.message}`);
+      }
+    });
+
+    this.defineNative('http_post', (url, body, contentType) => {
+      try {
+        const ct = contentType ? String(contentType) : 'application/json';
+        const out = child_process.execFileSync('curl', ['-s', '-L', '-X', 'POST', '-H', `Content-Type: ${ct}`, '-d', String(body ?? ''), String(url)], { encoding: 'utf8' });
+        return out;
+      } catch (e: any) {
+        throw new RuntimeError(`http_post failed: ${e.message}`);
+      }
+    });
+
+    // ── DateTime ──────────────────────────────────────────────
+    this.defineNative('time_now', () => Math.floor(Date.now() / 1000));
+    this.defineNative('time_millis', () => Date.now());
+    this.defineNative('time_format', (ts, formatStr) => {
+      const d = new Date(Number(ts) < 10000000000 ? Number(ts) * 1000 : Number(ts));
+      let fmt = formatStr ? String(formatStr) : 'YYYY-MM-DD HH:mm:ss';
+      const pad = (n: number) => String(n).padStart(2, '0');
+      fmt = fmt.replace('YYYY', String(d.getFullYear()));
+      fmt = fmt.replace('MM', pad(d.getMonth() + 1));
+      fmt = fmt.replace('DD', pad(d.getDate()));
+      fmt = fmt.replace('HH', pad(d.getHours()));
+      fmt = fmt.replace('mm', pad(d.getMinutes()));
+      fmt = fmt.replace('ss', pad(d.getSeconds()));
+      return fmt;
+    });
+
+    // ── JSON ──────────────────────────────────────────────────
+    const voxToJson = (v: any): any => {
+      if (v instanceof Map) {
+        const obj: any = {};
+        for (const [key, val] of v.entries()) obj[String(key)] = voxToJson(val);
+        return obj;
+      }
+      if (v instanceof Set) return Array.from(v).map(voxToJson);
+      if (Array.isArray(v)) return v.map(voxToJson);
+      if (v && typeof v === 'object') {
+        if (v.kind === 'instance' && v.fields) {
+          const obj: any = {};
+          for (const [key, val] of v.fields.entries()) obj[key] = voxToJson(val);
+          return obj;
+        }
+        if (v.kind === 'option') return v.value !== null ? voxToJson(v.value) : null;
+        if (v.kind === 'result') return v.ok ? voxToJson(v.value) : null;
+        if (v.fields && v.fields instanceof Map) {
+          const obj: any = {};
+          for (const [key, val] of v.fields.entries()) obj[key] = voxToJson(val);
+          return obj;
+        }
+      }
+      return v;
+    };
+
+    const jsonToVox = (v: any): any => {
+      if (Array.isArray(v)) return v.map(jsonToVox);
+      if (v !== null && typeof v === 'object') {
+        const m = new Map<KaelValue, KaelValue>();
+        for (const [k, val] of Object.entries(v)) {
+          m.set(k, jsonToVox(val));
+        }
+        return m;
+      }
+      return v;
+    };
+
+    this.defineNative('json_stringify', (v) => JSON.stringify(voxToJson(v)));
+    this.defineNative('json_parse', (s) => jsonToVox(JSON.parse(String(s))));
+
+    // ── Regex ─────────────────────────────────────────────────
+    this.defineNative('regex_test', (pattern, text) => {
+      return new RegExp(String(pattern)).test(String(text));
+    });
+
+    this.defineNative('regex_match', (pattern, text) => {
+      const m = String(text).match(new RegExp(String(pattern), 'g'));
+      return m ? Array.from(m) : [];
+    });
+
+    this.defineNative('regex_replace', (pattern, text, replacement) => {
+      return String(text).replace(new RegExp(String(pattern), 'g'), String(replacement));
+    });
+
+    // ── Set ───────────────────────────────────────────────────
+    this.defineNative('set_new', () => new Set<KaelValue>());
+    this.defineNative('set_add', (s, v) => {
+      if (!(s instanceof Set)) throw new RuntimeError('set_add requires a Set');
+      s.add(v);
+      return null;
+    });
+    this.defineNative('set_has', (s, v) => {
+      if (!(s instanceof Set)) throw new RuntimeError('set_has requires a Set');
+      return s.has(v);
+    });
+    this.defineNative('set_delete', (s, v) => {
+      if (!(s instanceof Set)) throw new RuntimeError('set_delete requires a Set');
+      return s.delete(v);
+    });
+    this.defineNative('set_size', (s) => {
+      if (!(s instanceof Set)) throw new RuntimeError('set_size requires a Set');
+      return s.size;
+    });
+    this.defineNative('set_to_array', (s) => {
+      if (!(s instanceof Set)) throw new RuntimeError('set_to_array requires a Set');
+      return Array.from(s);
+    });
+
+    // ── Threads & Mutex ───────────────────────────────────────
+    let nextThreadId = 100;
+    this.defineNative('thread_spawn', (fn, ...args) => {
+      if (!fn || typeof fn !== 'object' || (fn as any).kind !== 'function') {
+        throw new RuntimeError('thread_spawn requires a function');
+      }
+      const tid = ++nextThreadId;
+      const targetFn = fn as KaelFunction;
+      let done = false;
+      let result: KaelValue = null;
+      let error: any = null;
+      try {
+        result = this.callFn(targetFn, args);
+        done = true;
+      } catch (err: any) {
+        error = err;
+        done = true;
+      }
+      return {
+        kind: 'thread',
+        id: tid,
+        get result() { return result; },
+        get done() { return done; },
+        get error() { return error; },
+      };
+    });
+
+    this.defineNative('thread_join', (handle) => {
+      if (!handle || typeof handle !== 'object' || (handle as any).kind !== 'thread') {
+        throw new RuntimeError('thread_join requires a Thread handle');
+      }
+      const t = handle as any;
+      if (t.error) throw t.error;
+      return t.result;
+    });
+
+    this.defineNative('thread_id', () => 1);
+
+    this.defineNative('mutex_new', () => ({ kind: 'mutex', locked: false }));
+    this.defineNative('mutex_lock', (m) => {
+      if (!m || typeof m !== 'object' || (m as any).kind !== 'mutex') {
+        throw new RuntimeError('mutex_lock requires a Mutex');
+      }
+      (m as any).locked = true;
+      return null;
+    });
+    this.defineNative('mutex_unlock', (m) => {
+      if (!m || typeof m !== 'object' || (m as any).kind !== 'mutex') {
+        throw new RuntimeError('mutex_unlock requires a Mutex');
+      }
+      (m as any).locked = false;
       return null;
     });
 
@@ -718,7 +943,12 @@ export class Interpreter {
       case NodeKind.FnDecl:     this.hoistFn(node as FnDeclNode, env); return null;
       case NodeKind.ClassDecl:  this.hoistClass(node as ClassDeclNode, env); return null;
       case NodeKind.ExportDecl: return this.execNode((node as any).decl, env);
-      case NodeKind.ImportDecl:    return null; // TODO
+      case NodeKind.ImportDecl:    return this.execImport(node as ImportDeclNode, env);
+      case NodeKind.TryCatchStmt:  return this.execTryCatch(node as any, env);
+      case NodeKind.ThrowStmt: {
+        const val = (node as any).value ? this.evalExpr((node as any).value, env) : null;
+        throw new VoxThrowSignal(val);
+      }
       case NodeKind.InterfaceDecl: return null; // compile-time only
       case NodeKind.MixinDecl:     return null; // mixins are hoisted
       case NodeKind.Block:      return this.execBlock(node as BlockNode, env);
@@ -857,6 +1087,84 @@ export class Interpreter {
     return null;
   }
 
+  private execImport(node: ImportDeclNode, env: Environment): KaelValue {
+    let targetPath = node.source;
+    if (!path.isAbsolute(targetPath)) {
+      targetPath = path.resolve(process.cwd(), targetPath);
+    }
+    if (!fs.existsSync(targetPath) && fs.existsSync(targetPath + '.vox')) {
+      targetPath = targetPath + '.vox';
+    }
+    if (!fs.existsSync(targetPath)) {
+      throw new RuntimeError(`Cannot find module '${node.source}'`);
+    }
+
+    let modEnv = this.moduleCache.get(targetPath);
+    if (!modEnv) {
+      const code = fs.readFileSync(targetPath, 'utf8');
+      const tokens = new Lexer(code).tokenize();
+      const ast = new Parser(tokens).parse();
+      modEnv = this.globals.child();
+      const subInterp = new Interpreter();
+      subInterp.globals = this.globals;
+      subInterp.moduleCache = this.moduleCache;
+      for (const stmt of ast.body) {
+        subInterp.execNode(stmt, modEnv);
+      }
+      this.moduleCache.set(targetPath, modEnv);
+    }
+
+    if (node.names && node.names.length > 0) {
+      for (const name of node.names) {
+        if (modEnv.has(name)) {
+          env.set(name, modEnv.get(name));
+        } else {
+          throw new RuntimeError(`Module '${node.source}' does not export '${name}'`);
+        }
+      }
+    } else {
+      for (const [k, v] of (modEnv as any).values.entries()) {
+        env.set(k, v);
+      }
+    }
+    return null;
+  }
+
+  private execTryCatch(node: any, env: Environment): KaelValue {
+    let result: KaelValue = null;
+    try {
+      result = this.execBlock(node.tryBlock, env.child());
+    } catch (e: any) {
+      if (e instanceof ReturnSignal || e instanceof BreakSignal || e instanceof ContinueSignal) {
+        throw e;
+      }
+      if (node.catchBlock) {
+        const catchEnv = env.child();
+        const thrownVal = (e instanceof VoxThrowSignal) ? e.value : (e.message ?? String(e));
+        if (node.catchParam) {
+          catchEnv.set(node.catchParam, thrownVal);
+        }
+        try {
+          result = this.execBlock(node.catchBlock, catchEnv);
+        } catch (innerE) {
+          if (node.finallyBlock) {
+            this.execBlock(node.finallyBlock, env.child());
+          }
+          throw innerE;
+        }
+      } else {
+        if (node.finallyBlock) {
+          this.execBlock(node.finallyBlock, env.child());
+        }
+        throw e;
+      }
+    }
+    if (node.finallyBlock) {
+      this.execBlock(node.finallyBlock, env.child());
+    }
+    return result;
+  }
+
   // ── Avaliação de expressões ───────────────────────────────
 
   private evalExpr(node: ExprNode, env: Environment): KaelValue {
@@ -916,6 +1224,25 @@ export class Interpreter {
       case NodeKind.PipeExpr:     return this.evalPipe(node as any, env);
       case NodeKind.MacroCall:    return this.evalMacro(node as any, env);
       case NodeKind.OwnershipExpr: return this.evalExpr((node as any).operand, env);
+
+      case NodeKind.TryPropagateExpr: {
+        const val = this.evalExpr((node as any).expr, env);
+        if (val && typeof val === 'object') {
+          if ((val as any).kind === 'option') {
+            if ((val as any).value === null || (val as any).value === undefined) {
+              throw new ReturnSignal(val);
+            }
+            return (val as any).value;
+          }
+          if ((val as any).kind === 'result') {
+            if (!(val as any).ok) {
+              throw new ReturnSignal(val);
+            }
+            return (val as any).value;
+          }
+        }
+        return val;
+      }
 
       default:
         throw new RuntimeError(`Unknown expression kind: ${node.kind}`);
@@ -1610,6 +1937,9 @@ export class Interpreter {
       const entries = [...value.entries()].map(([k, v]) => `${this.stringify(k)}: ${this.stringify(v)}`);
       return `{${entries.join(', ')}}`;
     }
+    if (value instanceof Set) {
+      return `Set{${[...value.values()].map(v => this.stringify(v)).join(', ')}}`;
+    }
     if (typeof value === 'object') {
       const v = value as any;
       if (v.kind === 'instance') return `<${v.class.name}>`;
@@ -1620,6 +1950,8 @@ export class Interpreter {
       if (v.kind === 'future') return `<future resolved=${v.isResolved} value=${this.stringify(v.value)}>`;
       if (v.kind === 'option') return v.value !== null ? `some(${this.stringify(v.value)})` : 'none';
       if (v.kind === 'result') return v.ok ? `ok(${this.stringify(v.value)})` : `err(${this.stringify(v.value)})`;
+      if (v.kind === 'thread') return `<thread id=${v.id}>`;
+      if (v.kind === 'mutex') return `<mutex locked=${v.locked}>`;
     }
     return String(value);
   }

@@ -225,6 +225,42 @@ export class SemanticAnalyzer {
         returnType: { kind: 'primitive', name: 'void' },
         isAsync: false,
       }],
+      // File I/O
+      ['file_read', fn('str')],
+      ['file_write', fn('bool')],
+      ['file_append', fn('bool')],
+      ['file_exists', fn('bool')],
+      ['file_delete', fn('bool')],
+      ['dir_list', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'primitive', name: 'str' }] }, isAsync: false }],
+      ['dir_create', fn('bool')],
+      // HTTP
+      ['http_get', fn('str')],
+      ['http_post', fn('str')],
+      // DateTime
+      ['time_now', fn('int')],
+      ['time_millis', fn('int')],
+      ['time_format', fn('str')],
+      // JSON
+      ['json_parse', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }], returnType: { kind: 'unknown' }, isAsync: false }],
+      ['json_stringify', fn('str')],
+      // Regex
+      ['regex_test', fn('bool')],
+      ['regex_match', { kind: 'function', params: [{ kind: 'primitive', name: 'str' }, { kind: 'primitive', name: 'str' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'primitive', name: 'str' }] }, isAsync: false }],
+      ['regex_replace', fn('str')],
+      // Set
+      ['set_new', { kind: 'function', params: [], returnType: { kind: 'unknown' }, isAsync: false }],
+      ['set_add', fn('void')],
+      ['set_has', fn('bool')],
+      ['set_delete', fn('bool')],
+      ['set_size', fn('int')],
+      ['set_to_array', { kind: 'function', params: [{ kind: 'unknown' }], returnType: { kind: 'generic', base: 'Array', params: [{ kind: 'unknown' }] }, isAsync: false }],
+      // Threads & Mutex
+      ['thread_spawn', { kind: 'function', params: [{ kind: 'unknown' }], returnType: { kind: 'unknown' }, isAsync: false }],
+      ['thread_join', { kind: 'function', params: [{ kind: 'unknown' }], returnType: { kind: 'unknown' }, isAsync: false }],
+      ['thread_id', fn('int')],
+      ['mutex_new', { kind: 'function', params: [], returnType: { kind: 'unknown' }, isAsync: false }],
+      ['mutex_lock', fn('void')],
+      ['mutex_unlock', fn('void')],
     ];
 
     for (const [name, type] of builtins) {
@@ -596,9 +632,26 @@ export class SemanticAnalyzer {
       case NodeKind.ForStmt:       return this.analyzeFor(node as ForStmtNode);
       case NodeKind.MatchStmt:     return this.analyzeMatch(node as MatchStmtNode);
       case NodeKind.ExportDecl:    return this.analyzeNode((node as any).decl);
+      case NodeKind.ImportDecl: {
+        const imp = node as any;
+        if (imp.names) {
+          for (const name of imp.names) {
+            this.currentScope.define({
+              name,
+              type: { kind: 'unknown' },
+              isConst: false,
+              isMut: false,
+              defined: true,
+            });
+          }
+        }
+        return { kind: 'primitive', name: 'void' };
+      }
       case NodeKind.BreakStmt:
       case NodeKind.ContinueStmt:
       case NodeKind.SpawnStmt:     return { kind: 'primitive', name: 'void' };
+      case NodeKind.TryCatchStmt:  return this.analyzeTryCatch(node as any);
+      case NodeKind.ThrowStmt:     return this.analyzeThrow(node as any);
       default:
         if (this.isExpr(node)) return this.analyzeExpr(node as ExprNode);
         return { kind: 'unknown' };
@@ -614,6 +667,7 @@ export class SemanticAnalyzer {
       NodeKind.ArrayLiteral, NodeKind.NewExpr, NodeKind.IndexExpr,
       NodeKind.OwnershipExpr, NodeKind.MatchStmt, NodeKind.PipeExpr,
       NodeKind.MacroCall, NodeKind.AwaitExpr, NodeKind.CoalesceExpr,
+      NodeKind.TryPropagateExpr,
     ].includes(node.kind);
   }
 
@@ -1576,9 +1630,43 @@ export class SemanticAnalyzer {
         return { kind: 'unknown' };
       }
 
+      case NodeKind.TryPropagateExpr: {
+        const inner = this.analyzeExpr((node as any).expr);
+        if (inner.kind === 'option') return (inner as any).inner ?? { kind: 'unknown' };
+        if (inner.kind === 'result') return (inner as any).ok ?? { kind: 'unknown' };
+        return inner;
+      }
+
       default:
         return { kind: 'unknown' };
     }
+  }
+
+  private analyzeTryCatch(node: any): KaelType {
+    if (node.tryBlock) this.analyzeBlock(node.tryBlock);
+    if (node.catchBlock) {
+      this.currentScope = new Scope(this.currentScope);
+      if (node.catchParam) {
+        this.currentScope.define({
+          name: node.catchParam,
+          type: { kind: 'unknown' },
+          isConst: false,
+          isMut: true,
+          defined: true,
+        });
+      }
+      for (const stmt of node.catchBlock.body) this.analyzeNode(stmt);
+      this.currentScope = this.currentScope.parent!;
+    }
+    if (node.finallyBlock) {
+      this.analyzeBlock(node.finallyBlock);
+    }
+    return { kind: 'primitive', name: 'void' };
+  }
+
+  private analyzeThrow(node: any): KaelType {
+    if (node.value) this.analyzeExpr(node.value);
+    return { kind: 'primitive', name: 'void' };
   }
 
   // ── Resolver tipo da anotação ─────────────────────────────

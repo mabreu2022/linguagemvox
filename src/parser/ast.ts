@@ -48,6 +48,8 @@ export enum NodeKind {
   MatchStmt            = 'MatchStmt',
   MatchArm             = 'MatchArm',
   SpawnStmt            = 'SpawnStmt',
+  TryCatchStmt         = 'TryCatchStmt',
+  ThrowStmt            = 'ThrowStmt',
 
   // Expressões
   BinaryExpr           = 'BinaryExpr',
@@ -63,6 +65,7 @@ export enum NodeKind {
   TypeCastExpr         = 'TypeCastExpr',
   PipeExpr             = 'PipeExpr',
   OwnershipExpr        = 'OwnershipExpr',
+  TryPropagateExpr     = 'TryPropagateExpr',
 
   // Literais
   IntLiteral           = 'IntLiteral',
@@ -327,6 +330,19 @@ export interface SpawnStmtNode extends ASTNode {
   body: BlockNode;
 }
 
+export interface TryCatchStmtNode extends ASTNode {
+  kind:         NodeKind.TryCatchStmt;
+  tryBlock:     BlockNode;
+  catchParam?:  string;
+  catchBlock?:  BlockNode;
+  finallyBlock?: BlockNode;
+}
+
+export interface ThrowStmtNode extends ASTNode {
+  kind:  NodeKind.ThrowStmt;
+  value: ExprNode;
+}
+
 // ── Expressões ────────────────────────────────────────────────
 
 export interface BinaryExprNode extends ASTNode {
@@ -498,6 +514,11 @@ export interface MacroCallNode extends ASTNode {
   args: ExprNode[];
 }
 
+export interface TryPropagateExprNode extends ASTNode {
+  kind: NodeKind.TryPropagateExpr;
+  expr: ExprNode;
+}
+
 // ── Union types ───────────────────────────────────────────────
 
 export type TypeNode =
@@ -522,6 +543,7 @@ export type ExprNode =
   | TypeCastExprNode
   | PipeExprNode
   | OwnershipExprNode
+  | TryPropagateExprNode
   | IntLiteralNode
   | FloatLiteralNode
   | StringLiteralNode
@@ -555,4 +577,6 @@ export type StmtNode =
   | BreakStmtNode
   | ContinueStmtNode
   | MatchStmtNode
-  | SpawnStmtNode;
+  | SpawnStmtNode
+  | TryCatchStmtNode
+  | ThrowStmtNode;

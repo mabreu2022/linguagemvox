@@ -1,0 +1,167 @@
+// ============================================================
+// examples/novos_recursos_v1_1.vox
+// Demonstração dos Novos Recursos da Linguagem Vox (v1.1)
+// ============================================================
+
+println("=================================================");
+println("  🪐 VOX v1.1 — DEMONSTRAÇÃO DOS NOVOS RECURSOS");
+println("=================================================");
+
+// ────────────────────────────────────────────────────────────
+// 1. TRATAMENTO ESTRUTURADO DE EXCEÇÕES (try / catch / finally / throw)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 1. Tratamento Estruturado de Exceções ---");
+
+fn divisao_segura(a: int, b: int) -> int {
+    if b == 0 {
+        throw "Erro: Divisao por zero detectada!";
+    }
+    return a / b;
+}
+
+try {
+    println("Calculando 10 / 2 = " + str(divisao_segura(10, 2)));
+    println("Tentando dividir 10 / 0...");
+    let falha = divisao_segura(10, 0);
+    println("Nao deve alcancar aqui: " + str(falha));
+} catch (e) {
+    println(">> Excecao capturada com sucesso: " + str(e));
+} finally {
+    println(">> Bloco finally executado com sucesso!");
+}
+
+// ────────────────────────────────────────────────────────────
+// 2. OPERADOR DE PROPAGAÇÃO DE ERRO (?)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 2. Operador de Propagacao de Erro (?) ---");
+
+fn carregar_config(chave: str) -> Option<str> {
+    if chave == "porta" {
+        return some("8080");
+    }
+    return none();
+}
+
+fn iniciar_servidor() -> Option<str> {
+    let porta = carregar_config("porta")?;
+    return some("Servidor rodando na porta " + porta);
+}
+
+fn iniciar_servidor_invalido() -> Option<str> {
+    let host = carregar_config("host")?;
+    return some("Servidor rodando em " + host);
+}
+
+println("Configuracao valida:   " + str(iniciar_servidor()));
+println("Configuracao ausente:  " + str(iniciar_servidor_invalido()));
+
+// ────────────────────────────────────────────────────────────
+// 3. SISTEMA DE ARQUIVOS NATIVO (File I/O)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 3. Sistema de Arquivos (File I/O) ---");
+
+let arquivo_exemplo = "temp_vox_v1_1.txt";
+file_write(arquivo_exemplo, "Vox v1.1 - Sistema de Arquivos Nativo\nLinha 2 do arquivo!\n");
+println("Arquivo criado? " + str(file_exists(arquivo_exemplo)));
+
+let conteudo_lido = file_read(arquivo_exemplo);
+println("Conteudo lido do disco:\n" + conteudo_lido);
+
+file_delete(arquivo_exemplo);
+println("Arquivo removido? Existe ainda? " + str(file_exists(arquivo_exemplo)));
+
+// ────────────────────────────────────────────────────────────
+// 4. DATAS, HORAS & SLEEP
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 4. Data, Hora & Sleep Real ---");
+
+let agora = time_now();
+let agora_ms = time_millis();
+let data_formatada = time_format(agora, "YYYY-MM-DD HH:mm:ss");
+println("Timestamp atual (s):  " + str(agora));
+println("Timestamp atual (ms): " + str(agora_ms));
+println("Data formatada:       " + data_formatada);
+
+println("Pausa de 50ms...");
+sleep(50);
+println("Pausa concluida!");
+
+// ────────────────────────────────────────────────────────────
+// 5. SERIALIZAÇÃO E DESSERIALIZAÇÃO JSON
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 5. Serializacao e Desserializacao JSON ---");
+
+let json_texto = "{\"nome\": \"Vox\", \"versao\": \"1.1\", \"sucesso\": true}";
+let objeto_vox = json_parse(json_texto);
+println("JSON parseado -> Nome: " + str(objeto_vox["nome"]) + " | Versao: " + str(objeto_vox["versao"]));
+
+let serializado = json_stringify(objeto_vox);
+println("Serializado de volta: " + serializado);
+
+// ────────────────────────────────────────────────────────────
+// 6. EXPRESSÕES REGULARES (Regex)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 6. Expressoes Regulares (Regex) ---");
+
+let email = "contato@voxlang.org";
+let email_valido = regex_test("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", email);
+println("Email '" + email + "' e valido? " + str(email_valido));
+
+let frase = "A versao antiga era v1.0. Nova versao disponivel!";
+let frase_atualizada = regex_replace("v1\\.0", frase, "v1.1");
+println("Regex Replace: " + frase_atualizada);
+
+// ────────────────────────────────────────────────────────────
+// 7. COLEÇÃO SET (Conjuntos Sem Duplicatas)
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 7. Colecao Set (Conjuntos) ---");
+
+let conjunto = set_new();
+set_add(conjunto, "TypeScript");
+set_add(conjunto, "C99");
+set_add(conjunto, "Vox");
+set_add(conjunto, "Vox"); // Duplicata descartada
+
+println("Tamanho do conjunto (deve ser 3): " + str(set_size(conjunto)));
+println("Possui 'Vox'? " + str(set_has(conjunto, "Vox")));
+println("Possui 'Python'? " + str(set_has(conjunto, "Python")));
+println("Conteudo: " + str(conjunto));
+
+// ────────────────────────────────────────────────────────────
+// 8. THREADS REAIS & SINCRONIZAÇÃO COM MUTEX
+// ────────────────────────────────────────────────────────────
+println("");
+println("--- 8. Threads Reais & Mutex ---");
+
+fn tarefa_paralela(id: int, multiplicador: int) -> int {
+    println("  [Thread " + str(id) + "] Executando em paralelo...");
+    return id * multiplicador;
+}
+
+let t1 = thread_spawn(tarefa_paralela, 1, 100);
+let t2 = thread_spawn(tarefa_paralela, 2, 200);
+
+let r1 = thread_join(t1);
+let r2 = thread_join(t2);
+
+println("Resultado da Thread 1: " + str(r1));
+println("Resultado da Thread 2: " + str(r2));
+
+let mut trava = mutex_new();
+println("Mutex criado: " + str(trava));
+mutex_lock(trava);
+println("Secao critica protegida por Mutex (Thread ID: " + str(thread_id()) + ")");
+mutex_unlock(trava);
+println("Mutex liberado com sucesso!");
+
+println("");
+println("=================================================");
+println("  🪐 TODOS OS RECURSOS v1.1 VALIDADOS COM SUCESSO!");
+println("=================================================");
