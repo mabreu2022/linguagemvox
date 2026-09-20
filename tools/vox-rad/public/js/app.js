@@ -364,9 +364,19 @@ class VoxStudioApp {
       searchInput.value = '';
     }
 
+    // Obter lista única de componentes (evita duplicações de aliases de retrocompatibilidade como TMemo -> vox_Memo)
+    const uniqueCompsMap = new Map();
+    for (const [key, comp] of Object.entries(window.VOX_COMPONENTS || {})) {
+      if (!comp || !comp.name) continue;
+      if (!uniqueCompsMap.has(comp.name)) {
+        uniqueCompsMap.set(comp.name, comp);
+      }
+    }
+    const uniqueComps = Array.from(uniqueCompsMap.values());
+
     // Categorias padrão com ordenação fixa e suporte a categorias dinâmicas (Custom, Dialogs, etc.)
     const defaultOrder = ['Standard', 'Additional', 'Win32', 'Data Access', 'Data Controls', 'Dialogs', 'Custom'];
-    const allCats = Array.from(new Set(Object.values(window.VOX_COMPONENTS).map(c => c.category || 'Standard')));
+    const allCats = Array.from(new Set(uniqueComps.map(c => c.category || 'Standard')));
     allCats.sort((a, b) => {
       const ia = defaultOrder.indexOf(a);
       const ib = defaultOrder.indexOf(b);
@@ -393,7 +403,7 @@ class VoxStudioApp {
       let totalMatched = 0;
 
       allCats.forEach(cat => {
-        const comps = Object.values(window.VOX_COMPONENTS).filter(c => {
+        const comps = uniqueComps.filter(c => {
           const matchCat = (c.category || 'Standard') === cat;
           const matchFilter = !filterTrim || 
             c.name.toLowerCase().includes(filterTrim) || 
