@@ -128,6 +128,7 @@ window.VOX_COMPONENTS = {
     category: 'Standard',
     label: 'vox_RadioGroup',
     icon: '📻',
+    isContainer: true,
     defaultWidth: 200,
     defaultHeight: 125,
     defaultProps: {
@@ -318,10 +319,12 @@ window.VOX_COMPONENTS = {
     category: 'Additional',
     label: 'vox_GroupBox',
     icon: '🗂️',
+    isContainer: true,
     defaultWidth: 240,
     defaultHeight: 140,
     defaultProps: {
-      Caption: 'GroupBox1'
+      Caption: 'GroupBox1',
+      Align: 'alNone'
     },
     events: ['OnClick'],
     render(comp) {
@@ -338,6 +341,7 @@ window.VOX_COMPONENTS = {
     category: 'Additional',
     label: 'vox_CheckListGroupBox',
     icon: '☑️',
+    isContainer: true,
     defaultWidth: 220,
     defaultHeight: 135,
     defaultProps: {
@@ -385,18 +389,24 @@ window.VOX_COMPONENTS = {
     category: 'Additional',
     label: 'vox_Panel',
     icon: '🔲',
-    defaultWidth: 180,
-    defaultHeight: 90,
+    isContainer: true,
+    defaultWidth: 200,
+    defaultHeight: 120,
     defaultProps: {
       Caption: 'Panel1',
       BevelOuter: 'bvRaised',
-      Color: '#e9ecef'
+      Color: '#e9ecef',
+      Align: 'alNone',
+      Alignment: 'taCenter'
     },
     events: ['OnClick', 'OnDblClick'],
     render(comp) {
+      const align = (comp.props && comp.props.Alignment) || 'taCenter';
+      const alignClass = align === 'taLeftJustify' ? 'text-left' :
+                         align === 'taRightJustify' ? 'text-right' : 'text-center';
       return `
         <div class="vcl-panel" style="background: ${comp.props.Color || '#e9ecef'};">
-          <span>${comp.props.Caption || ''}</span>
+          <span class="vcl-panel-caption ${alignClass}">${comp.props.Caption || ''}</span>
         </div>
       `;
     }
@@ -456,19 +466,21 @@ window.VOX_COMPONENTS = {
     category: 'Additional',
     label: 'vox_Card',
     icon: '💳',
+    isContainer: true,
     defaultWidth: 200,
     defaultHeight: 120,
     defaultProps: {
       Title: 'Card Moderno',
       Subtitle: 'Descrição resumida',
-      Elevation: 2
+      Elevation: 2,
+      Align: 'alNone'
     },
     events: ['OnClick'],
     render(comp) {
       return `
         <div class="vcl-card">
           <div class="vcl-card-header">${comp.props.Title || 'Card'}</div>
-          <div class="vcl-card-body">${comp.props.Subtitle || 'Conteúdo do card...'}</div>
+          <div class="vcl-card-body">${comp.props.Subtitle || ''}</div>
         </div>
       `;
     }
@@ -622,6 +634,80 @@ window.VOX_COMPONENTS = {
     render(comp) {
       return `
         <div class="vcl-colorpicker" style="background: ${comp.props.Color || '#0078d4'};"></div>
+      `;
+    }
+  },
+
+  vox_PageControl: {
+    name: 'vox_PageControl',
+    category: 'Win32',
+    label: 'vox_PageControl',
+    icon: '📑',
+    isContainer: true,
+    defaultWidth: 360,
+    defaultHeight: 220,
+    defaultProps: {
+      ActivePageIndex: 0,
+      TabPosition: 'tpTop', // tpTop, tpBottom
+      Align: 'alNone'
+    },
+    events: ['OnChange', 'OnChanging'],
+    render(comp) {
+      const activeIdx = parseInt(comp.props.ActivePageIndex, 10) || 0;
+      const tabPos = comp.props.TabPosition || 'tpTop';
+
+      let pages = [];
+      if (window.app && window.app.designer && window.app.designer.form && window.app.designer.form.components) {
+        pages = window.app.designer.form.components.filter(c =>
+          (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === comp.name
+        );
+      }
+      if (pages.length === 0) {
+        pages = [
+          { name: 'TabSheet1', props: { Caption: 'Geral', PageIndex: 0 } },
+          { name: 'TabSheet2', props: { Caption: 'Detalhes', PageIndex: 1 } }
+        ];
+      }
+
+      const tabsHtml = pages.map((p, idx) => {
+        const isActive = idx === activeIdx;
+        const caption = (p.props && p.props.Caption) || p.name || `Aba ${idx + 1}`;
+        return `
+          <div class="vcl-tab-item ${isActive ? 'active' : ''}" data-tab-index="${idx}" data-pagecontrol="${comp.name}" data-tabsheet="${p.name}" title="${caption}">
+            <span>${caption}</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="vcl-pagecontrol tab-pos-${tabPos.toLowerCase()}">
+          <div class="vcl-tab-bar">
+            ${tabsHtml}
+            <div class="vcl-tab-add-btn" data-pagecontrol="${comp.name}" title="Nova Página (+)">+</div>
+          </div>
+          <div class="vcl-pagecontrol-body"></div>
+        </div>
+      `;
+    }
+  },
+
+  vox_TabSheet: {
+    name: 'vox_TabSheet',
+    category: 'Win32',
+    label: 'vox_TabSheet',
+    icon: '📄',
+    isContainer: true,
+    defaultWidth: 350,
+    defaultHeight: 180,
+    defaultProps: {
+      Caption: 'TabSheet1',
+      PageIndex: 0,
+      ImageIndex: -1
+    },
+    events: ['OnShow', 'OnHide'],
+    render(comp) {
+      return `
+        <div class="vcl-tabsheet"></div>
       `;
     }
   },
@@ -970,6 +1056,8 @@ window.VOX_COMPONENTS['TRadioGroup'] = window.VOX_COMPONENTS['vox_RadioGroup'];
 window.VOX_COMPONENTS['Vox_RadioGroup'] = window.VOX_COMPONENTS['vox_RadioGroup'];
 window.VOX_COMPONENTS['TCheckListBox'] = window.VOX_COMPONENTS['vox_CheckListGroupBox'];
 window.VOX_COMPONENTS['Vox_CheckListGroupBox'] = window.VOX_COMPONENTS['vox_CheckListGroupBox'];
+window.VOX_COMPONENTS['TPageControl'] = window.VOX_COMPONENTS['vox_PageControl'];
+window.VOX_COMPONENTS['TTabSheet'] = window.VOX_COMPONENTS['vox_TabSheet'];
 
 // Função para registrar novos componentes criados pela Fábrica de Componentes (Component Factory)
 window.registerCustomComponent = function(compDef) {

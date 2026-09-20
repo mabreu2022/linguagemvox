@@ -119,7 +119,7 @@ const server = http.createServer(async (req, res) => {
   // --------------------------------------------------------------------------
   // API: Consultar Dados SQLite para Data-Aware Components (TDBGrid, TDBEdit)
   // --------------------------------------------------------------------------
-  if (pathname === '/api/db/query' && (req.method === 'POST' || req.method === 'GET')) {
+  if ((pathname === '/api/db/query' || pathname === '/api/data') && (req.method === 'POST' || req.method === 'GET')) {
     try {
       let sql = urlObj.searchParams.get('sql') || 'SELECT * FROM clientes LIMIT 50';
       let params = [];
@@ -152,7 +152,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
-  // API: Testar Conexão com Banco de Dados (Estilo Delphi 13 FireDAC)
+  // API: Testar Conexão com Banco de Dados (Estilo FireDAC)
   // --------------------------------------------------------------------------
   if (pathname === '/api/db/test-connection' && req.method === 'POST') {
     try {
@@ -269,11 +269,308 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
+  // Funções Auxiliares de Escaneamento de Workspace (Units, Projetos e Grupos)
+  // --------------------------------------------------------------------------
+  function scanWorkspace() {
+    const units = [];
+    const projects = [];
+    const groups = [];
+    const ignoredDirs = new Set(['.git', 'node_modules', 'dist', '.gemini', 'brain', 'scratch', '.system_generated', '.temp']);
+
+    function walk(dir) {
+      let entries;
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch (e) {
+        return;
+      }
+
+      for (const ent of entries) {
+        const fullPath = path.join(dir, ent.name);
+        const relPath = path.relative(WORKSPACE_DIR, fullPath).replace(/\\/g, '/');
+
+        if (ent.isDirectory()) {
+          if (ignoredDirs.has(ent.name)) continue;
+
+          if (relPath.startsWith('projetos/') && relPath.split('/').length === 2) {
+            projects.push({
+              name: ent.name,
+              folder: relPath,
+              file: `${relPath}/${ent.name}.dproj`,
+              type: 'dproj',
+              description: `Projeto ${ent.name}`
+            });
+          }
+          walk(fullPath);
+        } else if (ent.isFile()) {
+          const ext = path.extname(ent.name).toLowerCase();
+          const base = path.basename(ent.name, ext);
+
+          if (ext === '.vox' || ext === '.vxf') {
+            let category = 'Unit';
+            if (relPath.includes('controller') || ent.name.endsWith('_controller.vox')) category = 'Controller';
+            else if (relPath.includes('model') || ent.name.endsWith('_model.vox')) category = 'Model';
+            else if (relPath.includes('view') || ent.name.endsWith('_view.vox') || ext === '.vxf') category = 'View / Form';
+            else if (relPath.includes('example')) category = 'Exemplo';
+            else if (base.startsWith('Form') || fs.existsSync(fullPath.replace(/\.vox$/, '.vxf'))) category = 'Form Unit';
+
+            let size = 0;
+            try { size = fs.statSync(fullPath).size; } catch (_) {}
+
+            units.push({
+              name: ent.name,
+              baseName: base,
+              relPath,
+              ext,
+              category,
+              size
+            });
+          } else if (ext === '.dproj' || ext === '.vproj') {
+            projects.push({
+              name: base,
+              folder: path.dirname(relPath),
+              file: relPath,
+              type: ext.slice(1),
+              description: `Projeto ${base}`
+            });
+          } else if (ext === '.groupproj' || ext === '.vgroup') {
+            groups.push({
+              name: base,
+              file: relPath,
+              type: ext.slice(1)
+            });
+          }
+        }
+      }
+    }
+
+    walk(WORKSPACE_DIR);
+
+    // Projetos Padrão do Vox Studio RAD
+    if (!projects.some(p => p.name === 'VoxERP_Comercial')) {
+      projects.unshift({
+        name: 'VoxERP_Comercial',
+        folder: 'projetos/VoxERP_Comercial',
+        file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
+        type: 'dproj',
+        description: '🌟 ERP Comercial MVC Completo (NF-e, Produtos, PDV)',
+        units: ['FormERP.vox', 'FormERP.vxf']
+      });
+    }
+    if (!projects.some(p => p.name === 'Projeto_Clientes')) {
+      projects.push({
+        name: 'Projeto_Clientes',
+        folder: 'clientes',
+        file: 'clientes/Projeto_Clientes.dproj',
+        type: 'dproj',
+        description: '📋 Cadastro de Clientes (SQLite CRUD)',
+        units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox']
+      });
+    }
+    if (!projects.some(p => p.name === 'Sistema_Sidebar')) {
+      projects.push({
+        name: 'Sistema_Sidebar',
+        folder: 'projetos/Sistema_Sidebar',
+        file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
+        type: 'dproj',
+        description: '📑 Sistema Comercial (Menu Lateral)',
+        units: ['Form1.vox', 'Form1.vxf']
+      });
+    }
+    if (!projects.some(p => p.name === 'PDV_FrenteDeCaixa')) {
+      projects.push({
+        name: 'PDV_FrenteDeCaixa',
+        folder: 'projetos/PDV_FrenteDeCaixa',
+        file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
+        type: 'dproj',
+        description: '🛒 Frente de Caixa (PDV Comercial)',
+        units: ['pdv_controller.vox', 'pdv_model.vox', 'pdv_view.vox']
+      });
+    }
+    if (!projects.some(p => p.name === 'Calculadora_RAD')) {
+      projects.push({
+        name: 'Calculadora_RAD',
+        folder: 'projetos/Calculadora_RAD',
+        file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
+        type: 'dproj',
+        description: '🔢 Calculadora RAD',
+        units: ['Form1.vox', 'Form1.vxf']
+      });
+    }
+
+    if (groups.length === 0) {
+      groups.push({
+        name: 'ProjectGroup1',
+        file: 'ProjectGroup1.groupproj',
+        type: 'groupproj',
+        description: 'Grupo Corporativo Principal (ERP + Clientes + PDV)',
+        projects: ['VoxERP_Comercial.dproj', 'Projeto_Clientes.dproj', 'PDV_FrenteDeCaixa.dproj']
+      });
+      groups.push({
+        name: 'EnterpriseSuite',
+        file: 'EnterpriseSuite.groupproj',
+        type: 'groupproj',
+        description: 'Suite Corporativa Multi-Módulos',
+        projects: ['VoxERP_Comercial.dproj', 'Sistema_Sidebar.dproj']
+      });
+    }
+
+    return { units, projects, groups };
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Listar Arquivos do Workspace (Units, Classes, Projetos e Grupos)
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/workspace/files' && req.method === 'GET') {
+    try {
+      const type = urlObj.searchParams.get('type') || 'all';
+      const data = scanWorkspace();
+      return sendJson(res, 200, {
+        success: true,
+        type,
+        workspace: WORKSPACE_DIR,
+        units: data.units,
+        projects: data.projects,
+        groups: data.groups
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Ler Conteúdo de Arquivo do Workspace
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/file/read' && req.method === 'GET') {
+    try {
+      const relFile = urlObj.searchParams.get('file') || '';
+      if (!relFile) {
+        return sendJson(res, 400, { success: false, error: 'Parâmetro file é obrigatório' });
+      }
+      const targetPath = path.resolve(WORKSPACE_DIR, relFile);
+      if (!targetPath.startsWith(path.resolve(WORKSPACE_DIR))) {
+        return sendJson(res, 400, { success: false, error: 'Acesso negado fora do workspace' });
+      }
+      if (!fs.existsSync(targetPath)) {
+        return sendJson(res, 404, { success: false, error: `Arquivo não encontrado: ${relFile}` });
+      }
+
+      const content = fs.readFileSync(targetPath, 'utf-8');
+      const ext = path.extname(targetPath).toLowerCase();
+      const fileName = path.basename(targetPath);
+
+      return sendJson(res, 200, {
+        success: true,
+        content,
+        fileName,
+        ext,
+        filePath: path.relative(WORKSPACE_DIR, targetPath).replace(/\\/g, '/')
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Salvar Arquivo Genérico no Workspace
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/file/save' && req.method === 'POST') {
+    try {
+      const { filePath, content } = await parseBody(req);
+      if (!filePath) {
+        return sendJson(res, 400, { success: false, error: 'Caminho do arquivo é obrigatório' });
+      }
+      const targetPath = path.resolve(WORKSPACE_DIR, filePath);
+      if (!targetPath.startsWith(path.resolve(WORKSPACE_DIR))) {
+        return sendJson(res, 400, { success: false, error: 'Acesso negado fora do workspace' });
+      }
+      fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+      fs.writeFileSync(targetPath, content || '', 'utf-8');
+
+      return sendJson(res, 200, {
+        success: true,
+        filePath: path.relative(WORKSPACE_DIR, targetPath).replace(/\\/g, '/'),
+        message: `Arquivo salvo com sucesso!`
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Salvar Projeto (.dproj)
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/project/save-as' && req.method === 'POST') {
+    try {
+      const { projectName, folder, content } = await parseBody(req);
+      if (!projectName) {
+        return sendJson(res, 400, { success: false, error: 'Nome do projeto é obrigatório' });
+      }
+      const safeName = projectName.replace(/[^a-zA-Z0-9_]/g, '');
+      const targetFolder = (folder && folder.trim()) ? folder.trim() : path.join('projetos', safeName);
+      const targetDir = path.resolve(WORKSPACE_DIR, targetFolder);
+      if (!targetDir.startsWith(path.resolve(WORKSPACE_DIR))) {
+        return sendJson(res, 400, { success: false, error: 'Pasta de destino inválida' });
+      }
+      fs.mkdirSync(targetDir, { recursive: true });
+
+      const dprojPath = path.join(targetDir, `${safeName}.dproj`);
+      const dprojData = content || JSON.stringify({
+        ProjectName: safeName,
+        Version: '1.0.0',
+        TargetPlatform: 'Web Browser (HTML5 + REST)',
+        OutputType: 'Executable',
+        MainForm: 'Form1',
+        Created: new Date().toISOString()
+      }, null, 2);
+      fs.writeFileSync(dprojPath, dprojData, 'utf-8');
+
+      return sendJson(res, 200, {
+        success: true,
+        projectName: safeName,
+        folder: path.relative(WORKSPACE_DIR, targetDir).replace(/\\/g, '/'),
+        filePath: path.relative(WORKSPACE_DIR, dprojPath).replace(/\\/g, '/'),
+        message: `Projeto ${safeName} salvo com sucesso!`
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Salvar Grupo de Projetos (.groupproj)
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/group/save-as' && req.method === 'POST') {
+    try {
+      const { groupName, projects = [] } = await parseBody(req);
+      if (!groupName) {
+        return sendJson(res, 400, { success: false, error: 'Nome do grupo de projetos é obrigatório' });
+      }
+      const safeName = groupName.replace(/[^a-zA-Z0-9_]/g, '');
+      const groupFile = path.resolve(WORKSPACE_DIR, `${safeName}.groupproj`);
+      fs.writeFileSync(groupFile, JSON.stringify({
+        ProjectGroup: safeName,
+        Projects: projects,
+        Created: new Date().toISOString()
+      }, null, 2), 'utf-8');
+
+      return sendJson(res, 200, {
+        success: true,
+        groupName: safeName,
+        file: `${safeName}.groupproj`,
+        message: `Grupo de projetos ${safeName} salvo com sucesso!`
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // API: Listar Pastas Disponíveis do Projeto
   // --------------------------------------------------------------------------
   if (pathname === '/api/project/folders' && req.method === 'GET') {
     try {
-      const candidates = ['forms', 'src', 'examples', 'clientes', '.'];
+      const candidates = ['forms', 'src', 'examples', 'clientes', 'projetos', '.'];
       const folders = [];
       for (const d of candidates) {
         const full = path.resolve(WORKSPACE_DIR, d);
@@ -334,6 +631,85 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (err) {
       return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Carregar Formulário (.vxf e .vox) do Projeto
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/form/load' && req.method === 'GET') {
+    try {
+      const fileName = urlObj.searchParams.get('file') || urlObj.searchParams.get('name') || 'Form1';
+      let vxfPath;
+      if (fileName.endsWith('.vxf')) {
+        vxfPath = path.isAbsolute(fileName) ? fileName : path.resolve(WORKSPACE_DIR, fileName);
+      } else {
+        const candidates = [
+          path.resolve(WORKSPACE_DIR, 'forms', `${fileName}.vxf`),
+          path.resolve(WORKSPACE_DIR, `${fileName}.vxf`),
+          path.resolve(WORKSPACE_DIR, 'src', `${fileName}.vxf`)
+        ];
+        vxfPath = candidates.find(c => fs.existsSync(c)) || candidates[0];
+      }
+
+      if (!fs.existsSync(vxfPath)) {
+        return sendJson(res, 404, { success: false, error: `Arquivo .vxf não encontrado: ${vxfPath}` });
+      }
+
+      const vxfRaw = fs.readFileSync(vxfPath, 'utf-8');
+      const formData = JSON.parse(vxfRaw);
+      const voxPath = vxfPath.replace(/\.vxf$/i, '.vox');
+      const voxContent = fs.existsSync(voxPath) ? fs.readFileSync(voxPath, 'utf-8') : '';
+
+      return sendJson(res, 200, {
+        success: true,
+        form: formData,
+        voxCode: voxContent,
+        filePath: path.relative(WORKSPACE_DIR, vxfPath)
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Listar Formulários (.vxf) Disponíveis
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/form/list' && req.method === 'GET') {
+    try {
+      const forms = [];
+      const searchDirs = [
+        path.resolve(WORKSPACE_DIR, 'forms'),
+        path.resolve(WORKSPACE_DIR)
+      ];
+
+      for (const sDir of searchDirs) {
+        if (fs.existsSync(sDir)) {
+          const files = fs.readdirSync(sDir);
+          for (const f of files) {
+            if (f.endsWith('.vxf')) {
+              const full = path.join(sDir, f);
+              const rel = path.relative(WORKSPACE_DIR, full);
+              const name = f.replace(/\.vxf$/i, '');
+              try {
+                const content = JSON.parse(fs.readFileSync(full, 'utf-8'));
+                forms.push({
+                  name: content.name || name,
+                  title: content.title || content.name || name,
+                  file: rel,
+                  componentCount: (content.components && content.components.length) || 0
+                });
+              } catch (e) {
+                forms.push({ name, file: rel, componentCount: 0 });
+              }
+            }
+          }
+        }
+      }
+
+      return sendJson(res, 200, { success: true, forms });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
     }
   }
 

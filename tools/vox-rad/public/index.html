@@ -17,6 +17,7 @@
        ======================================================================== -->
   <div class="delphi-menubar">
     <!-- File Menu -->
+    <!-- File Menu (Delphi Standard) -->
     <div class="delphi-menu-item">
       <span>File</span>
       <div class="delphi-menu-dropdown">
@@ -25,11 +26,18 @@
         <div class="delphi-menu-dropdown-item" onclick="window.app.openCreateFromExampleModal()"><span>📦 Novo Projeto a partir de Exemplo...</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.newProject()"><span>📦 Novo Projeto em Branco</span></div>
         <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openFileDialog()"><span>📂 Abrir Arquivo (Unit, Classe, Form)...</span><span class="shortcut">Ctrl+O</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openProjectDialog()"><span>📁 Abrir Projeto... (.dproj / .vproj)</span><span class="shortcut">Ctrl+Shift+O</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openProjectGroupDialog()"><span>📦 Abrir Grupo de Projetos... (.groupproj)</span></div>
+        <div class="menu-sep"></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.saveForm()"><span>💾 Salvar (Save)</span><span class="shortcut">Ctrl+S</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openSaveDialog()"><span>💾 Salvar Como... (Save As)</span></div>
-        <div class="delphi-menu-dropdown-item" onclick="window.app.saveAll()"><span>📁💾 Salvar Tudo</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openSaveProjectAsModal()"><span>📁💾 Salvar Projeto Como...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.saveAll()"><span>📁💾 Salvar Tudo</span><span class="shortcut">Ctrl+Shift+S</span></div>
         <div class="menu-sep"></div>
-        <div class="delphi-menu-dropdown-item" onclick="window.app.closeFormWindow()"><span>❌ Fechar Formulário</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.closeActiveFile()"><span>❌ Fechar Arquivo / Formulário</span><span class="shortcut">Ctrl+F4</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.closeCurrentProject()"><span>🚪 Fechar Projeto</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.closeProjectGroup()"><span>📦❌ Fechar Grupo de Projetos</span></div>
       </div>
     </div>
 
@@ -40,8 +48,12 @@
         <div class="delphi-menu-dropdown-item" onclick="window.app.editUndo()"><span>↩️ Desfazer (Undo)</span><span class="shortcut">Ctrl+Z</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.editRedo()"><span>↪️ Refazer (Redo)</span><span class="shortcut">Ctrl+Y</span></div>
         <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.editCut()"><span>✂️ Recortar</span><span class="shortcut">Ctrl+X</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.editCopy()"><span>📄 Copiar</span><span class="shortcut">Ctrl+C</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.editPaste()"><span>📋 Colar</span><span class="shortcut">Ctrl+V</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.designer.duplicateSelected()"><span>📑 Duplicar</span><span class="shortcut">Ctrl+D</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.designer.deleteSelected()"><span>🗑️ Excluir</span><span class="shortcut">Del</span></div>
+        <div class="menu-sep"></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.selectAll()"><span>☑️ Selecionar Tudo</span><span class="shortcut">Ctrl+A</span></div>
       </div>
     </div>
@@ -136,7 +148,7 @@
     <div class="delphi-menu-item">
       <span>Tools</span>
       <div class="delphi-menu-dropdown">
-        <div class="delphi-menu-dropdown-item" onclick="window.app.openConnectionEditor(null)"><span>🔌 FireDAC Connection Editor (Delphi 13)...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openConnectionEditor(null)"><span>🔌 FireDAC Connection Editor...</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openSqlEditor(null)"><span>📝 SQL Command Editor</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openExternalBrowser()"><span>🌐 Abrir Aplicação Web (Porta 5000)</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.runBackend()"><span>⚡ Executar via CLI Vox</span></div>
@@ -191,8 +203,17 @@
       <div class="tool-sep"></div>
 
       <!-- Edição -->
-      <button class="tool-btn" onclick="window.app.designer.duplicateSelected()" title="Duplicar Componente (Ctrl+D)">
+      <button class="tool-btn" onclick="window.app.editCut()" title="Recortar Componente (Ctrl+X)">
+        ✂️
+      </button>
+      <button class="tool-btn" onclick="window.app.editCopy()" title="Copiar Componente (Ctrl+C)">
+        📄
+      </button>
+      <button class="tool-btn" onclick="window.app.editPaste()" title="Colar Componente (Ctrl+V)">
         📋
+      </button>
+      <button class="tool-btn" onclick="window.app.designer.duplicateSelected()" title="Duplicar Componente (Ctrl+D)">
+        📑
       </button>
       <button class="tool-btn" onclick="window.app.designer.deleteSelected()" title="Excluir Componente (Del)">
         🗑️
@@ -250,13 +271,14 @@
 
     <!-- Lado Direito da Toolbar: Modelos Rápidos -->
     <div class="toolbar-group">
-      <select class="platform-dropdown" onchange="if(this.value) window.app.openCreateFromExampleModal(this.value);" style="background:#232832; color:#00e5ff; font-weight:600;">
-        <option value="" disabled selected>📂 Criar Projeto a partir de Exemplo...</option>
+      <select id="toolbarTemplateSelect" class="platform-dropdown" onchange="if(this.value) window.app.loadExampleTemplate(this.value);" style="background:#232832; color:#00e5ff; font-weight:600;" title="Carregar Projeto Exemplo no Designer">
+        <option value="" disabled selected>📂 Carregar Projeto Exemplo...</option>
         <option value="erpCompleto">🌟 ERP Completo MVC (Clientes NF-e, Produtos, Estoque, PDV)</option>
         <option value="crudClientes">📋 Cadastro de Clientes (Menu no Topo)</option>
         <option value="sistemaSidebar">📑 Sistema Comercial (Menu Lateral à Esquerda)</option>
         <option value="pdv">🛒 Frente de Caixa (PDV Comercial)</option>
         <option value="calculadora">🔢 Calculadora RAD</option>
+        <option value="__custom_folder__">📁 Criar Projeto em Nova Pasta...</option>
       </select>
       <div class="tool-sep"></div>
       <button class="tool-btn" id="btnThemeToggle" onclick="window.app.toggleTheme()" title="Alternar Modo Claro / Escuro (Light / Dark)" style="padding: 0 10px; gap: 6px;">
@@ -467,29 +489,32 @@
     <!-- ── COLUNA DIREITA: PROJECTS & TOOL PALETTE ────────────────────────── -->
     <div class="right-dock-column">
 
-      <!-- 1. Projects Panel -->
+      <!-- 1. Projects Panel (Project Manager) -->
       <div class="dock-panel projects-panel">
         <div class="panel-header">
-          <span>Project1.dproj - Projects</span>
+          <span id="projHeaderTitle">Project1.dproj - Projects</span>
           <div class="panel-header-actions">
+            <span title="Novo Projeto" style="cursor:pointer;" onclick="window.app.newProject()">➕</span>
+            <span title="Abrir Projeto" style="cursor:pointer;" onclick="window.app.openProjectDialog()">📂</span>
             <span>📌</span>
-            <span>✕</span>
           </div>
         </div>
         <div class="projects-toolbar">
-          <span title="New Unit" style="cursor:pointer;" onclick="window.app.newForm()">📄+</span>
-          <span title="Save" style="cursor:pointer;" onclick="window.app.saveForm()">💾</span>
-          <span title="Build" style="cursor:pointer;" onclick="window.app.runBackend()">⚙️</span>
+          <span title="Nova Unit / Formulário" style="cursor:pointer;" onclick="window.app.newForm()">📄+</span>
+          <span title="Abrir Arquivo..." style="cursor:pointer;" onclick="window.app.openFileDialog()">📂</span>
+          <span title="Abrir Projeto..." style="cursor:pointer;" onclick="window.app.openProjectDialog()">📁</span>
+          <span title="Salvar Tudo" style="cursor:pointer;" onclick="window.app.saveAll()">💾</span>
+          <span title="Compilar Sistema" style="cursor:pointer;" onclick="window.app.buildWebApp()">⚙️</span>
           <span style="font-size:10px; color:#6c7889;">| Gerenciador</span>
         </div>
-        <div class="projects-tree">
+        <div class="projects-tree" id="projectsTreeContainer">
           <div class="tree-node">
             <span>📦</span>
-            <span style="font-weight:600;">ProjectGroup1</span>
+            <span style="font-weight:600;" id="treeGroupTitle">ProjectGroup1</span>
           </div>
           <div class="tree-node" style="padding-left: 18px;">
             <span>💻</span>
-            <span>Project1.exe</span>
+            <span id="treeProjectTitle">Project1.exe</span>
           </div>
           <div class="tree-node" style="padding-left: 32px; color: #9aa7b8;">
             <span>⚙️</span>
@@ -499,11 +524,11 @@
             <span>🎯</span>
             <span>Target Platforms (Windows 64-bit)</span>
           </div>
-          <div class="tree-node selected" style="padding-left: 32px;">
+          <div class="tree-node selected" style="padding-left: 32px; cursor: pointer;" onclick="window.app.switchView('code')" title="Ver Código Fonte (.vox)">
             <span>📄</span>
             <span id="projTreeUnitName">Unit1.vox</span>
           </div>
-          <div class="tree-node" style="padding-left: 32px; color: #9aa7b8;">
+          <div class="tree-node" style="padding-left: 32px; color: #9aa7b8; cursor: pointer;" onclick="window.app.openFileDialog()" title="Abrir Formulário Visual (.vxf)">
             <span>🎨</span>
             <span id="projTreeVxfName">Form1.vxf</span>
           </div>
@@ -636,6 +661,7 @@
         <iframe id="webAppIframe" src="" style="width: 100%; height: 500px; border: 1px solid #313947; border-radius: 4px; background: #0d1117;"></iframe>
       </div>
     </div>
+  </div>
   <!-- ========================================================================
        8. MODAL DE SALVAMENTO RAD STUDIO (SAVE UNIT AS)
        ======================================================================== -->
@@ -724,6 +750,7 @@
         </div>
       </div>
     </div>
+  </div>
   <!-- ========================================================================
        9. MODAL DA FÁBRICA DE COMPONENTES (COMPONENT FACTORY WIZARD)
        ======================================================================== -->
@@ -879,14 +906,14 @@ classe vox_CardDestaque herda vox_Panel {
   </div>
 
   <!-- ========================================================================
-       11. MODAL DO CONNECTION EDITOR (DELPHI 13 FIREDAC STYLE)
+       11. MODAL DO CONNECTION EDITOR (FIREDAC STYLE)
        ======================================================================== -->
   <div class="modal-overlay" id="connectionEditorModal">
     <div class="modal-content" style="width: 640px; max-width: 95vw;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="color: #38bdf8; font-size: 15px;">🔌</span>
-          <span id="connEditorTitle" style="font-weight: 700;">FireDAC Connection Editor — Delphi 13 Edition</span>
+          <span id="connEditorTitle" style="font-weight: 700;">FireDAC Connection Editor</span>
         </div>
         <button class="tool-btn" onclick="window.app.closeConnectionEditor()" style="height: 22px; padding: 0 8px;">✕</button>
       </div>
@@ -1212,6 +1239,7 @@ classe vox_CardDestaque herda vox_Panel {
           <span style="font-size: 10.5px; color: #64748b;" id="cfeFolderPreview">Destino: D:/Projetos AntiGravity/linguagem/projetos/VoxERP_Comercial</span>
           <div style="display: flex; gap: 8px;">
             <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeCreateFromExampleModal()">Cancelar</button>
+            <button class="tool-btn" style="background:#1e293b; border:1px solid #00e5ff; color:#00e5ff; padding: 5px 14px; font-weight:600;" onclick="window.app.loadTemplateFromModal()" title="Carregar imediatamente no Designer sem criar arquivos em disco">⚡ Carregar no Designer</button>
             <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmCreateProjectFromExample()">🚀 Criar e Abrir Projeto</button>
           </div>
         </div>
@@ -1222,7 +1250,7 @@ classe vox_CardDestaque herda vox_Panel {
   <!-- ========================================================================
        MODAL DE INTEGRAÇÃO COM O GITHUB / GIT (DELPHI 12 STYLE)
        ======================================================================== -->
-  <div class="modal-overlay" id="gitModal" style="display: none;">
+  <div class="modal-overlay" id="gitModal" style="display: none; z-index: 2500;">
     <div class="modal-content" style="width: 720px; max-width: 95vw;">
       <div class="modal-header" style="background: linear-gradient(90deg, #1e1b4b, #11141a); border-bottom: 1px solid #7c3aed;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1362,15 +1390,252 @@ classe vox_CardDestaque herda vox_Panel {
     </div>
   </div>
 
-  <!-- Scripts da Aplicação (Com Cache Buster v=3.7) -->
-  <script src="js/components.js?v=3.7"></script>
-  <script src="js/codegen.js?v=3.7"></script>
-  <script src="js/templates.js?v=3.7"></script>
-  <script src="js/designer.js?v=3.7"></script>
-  <script src="js/inspector.js?v=3.7"></script>
-  <script src="js/editor.js?v=3.7"></script>
-  <script src="js/debugger.js?v=3.7"></script>
-  <script src="js/runner.js?v=3.7"></script>
-  <script src="js/app.js?v=3.7"></script>
+  <!-- ========================================================================
+       MODAIS DO SISTEMA DE ARQUIVOS, PROJETOS E GRUPOS (DELPHI 12 STYLE)
+       ======================================================================== -->
+
+  <!-- 1. MODAL: ABRIR ARQUIVO (UNIT, CLASSE, FORMULÁRIO) -->
+  <div class="modal-overlay" id="openFileModal" style="display: none; z-index: 2400;">
+    <div class="modal-content" style="width: 800px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 16px;">📂</span>
+          <span style="font-weight: 700;">Abrir Arquivo (Unit / Classe / Formulário)</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeOpenFileModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px; padding: 14px;">
+        <!-- Filtros e Busca -->
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 4px;" id="openFileFilterTabs">
+            <button class="tool-btn active" id="btnFilterAll" onclick="window.app.filterOpenFileCategory('all', this)" style="padding: 3px 10px; font-size: 11px;">Todos</button>
+            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Unit', this)" style="padding: 3px 10px; font-size: 11px;">Units (.vox)</button>
+            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Controller', this)" style="padding: 3px 10px; font-size: 11px;">Controllers & Models</button>
+            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('View / Form', this)" style="padding: 3px 10px; font-size: 11px;">Formulários (.vxf)</button>
+            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Exemplo', this)" style="padding: 3px 10px; font-size: 11px;">Exemplos</button>
+          </div>
+          <div style="flex: 1; max-width: 260px; position: relative;">
+            <input type="text" id="openFileSearchInput" class="delphi-prop-input" placeholder="🔍 Filtrar por nome ou caminho..." oninput="window.app.filterOpenFileSearch(this.value)" style="width: 100%; height: 26px;">
+          </div>
+        </div>
+
+        <!-- Tabela de Arquivos do Workspace -->
+        <div style="background: #11141a; border: 1px solid #282f3a; border-radius: 4px; height: 300px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left;">
+            <thead>
+              <tr style="background: #1a1e27; border-bottom: 1px solid #282f3a; color: #94a3b8; font-weight: 600; position: sticky; top: 0; z-index: 2;">
+                <th style="padding: 6px 10px; width: 30px;"></th>
+                <th style="padding: 6px 10px;">Nome do Arquivo</th>
+                <th style="padding: 6px 10px; width: 130px;">Categoria</th>
+                <th style="padding: 6px 10px;">Caminho no Workspace</th>
+                <th style="padding: 6px 10px; width: 80px; text-align: right;">Tamanho</th>
+              </tr>
+            </thead>
+            <tbody id="openFileListBody">
+              <!-- Injetado dinamicamente via app.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Caminho Selecionado e Botão do Disco Local -->
+        <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between;">
+          <div style="display: flex; gap: 8px; align-items: center; flex: 1;">
+            <span style="font-size: 11px; color: #94a3b8; white-space: nowrap;">Arquivo:</span>
+            <input type="text" id="selectedOpenFilePath" class="delphi-prop-input" placeholder="Selecione na lista ou digite o caminho..." style="flex: 1; height: 26px; font-family: monospace;">
+          </div>
+          <div>
+            <input type="file" id="localOsFileInput" accept=".vox,.vxf,.pas,.txt" style="display: none;" onchange="window.app.handleLocalFileOpen(event)">
+            <button class="tool-btn" onclick="document.getElementById('localOsFileInput').click()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Do Computador...</button>
+          </div>
+        </div>
+
+        <!-- Rodapé do Modal -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #282f3a;">
+          <span style="font-size: 10.5px; color: #64748b;" id="openFileCountInfo">Carregando arquivos...</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeOpenFileModal()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmOpenFile()">📂 Abrir Arquivo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. MODAL: ABRIR PROJETO (.DPROJ / .VPROJ) -->
+  <div class="modal-overlay" id="openProjectModal" style="display: none; z-index: 2400;">
+    <div class="modal-content" style="width: 720px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 16px;">📁</span>
+          <span style="font-weight: 700;">Abrir Projeto Delphi / Vox (.dproj / .vproj)</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeOpenProjectModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11.5px; color: #94a3b8;">Projetos disponíveis no Workspace e submódulos:</span>
+          <input type="text" id="openProjSearchInput" class="delphi-prop-input" placeholder="🔍 Filtrar projetos..." oninput="window.app.filterOpenProjectSearch(this.value)" style="width: 220px; height: 26px;">
+        </div>
+
+        <div id="openProjectListContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; padding-right: 4px;">
+          <!-- Injetado dinamicamente via app.js -->
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-top: 4px;">
+          <div style="display: flex; gap: 8px; align-items: center; flex: 1;">
+            <span style="font-size: 11px; color: #94a3b8; white-space: nowrap;">Projeto Selecionado:</span>
+            <input type="text" id="selectedOpenProjPath" class="delphi-prop-input" placeholder="Caminho do arquivo .dproj..." style="flex: 1; height: 26px; font-family: monospace;">
+          </div>
+          <div>
+            <input type="file" id="localOsProjectInput" accept=".dproj,.vproj,.json" style="display: none;" onchange="window.app.handleLocalProjectOpen(event)">
+            <button class="tool-btn" onclick="document.getElementById('localOsProjectInput').click()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Buscar no Disco...</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #282f3a;">
+          <span style="font-size: 10.5px; color: #64748b;">Formatos: .dproj, .vproj, projetos com formulários Vox</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeOpenProjectModal()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmOpenProject()">📁 Abrir Projeto</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. MODAL: ABRIR GRUPO DE PROJETOS (.GROUPPROJ) -->
+  <div class="modal-overlay" id="openProjectGroupModal" style="display: none; z-index: 2400;">
+    <div class="modal-content" style="width: 700px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #c084fc; font-size: 16px;">📦</span>
+          <span style="font-weight: 700;">Abrir Grupo de Projetos (.groupproj / .vgroup)</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeOpenProjectGroupModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 14px;">
+        <div style="font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+          Um <strong>Project Group</strong> permite gerenciar simultaneamente múltiplos projetos (ERP, Módulos Fiscais, PDV e APIs) na mesma árvore de navegação da IDE.
+        </div>
+
+        <div id="openGroupListContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; padding-right: 4px;">
+          <!-- Injetado dinamicamente via app.js -->
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-top: 4px;">
+          <div style="display: flex; gap: 8px; align-items: center; flex: 1;">
+            <span style="font-size: 11px; color: #94a3b8; white-space: nowrap;">Grupo Selecionado:</span>
+            <input type="text" id="selectedOpenGroupPath" class="delphi-prop-input" placeholder="Caminho do arquivo .groupproj..." style="flex: 1; height: 26px; font-family: monospace;">
+          </div>
+          <div>
+            <input type="file" id="localOsGroupInput" accept=".groupproj,.vgroup" style="display: none;" onchange="window.app.handleLocalGroupOpen(event)">
+            <button class="tool-btn" onclick="document.getElementById('localOsGroupInput').click()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Buscar no Disco...</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #282f3a;">
+          <button class="tool-btn" onclick="window.app.promptCreateNewProjectGroup()" style="font-size: 11px; color: #c084fc; font-weight: 600;">➕ Criar Novo Grupo...</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeOpenProjectGroupModal()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#4c1d95; border:1px solid #7c3aed; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmOpenProjectGroup()">📦 Abrir Grupo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. MODAL: SALVAR PROJETO COMO (.DPROJ) -->
+  <div class="modal-overlay" id="saveProjectAsModal" style="display: none; z-index: 2400;">
+    <div class="modal-content" style="width: 580px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 16px;">💾</span>
+          <span style="font-weight: 700;">Salvar Projeto Como... (.dproj)</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeSaveProjectAsModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 14px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Nome do Projeto:</label>
+          <input type="text" id="saveProjNameInput" class="delphi-prop-input" placeholder="Ex.: MeuSistemaERP" style="width: 100%; height: 26px; font-weight: 600; color: #38bdf8;" oninput="window.app.updateSaveProjPreview()">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Pasta de Destino:</label>
+          <input type="text" id="saveProjFolderInput" class="delphi-prop-input" placeholder="Ex.: projetos/MeuSistemaERP" style="width: 100%; height: 26px; font-family: monospace;">
+          <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
+            <span style="font-size: 10.5px; color: #64748b;">Pastas rápidas:</span>
+            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setSaveProjFolder('projetos')">📁 projetos/</button>
+            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setSaveProjFolder('clientes')">📁 clientes/</button>
+            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setSaveProjFolder('src')">📁 src/</button>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid #282f3a;">
+          <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeSaveProjectAsModal()">Cancelar</button>
+          <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmSaveProjectAs()">💾 Salvar Projeto</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       17. MENU DE CONTEXTO DO DESIGNER (BOTÃO DIREITO NO CANVAS OU COMPONENTES)
+       ======================================================================== -->
+  <div class="delphi-context-menu" id="delphiDesignerContextMenu">
+    <div class="delphi-context-menu-item" id="ctxCut" onclick="window.app.editCut(); window.app.designer.hideContextMenu();">
+      <span>✂️ Recortar</span><span class="shortcut">Ctrl+X</span>
+    </div>
+    <div class="delphi-context-menu-item" id="ctxCopy" onclick="window.app.editCopy(); window.app.designer.hideContextMenu();">
+      <span>📄 Copiar</span><span class="shortcut">Ctrl+C</span>
+    </div>
+    <div class="delphi-context-menu-item" id="ctxPaste" onclick="window.app.editPaste(); window.app.designer.hideContextMenu();">
+      <span>📋 Colar</span><span class="shortcut">Ctrl+V</span>
+    </div>
+    <div class="delphi-context-menu-item" id="ctxDuplicate" onclick="window.app.designer.duplicateSelected(); window.app.designer.hideContextMenu();">
+      <span>📑 Duplicar</span><span class="shortcut">Ctrl+D</span>
+    </div>
+    <div class="delphi-context-menu-item" id="ctxDelete" onclick="window.app.designer.deleteSelected(); window.app.designer.hideContextMenu();">
+      <span>🗑️ Excluir</span><span class="shortcut">Del</span>
+    </div>
+    <div id="ctxPageControlGroup" style="display: none;">
+      <div class="menu-sep"></div>
+      <div class="delphi-context-menu-item" id="ctxNewPage" onclick="window.app.designer.addTabSheet(); window.app.designer.hideContextMenu();">
+        <span>📄 Nova Página (New Page)</span>
+      </div>
+      <div class="delphi-context-menu-item" id="ctxNextPage" onclick="window.app.designer.nextPage(); window.app.designer.hideContextMenu();">
+        <span>➡️ Próxima Página (Next Page)</span>
+      </div>
+      <div class="delphi-context-menu-item" id="ctxPrevPage" onclick="window.app.designer.prevPage(); window.app.designer.hideContextMenu();">
+        <span>⬅️ Página Anterior (Prev Page)</span>
+      </div>
+      <div class="delphi-context-menu-item" id="ctxDeletePage" onclick="window.app.designer.deleteCurrentPage(); window.app.designer.hideContextMenu();">
+        <span>🗑️ Excluir Página Atual</span>
+      </div>
+    </div>
+    <div class="menu-sep"></div>
+    <div class="delphi-context-menu-item" id="ctxBringFront" onclick="window.app.designer.bringToFront(); window.app.designer.hideContextMenu();">
+      <span>🔼 Trazer para Frente</span><span class="shortcut">Shift+PgUp</span>
+    </div>
+    <div class="delphi-context-menu-item" id="ctxSendBack" onclick="window.app.designer.sendToBack(); window.app.designer.hideContextMenu();">
+      <span>🔽 Enviar para Trás</span><span class="shortcut">Shift+PgDn</span>
+    </div>
+    <div class="menu-sep"></div>
+    <div class="delphi-context-menu-item" onclick="window.app.focusObjectInspector(); window.app.designer.hideContextMenu();">
+      <span>⚙️ Object Inspector</span><span class="shortcut">F11</span>
+    </div>
+    <div class="delphi-context-menu-item" onclick="window.app.designer.selectComponent(null); window.app.designer.hideContextMenu();">
+      <span>🪟 Selecionar Formulário</span>
+    </div>
+  </div>
+
+  <!-- Scripts da Aplicação (Com Cache Buster v=3.8) -->
+  <script src="js/components.js?v=3.8"></script>
+  <script src="js/codegen.js?v=3.8"></script>
+  <script src="js/templates.js?v=3.8"></script>
+  <script src="js/designer.js?v=3.8"></script>
+  <script src="js/inspector.js?v=3.8"></script>
+  <script src="js/editor.js?v=3.8"></script>
+  <script src="js/debugger.js?v=3.8"></script>
+  <script src="js/runner.js?v=3.8"></script>
+  <script src="js/app.js?v=3.8"></script>
 </body>
 </html>

@@ -50,52 +50,138 @@ class VoxFormRunner {
       'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
       'TDataSource', 'TFDConnection', 'TFDQuery'
     ];
-    let clientRect = { left: 0, top: 0, right: width, bottom: height - 28 };
-    const visual = (components || []).filter(c => !nonVisual.includes(c.type));
+    const isContainer = (type) => {
+      return ['vox_Panel', 'TPanel', 'vox_GroupBox', 'TGroupBox', 'vox_Card', 'TCard', 'vox_RadioGroup', 'TRadioGroup', 'vox_CheckListGroupBox', 'TCheckListBox', 'vox_PageControl', 'TPageControl', 'vox_TabSheet', 'TTabSheet'].includes(type);
+    };
 
-    const mainMenu = visual.find(c => c.type === 'vox_MainMenu');
-    if (mainMenu) {
-      if (mainMenu.props && mainMenu.props.Layout === 'Left') {
-        mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = 180; mainMenu.height = clientRect.bottom;
-        clientRect.left = 180;
-      } else {
-        mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = width; mainMenu.height = 38;
-        clientRect.top = 38;
+    const alignGroup = (controls, areaW, areaH) => {
+      let clientRect = { left: 0, top: 0, right: areaW, bottom: areaH };
+      const mainMenu = controls.find(c => c.type === 'vox_MainMenu');
+      if (mainMenu) {
+        if (mainMenu.props && mainMenu.props.Layout === 'Left') {
+          mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = 180; mainMenu.height = clientRect.bottom;
+          clientRect.left = 180;
+        } else {
+          mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = areaW; mainMenu.height = 38;
+          clientRect.top = 38;
+        }
       }
-    }
 
-    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alTop').forEach(c => {
-      c.left = clientRect.left; c.top = clientRect.top; c.width = Math.max(20, clientRect.right - clientRect.left);
-      clientRect.top += (parseInt(c.height, 10) || 30);
-    });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alTop').forEach(c => {
+        c.left = clientRect.left; c.top = clientRect.top; c.width = Math.max(20, clientRect.right - clientRect.left);
+        clientRect.top += (parseInt(c.height, 10) || 30);
+      });
 
-    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alBottom').forEach(c => {
-      c.left = clientRect.left; c.width = Math.max(20, clientRect.right - clientRect.left);
-      const h = parseInt(c.height, 10) || 30; clientRect.bottom -= h;
-      c.top = Math.max(clientRect.top, clientRect.bottom);
-    });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alBottom').forEach(c => {
+        c.left = clientRect.left; c.width = Math.max(20, clientRect.right - clientRect.left);
+        const h = parseInt(c.height, 10) || 30; clientRect.bottom -= h;
+        c.top = Math.max(clientRect.top, clientRect.bottom);
+      });
 
-    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alLeft').forEach(c => {
-      c.left = clientRect.left; c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
-      const w = parseInt(c.width, 10) || 120; clientRect.left += w;
-    });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alLeft').forEach(c => {
+        c.left = clientRect.left; c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
+        const w = parseInt(c.width, 10) || 120; clientRect.left += w;
+      });
 
-    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alRight').forEach(c => {
-      c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
-      const w = parseInt(c.width, 10) || 120; clientRect.right -= w;
-      c.left = Math.max(clientRect.left, clientRect.right);
-    });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alRight').forEach(c => {
+        c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
+        const w = parseInt(c.width, 10) || 120; clientRect.right -= w;
+        c.left = Math.max(clientRect.left, clientRect.right);
+      });
 
-    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alClient').forEach(c => {
-      c.left = clientRect.left; c.top = clientRect.top;
-      c.width = Math.max(20, clientRect.right - clientRect.left);
-      c.height = Math.max(20, clientRect.bottom - clientRect.top);
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alClient').forEach(c => {
+        c.left = clientRect.left; c.top = clientRect.top;
+        c.width = Math.max(20, clientRect.right - clientRect.left);
+        c.height = Math.max(20, clientRect.bottom - clientRect.top);
+      });
+    };
+
+    const visual = (components || []).filter(c => !nonVisual.includes(c.type));
+    const rootComps = visual.filter(c => !c.parent || c.parent === 'Form1');
+    alignGroup(rootComps, width, height - 28);
+
+    const getDepth = (c) => {
+      let depth = 0;
+      let cur = c;
+      while (cur && cur.parent && cur.parent !== 'Form1') {
+        depth++;
+        cur = (components || []).find(x => x.name === cur.parent);
+      }
+      return depth;
+    };
+
+    const containers = visual
+      .filter(c => isContainer(c.type))
+      .sort((a, b) => getDepth(a) - getDepth(b));
+
+    containers.forEach(cont => {
+      const childComps = visual.filter(c => c.parent === cont.name);
+      alignGroup(childComps, parseInt(cont.width, 10) || 100, parseInt(cont.height, 10) || 100);
     });
   }
 
   renderLiveForm(formState) {
     const width = formState.width || 680;
     const height = formState.height || 480;
+
+    const nonVisual = [
+      'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
+      'TDataSource', 'TFDConnection', 'TFDQuery'
+    ];
+
+    const isContainer = (type) => {
+      return ['vox_Panel', 'TPanel', 'vox_GroupBox', 'TGroupBox', 'vox_Card', 'TCard', 'vox_RadioGroup', 'TRadioGroup', 'vox_CheckListGroupBox', 'TCheckListBox', 'vox_PageControl', 'TPageControl', 'vox_TabSheet', 'TTabSheet'].includes(type);
+    };
+
+    this.currentFormState = formState;
+
+    // Recalcular posições alinhadas (alTop, alBottom, alLeft, alRight, alClient)
+    this.computeAlignments(formState.components, width, height);
+
+    const renderLevel = (parentName) => {
+      const children = (formState.components || []).filter(c => {
+        if (!parentName || parentName === formState.name) {
+          return !c.parent || c.parent === formState.name;
+        }
+        return c.parent === parentName;
+      });
+
+      return children.map(comp => {
+        if (nonVisual.includes(comp.type)) return '';
+        const isTabSheet = (comp.type === 'vox_TabSheet' || comp.type === 'TTabSheet');
+        let isTabActive = true;
+        if (isTabSheet && comp.parent) {
+          const pc = (formState.components || []).find(x => x.name === comp.parent);
+          if (pc) {
+            const pages = (formState.components || []).filter(x => (x.type === 'vox_TabSheet' || x.type === 'TTabSheet') && x.parent === pc.name);
+            const actIdx = parseInt(pc.props.ActivePageIndex, 10) || 0;
+            const myIdx = pages.findIndex(x => x.id === comp.id);
+            isTabActive = (myIdx === actIdx);
+          }
+        }
+
+        const style = isTabSheet ? `
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          display: ${isTabActive ? 'block' : 'none'};
+        ` : `
+          position: absolute;
+          left: ${comp.left}px;
+          top: ${comp.top}px;
+          width: ${comp.width}px;
+          height: ${comp.height}px;
+        `;
+        let innerHtml = this.renderLiveComponent(comp);
+        if (isContainer(comp.type)) {
+          const childMarkup = renderLevel(comp.name);
+          const topOffset = (comp.type === 'vox_PageControl' || comp.type === 'TPageControl') ? '26px' : '0px';
+          innerHtml += `<div style="position: absolute; top: ${topOffset}; left: 0; right: 0; bottom: 0; pointer-events: none;"><div style="position: relative; width: 100%; height: 100%; pointer-events: auto;">${childMarkup}</div></div>`;
+        }
+        return `<div style="${style}">${innerHtml}</div>`;
+      }).join('\n');
+    };
 
     let formContent = `
       <div style="
@@ -129,32 +215,7 @@ class VoxFormRunner {
 
         <!-- Área de Controles do Formulário -->
         <div style="position: relative; flex: 1; overflow: hidden; background: #f4f6f8;">
-    `;
-
-    const nonVisual = [
-      'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
-      'TDataSource', 'TFDConnection', 'TFDQuery'
-    ];
-
-    // Recalcular posições alinhadas (alTop, alBottom, alLeft, alRight, alClient)
-    this.computeAlignments(formState.components, width, height);
-
-    formState.components.forEach(comp => {
-      // Ignorar componentes não-visuais
-      if (nonVisual.includes(comp.type)) return;
-
-      const style = `
-        position: absolute;
-        left: ${comp.left}px;
-        top: ${comp.top}px;
-        width: ${comp.width}px;
-        height: ${comp.height}px;
-      `;
-
-      formContent += `<div style="${style}">${this.renderLiveComponent(comp)}</div>`;
-    });
-
-    formContent += `
+          ${renderLevel(null)}
         </div>
       </div>
     `;
@@ -180,6 +241,36 @@ class VoxFormRunner {
         <button id="live_${comp.id}" class="vcl-button" style="cursor: pointer;">
           ${comp.props.Caption || 'Button1'}
         </button>
+      `;
+    }
+
+    if (comp.type === 'vox_PageControl' || comp.type === 'TPageControl') {
+      const pages = (this.currentFormState && this.currentFormState.components || []).filter(c =>
+        (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === comp.name
+      );
+      const activeIdx = parseInt(comp.props.ActivePageIndex, 10) || 0;
+      const tabPos = (comp.props.TabPosition || 'tpTop').toLowerCase();
+      const tabsHtml = pages.map((p, idx) => {
+        const isActive = idx === activeIdx;
+        const caption = (p.props && p.props.Caption) || p.name || `Aba ${idx + 1}`;
+        return `
+          <div class="vcl-tab-item ${isActive ? 'active' : ''}" onclick="window.app.runner.switchTab('${comp.name}', ${idx})" style="cursor: pointer;">
+            <span>${caption}</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div id="live_${comp.id}" class="vcl-pagecontrol tab-pos-${tabPos}">
+          <div class="vcl-tab-bar">${tabsHtml}</div>
+          <div class="vcl-pagecontrol-body"></div>
+        </div>
+      `;
+    }
+
+    if (comp.type === 'vox_TabSheet' || comp.type === 'TTabSheet') {
+      return `
+        <div id="live_${comp.id}" class="vcl-tabsheet"></div>
       `;
     }
 
@@ -391,6 +482,20 @@ class VoxFormRunner {
     }
 
     this.selectRecord(this.currentRecordIndex);
+  }
+
+  switchTab(pcName, tabIdx) {
+    if (!this.currentFormState) return;
+    const pc = (this.currentFormState.components || []).find(c => c.name === pcName);
+    if (pc) {
+      pc.props.ActivePageIndex = tabIdx;
+      this.renderLiveForm(this.currentFormState);
+      if (pc.events && pc.events.OnChange) {
+        if (window.app && window.app.debugger) {
+          window.app.debugger.handleLiveEvent(pc.name, 'OnChange', pc.events.OnChange);
+        }
+      }
+    }
   }
 
   close() {

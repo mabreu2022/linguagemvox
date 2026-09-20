@@ -622,11 +622,303 @@ body {
   position: absolute;
   cursor: move;
   box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto !important;
 }
 
 .delphi-comp.selected {
   outline: 1.5px solid var(--delphi-blue) !important;
   z-index: 100;
+}
+
+/* Camada visual do componente */
+.delphi-comp-visual {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Camada de filhos para contêineres */
+.delphi-comp-children {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.delphi-comp-children > .delphi-comp {
+  pointer-events: auto;
+}
+
+.delphi-comp-handles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+}
+
+/* Delphi VCL Panel */
+.vcl-panel {
+  width: 100% !important;
+  height: 100% !important;
+  border: 1px solid #738096;
+  border-radius: 2px;
+  position: relative;
+  box-sizing: border-box;
+  background: #e9ecef;
+  box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #738096;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.vcl-panel-caption {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  padding: 4px 10px;
+}
+
+.vcl-panel-caption.text-left {
+  justify-content: flex-start;
+}
+
+.vcl-panel-caption.text-right {
+  justify-content: flex-end;
+}
+
+.vcl-panel-caption.text-center {
+  justify-content: center;
+}
+
+body:not(.theme-light) .vcl-panel {
+  background: #1e2430;
+  border-color: #3b4554;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.05), inset -1px -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+body:not(.theme-light) .vcl-panel-caption {
+  color: #94a3b8;
+}
+
+/* Delphi VCL PageControl & TabSheet Container */
+.delphi-comp.delphi-pagecontrol-comp > .delphi-comp-children {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(100% - 26px);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.delphi-comp.delphi-pagecontrol-comp.tab-pos-tpbottom > .delphi-comp-children {
+  top: 0;
+  bottom: 26px;
+  height: calc(100% - 26px);
+}
+
+.delphi-comp.delphi-tabsheet-comp {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box;
+}
+
+.delphi-comp.delphi-tabsheet-comp > .delphi-comp-children {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.delphi-comp.delphi-tabsheet-comp .delphi-handle {
+  display: none !important;
+}
+
+.delphi-comp.delphi-tabsheet-comp.selected {
+  outline: 1.5px dashed var(--delphi-blue) !important;
+}
+
+/* Visual do PageControl */
+.vcl-pagecontrol {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.vcl-pagecontrol.tab-pos-tpbottom {
+  flex-direction: column-reverse;
+}
+
+.vcl-tab-bar {
+  height: 26px;
+  min-height: 26px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 4px;
+  border-bottom: 1px solid #738096;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.vcl-pagecontrol.tab-pos-tpbottom .vcl-tab-bar {
+  border-bottom: none;
+  border-top: 1px solid #738096;
+  align-items: flex-start;
+}
+
+.vcl-tab-item {
+  height: 23px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  background: #dce3ed;
+  border: 1px solid #738096;
+  border-bottom: none;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  margin-bottom: -1px;
+  transition: background 0.1s ease;
+  pointer-events: auto !important;
+}
+
+.vcl-pagecontrol.tab-pos-tpbottom .vcl-tab-item {
+  border-top: none;
+  border-bottom: 1px solid #738096;
+  border-radius: 0 0 4px 4px;
+  margin-bottom: 0;
+  margin-top: -1px;
+}
+
+.vcl-tab-item:hover {
+  background: #eef2f7;
+}
+
+.vcl-tab-item.active {
+  height: 26px;
+  background: #ffffff;
+  color: #0078d4;
+  font-weight: 600;
+  border-color: #738096;
+  border-bottom: 1px solid #ffffff;
+  z-index: 12;
+}
+
+.vcl-pagecontrol.tab-pos-tpbottom .vcl-tab-item.active {
+  border-top: 1px solid #ffffff;
+  border-bottom-color: #738096;
+}
+
+.vcl-tab-add-btn {
+  height: 20px;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: bold;
+  color: #0078d4;
+  cursor: pointer;
+  margin-bottom: 3px;
+  border-radius: 3px;
+  pointer-events: auto !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.vcl-tab-add-btn:hover {
+  background: rgba(0, 120, 212, 0.15);
+}
+
+.vcl-pagecontrol-body {
+  flex: 1;
+  width: 100%;
+  border: 1px solid #738096;
+  border-top: none;
+  background: #ffffff;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.vcl-pagecontrol.tab-pos-tpbottom .vcl-pagecontrol-body {
+  border-top: 1px solid #738096;
+  border-bottom: none;
+}
+
+.vcl-tabsheet {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Tema Dark do PageControl */
+body:not(.theme-light) .vcl-tab-bar {
+  border-color: #3b4554;
+}
+
+body:not(.theme-light) .vcl-tab-item {
+  background: #181d26;
+  color: #94a3b8;
+  border-color: #3b4554;
+}
+
+body:not(.theme-light) .vcl-tab-item:hover {
+  background: #1f2633;
+  color: #cbd5e1;
+}
+
+body:not(.theme-light) .vcl-tab-item.active {
+  background: #242933;
+  color: #38bdf8;
+  border-color: #3b4554;
+  border-bottom-color: #242933;
+}
+
+body:not(.theme-light) .vcl-pagecontrol.tab-pos-tpbottom .vcl-tab-item.active {
+  border-top-color: #242933;
+}
+
+body:not(.theme-light) .vcl-pagecontrol-body {
+  border-color: #3b4554;
+  background: #242933;
 }
 
 /* 8 Alças de Redimensionamento (Handles) Clássicas */
@@ -637,7 +929,9 @@ body {
   background: #0078d4;
   border: 1px solid #ffffff;
   display: none;
-  z-index: 150;
+  pointer-events: auto !important;
+  z-index: 250;
+  box-sizing: border-box;
 }
 
 .delphi-comp.selected .delphi-handle {
@@ -881,6 +1175,14 @@ body:not(.theme-light) .vcl-checklist-item {
 .delphi-comp.delphi-comp-alclient.selected {
   outline: 2px dashed #38bdf8 !important;
   outline-offset: -2px;
+}
+
+/* Alças específicas para controles alinhados (padrão Delphi VCL) */
+.delphi-comp.delphi-comp-altop.selected .delphi-handle:not(.dh-s),
+.delphi-comp.delphi-comp-albottom.selected .delphi-handle:not(.dh-n),
+.delphi-comp.delphi-comp-alleft.selected .delphi-handle:not(.dh-e),
+.delphi-comp.delphi-comp-alright.selected .delphi-handle:not(.dh-w) {
+  display: none !important;
 }
 
 .vcl-dbgrid-hdr {
@@ -1393,6 +1695,58 @@ body:not(.theme-light) .vcl-checklist-item {
   margin: 4px 0;
 }
 
+/* Menu de Contexto do Designer (Estilo Delphi VCL) */
+.delphi-context-menu {
+  position: fixed;
+  min-width: 220px;
+  background: #1e2229;
+  border: 1px solid #333d4b;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.65);
+  border-radius: 2px;
+  padding: 4px 0;
+  display: none;
+  flex-direction: column;
+  z-index: 10000;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.delphi-context-menu.open {
+  display: flex;
+}
+
+.delphi-context-menu-item {
+  padding: 5px 14px;
+  font-size: 11.5px;
+  color: #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.delphi-context-menu-item:hover:not(.disabled) {
+  background: #094771;
+  color: #ffffff;
+}
+
+.delphi-context-menu-item.disabled {
+  color: #64748b;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.delphi-context-menu-item .shortcut {
+  font-size: 10px;
+  color: #8a96a7;
+  margin-left: 18px;
+}
+
+.delphi-context-menu-item:hover:not(.disabled) .shortcut {
+  color: #bfdbfe;
+}
+
 /* ==============================================================================
    BARRA DE BUSCA E SUBSTITUIÇÃO NO CÓDIGO (CTRL+F / CTRL+H)
    ============================================================================== */
@@ -1794,6 +2148,33 @@ body.theme-light .menu-sep {
 body.theme-light .delphi-menu-item:hover {
   background: #e2e8f0;
   color: #0f172a;
+}
+
+body.theme-light .delphi-context-menu {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+body.theme-light .delphi-context-menu-item {
+  color: #0f172a;
+}
+
+body.theme-light .delphi-context-menu-item:hover:not(.disabled) {
+  background: #e0f2fe;
+  color: #0078d4;
+}
+
+body.theme-light .delphi-context-menu-item.disabled {
+  color: #94a3b8;
+}
+
+body.theme-light .delphi-context-menu-item .shortcut {
+  color: #64748b;
+}
+
+body.theme-light .delphi-context-menu-item:hover:not(.disabled) .shortcut {
+  color: #0369a1;
 }
 
 /* Barra de Ferramentas / Toolbar */

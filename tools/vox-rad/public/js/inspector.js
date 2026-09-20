@@ -113,8 +113,32 @@ class VoxObjectInspector {
       ];
     } else {
       const comp = this.target;
+
+      // Lista de contêineres disponíveis para a propriedade Parent
+      const formName = window.app.designer.form.name;
+      const availableParents = [formName];
+      const isDescendantOf = (ancestorName, checkComp) => {
+        let cur = checkComp;
+        while (cur && cur.parent && cur.parent !== formName) {
+          if (cur.parent === ancestorName) return true;
+          cur = window.app.designer.getComponentByName(cur.parent);
+        }
+        return false;
+      };
+
+      if (window.app && window.app.designer) {
+        window.app.designer.form.components.forEach(c => {
+          if (c.id !== comp.id && window.app.designer.isContainerComponent(c.type)) {
+            if (!isDescendantOf(comp.name, c)) {
+              availableParents.push(c.name);
+            }
+          }
+        });
+      }
+
       propsList = [
         { name: 'Name', value: comp.name, type: 'text', targetType: 'comp', propKey: 'name' },
+        { name: 'Parent', value: comp.parent || formName, type: 'select', options: availableParents, targetType: 'parent', propKey: 'parent' },
         { name: 'Left', value: comp.left, type: 'number', targetType: 'comp', propKey: 'left' },
         { name: 'Top', value: comp.top, type: 'number', targetType: 'comp', propKey: 'top' },
         { name: 'Width', value: comp.width, type: 'number', targetType: 'comp', propKey: 'width' },
@@ -166,6 +190,25 @@ class VoxObjectInspector {
         } else if (key === 'Layout') {
           type = 'select';
           options = ['Top', 'Left'];
+        } else if (key === 'Alignment') {
+          type = 'select';
+          options = ['taCenter', 'taLeftJustify', 'taRightJustify'];
+        } else if (key === 'ActivePageIndex') {
+          type = 'select';
+          const pages = window.app.designer.form.components.filter(c =>
+            (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === comp.name
+          );
+          if (pages.length > 0) {
+            options = pages.map((p, idx) => `${idx}`);
+          } else {
+            options = ['0'];
+          }
+        } else if (key === 'TabPosition') {
+          type = 'select';
+          options = ['tpTop', 'tpBottom'];
+        } else if (key === 'BevelOuter' || key === 'BevelInner') {
+          type = 'select';
+          options = ['bvNone', 'bvLowered', 'bvRaised', 'bvSpace'];
         } else if (typeof val === 'boolean') {
           type = 'boolean';
         } else if (typeof val === 'number') {
@@ -260,7 +303,18 @@ class VoxObjectInspector {
       </div>
     `;
 
-    this.propsContainer.innerHTML = `${headerBanner}${publishedBadge}<table class="delphi-prop-grid">${rowsHtml}</table>`;
+    let actionsHtml = '';
+    if (this.target && (this.target.type === 'vox_PageControl' || this.target.type === 'TPageControl')) {
+      actionsHtml = `
+        <div style="padding: 6px 8px; background: rgba(0, 120, 212, 0.1); border-bottom: 1px solid rgba(0, 120, 212, 0.2); display: flex; gap: 6px;">
+          <button class="tool-btn" style="flex: 1; padding: 4px; font-size: 11px; background: #0078d4; color: #ffffff; border-radius: 3px; cursor: pointer; border: none;" onclick="window.app.designer.addTabSheet()">
+            📄 + Nova Página (TabSheet)
+          </button>
+        </div>
+      `;
+    }
+
+    this.propsContainer.innerHTML = `${headerBanner}${publishedBadge}${actionsHtml}<table class="delphi-prop-grid">${rowsHtml}</table>`;
   }
 
   renderEvents() {
@@ -350,7 +404,13 @@ class VoxObjectInspector {
   }
 
   onPropChange(type, key, value) {
-    if (type === 'form') {
+    if (type === 'parent') {
+      if (this.target && window.app && window.app.designer) {
+        window.app.designer.reparentComponent(this.target, value);
+        this.update(this.target);
+      }
+      return;
+    } else if (type === 'form') {
       const k = key.toLowerCase();
       if (k === 'width' || k === 'height' || k === 'left' || k === 'top') {
         value = parseInt(value, 10) || 0;
@@ -375,10 +435,33 @@ class VoxObjectInspector {
       }
     } else if (type === 'custom') {
       if (this.target) {
-        this.target.props[key] = value;
         if (key === 'Align') {
+          const oldAlign = this.target.props.Align;
+          this.target.props.Align = value;
           if (window.app && window.app.designer) {
-            window.app.designer.recalculateAlignments(false);
+            if (value !== 'alNone' && (!oldAlign || oldAlign === 'alNone')) {
+              this.target._origWidth = this.target.width;
+              this.target._origHeight = this.target.height;
+              this.target._origLeft = this.target.left;
+              this.target._origTop = this.target.top;
+            } else if (value === 'alNone' && oldAlign && oldAlign !== 'alNone') {
+              const meta = window.VOX_COMPONENTS[this.target.type];
+              this.target.width = this.target._origWidth || (meta ? meta.defaultWidth : 200);
+              this.target.height = this.target._origHeight || (meta ? meta.defaultHeight : 120);
+              this.target.left = this.target._origLeft !== undefined ? this.target._origLeft : 20;
+              this.target.top = this.target._origTop !== undefined ? this.target._origTop : 20;
+            }
+            window.app.designer.recalculateAlignments(true);
+            window.app.designer.updateComponentElement(this.target);
+            window.app.onFormChanged();
+          }
+          this.render();
+          return;
+        }
+        if (key === 'Alignment') {
+          this.target.props[key] = value;
+          if (window.app && window.app.designer) {
+            window.app.designer.updateComponentElement(this.target);
             window.app.onFormChanged();
           }
           this.render();
@@ -448,6 +531,39 @@ class VoxObjectInspector {
             delete this.target.props.Host;
 
             this.render();
+          }
+
+          if (key === 'ActivePageIndex') {
+            const pageIdx = parseInt(value, 10) || 0;
+            this.target.props.ActivePageIndex = pageIdx;
+            if (window.app && window.app.designer) {
+              window.app.designer.renderForm();
+              window.app.onFormChanged();
+              window.app.updateStructureTree();
+            }
+            this.render();
+            return;
+          }
+
+          if (key === 'TabPosition') {
+            this.target.props.TabPosition = value;
+            if (window.app && window.app.designer) {
+              window.app.designer.renderForm();
+              window.app.onFormChanged();
+            }
+            this.render();
+            return;
+          }
+
+          if (key === 'Caption' && (this.target.type === 'vox_TabSheet' || this.target.type === 'TTabSheet')) {
+            this.target.props.Caption = value;
+            if (window.app && window.app.designer) {
+              window.app.designer.updateComponentElement(this.target);
+              window.app.onFormChanged();
+              window.app.updateStructureTree();
+            }
+            this.render();
+            return;
           }
 
           window.app.designer.updateComponentElement(this.target);

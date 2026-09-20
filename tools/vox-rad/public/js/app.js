@@ -7,6 +7,31 @@ class VoxStudioApp {
     this.currentView = 'designer'; // 'designer' ou 'code'
     this.isDirty = false;
     this.currentTheme = localStorage.getItem('vox_rad_theme') || 'dark';
+
+    // Gerenciador de Projetos e Grupo de Projetos (Delphi 12 Standard)
+    this.currentProjectGroup = {
+      name: 'ProjectGroup1',
+      file: 'ProjectGroup1.groupproj',
+      projects: ['VoxERP_Comercial.dproj', 'Projeto_Clientes.dproj']
+    };
+    this.currentProject = {
+      name: 'Project1',
+      file: 'Project1.dproj',
+      folder: '.',
+      mainForm: 'Form1',
+      units: ['Unit1.vox', 'Form1.vxf']
+    };
+    this.currentFile = {
+      name: 'Unit1.vox',
+      path: 'forms/Form1.vox',
+      type: 'vox'
+    };
+    this.workspaceFiles = { units: [], projects: [], groups: [] };
+    this.selectedOpenFile = null;
+    this.selectedOpenProject = null;
+    this.selectedOpenGroup = null;
+    this.currentOpenFileCategory = 'all';
+    this.openFileSearchQuery = '';
   }
 
   init() {
@@ -34,21 +59,27 @@ class VoxStudioApp {
     this.initCodeSearch();
     this.initComponentFactory();
     this.initSaveDialogEvents();
+    this.initProjectManager();
     this.checkServerStatus();
 
-    // Iniciar com Formulário Vazio padrão Delphi (com espaço visível de 700x480)
-    this.designer.form = {
-      name: 'Form1',
-      title: 'Form1',
-      width: 700,
-      height: 480,
-      components: []
-    };
-    this.designer.selectedComponent = null;
-    this.designer.renderForm();
-    this.inspector.update(null);
-    this.updateStructureTree();
-    this.syncCodeFromDesigner();
+    // Tentar carregar Form1.vxf existente do projeto; se não existir, inicia formulário limpo
+    this.loadForm('forms/Form1.vxf').then(loaded => {
+      if (!loaded) {
+        this.designer.form = {
+          name: 'Form1',
+          title: 'Form1',
+          width: 700,
+          height: 480,
+          components: []
+        };
+        this.designer.syncIdCounter();
+        this.designer.selectedComponent = null;
+        this.designer.renderForm();
+        this.inspector.update(null);
+        this.updateStructureTree();
+        this.syncCodeFromDesigner();
+      }
+    });
   }
 
   // --------------------------------------------------------------------------
@@ -130,7 +161,13 @@ class VoxStudioApp {
           });
 
           row.addEventListener('click', () => {
-            this.designer.addComponent(c.name, 40, 40);
+            const sel = this.designer.selectedComponent;
+            const isNewContainer = this.designer.isContainerComponent(c.name);
+            if (!isNewContainer && sel && this.designer.isContainerComponent(sel.type)) {
+              this.designer.addComponent(c.name, 20, 20, sel.name);
+            } else {
+              this.designer.addComponent(c.name, 40, 40, null);
+            }
           });
 
           itemsDiv.appendChild(row);
@@ -213,28 +250,93 @@ class VoxStudioApp {
     const selected = this.designer.selectedComponent;
 
     let html = `
-      <div class="tree-node ${!selected ? 'selected' : ''}" onclick="window.app.designer.selectComponent(null)">
+      <div class="tree-node ${!selected ? 'selected' : ''}"
+        onclick="window.app.designer.selectComponent(null)"
+        ondragover="window.app.onTreeDragOver(event)"
+        ondrop="window.app.onTreeDrop(event, '${form.name}')"
+        title="Formulário Raiz: ${form.name}">
         <span>🪟</span>
-        <span style="font-weight:600;">${form.name}</span>
+        <span style="font-weight:700;">${form.name}</span>
         <span style="color:#6c7889; font-size:10px;">: T${form.name}</span>
       </div>
     `;
 
-    form.components.forEach(c => {
-      const isSel = selected && selected.id === c.id;
-      const meta = window.VOX_COMPONENTS[c.type];
-      const icon = meta ? meta.icon : '▫️';
+    const renderBranch = (parentName, depth) => {
+      const children = form.components.filter(c => {
+        if (!parentName || parentName === form.name) {
+          return !c.parent || c.parent === form.name;
+        }
+        return c.parent === parentName;
+      });
 
-      html += `
-        <div class="tree-node ${isSel ? 'selected' : ''}" style="padding-left: 20px;" onclick="window.app.selectComponentById('${c.id}')">
-          <span>${icon}</span>
-          <span>${c.name}</span>
-          <span style="color:#6c7889; font-size:10px;">: ${c.type}</span>
-        </div>
-      `;
-    });
+      children.forEach(c => {
+        const isSel = selected && selected.id === c.id;
+        const meta = window.VOX_COMPONENTS[c.type];
+        const icon = meta ? meta.icon : '▫️';
+        const isContainer = this.designer.isContainerComponent(c.type);
+        const padLeft = 20 + depth * 16;
+
+        const containerDropEvents = isContainer ? `
+          ondragover="window.app.onTreeDragOver(event)"
+          ondrop="window.app.onTreeDrop(event, '${c.name}')"
+        ` : '';
+
+        html += `
+          <div class="tree-node ${isSel ? 'selected' : ''} ${isContainer ? 'tree-node-container' : ''}"
+            style="padding-left: ${padLeft}px;"
+            draggable="true"
+            ondragstart="window.app.onTreeDragStart(event, '${c.name}')"
+            ${containerDropEvents}
+            onclick="window.app.selectComponentById('${c.id}')"
+            title="${c.name} (${c.type})${c.parent ? ' • Pai: ' + c.parent : ''}">
+            <span>${icon}</span>
+            <span style="font-weight:${isContainer ? '600' : 'normal'}; color:${isContainer ? '#38bdf8' : 'inherit'};">${c.name}</span>
+            <span style="color:#6c7889; font-size:10px;">: ${c.type}</span>
+          </div>
+        `;
+
+        if (isContainer) {
+          renderBranch(c.name, depth + 1);
+        }
+      });
+    };
+
+    renderBranch(null, 0);
 
     tree.innerHTML = html;
+  }
+
+  onTreeDragStart(e, compName) {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/rad-comp-name', compName);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  onTreeDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  onTreeDrop(e, targetParentName) {
+    e.preventDefault();
+    e.stopPropagation();
+    const draggedName = e.dataTransfer.getData('text/rad-comp-name');
+    if (!draggedName || draggedName === targetParentName) return;
+
+    const comp = this.designer.getComponentByName(draggedName);
+    if (!comp) return;
+
+    // Evitar ciclo (não pode soltar o pai dentro do próprio filho)
+    if (targetParentName !== this.designer.form.name) {
+      let cur = this.designer.getComponentByName(targetParentName);
+      while (cur) {
+        if (cur.name === draggedName) return;
+        cur = cur.parent ? this.designer.getComponentByName(cur.parent) : null;
+      }
+    }
+
+    this.designer.reparentComponent(comp, targetParentName);
   }
 
   selectComponentById(id) {
@@ -263,6 +365,10 @@ class VoxStudioApp {
         if (btnHistory) btnHistory.classList.remove('active');
         designerContainer.style.display = 'flex';
         codeView.style.display = 'none';
+        if (this.designer) {
+          this.designer.recalculateAlignments(false);
+          this.designer.renderForm();
+        }
       } else if (view === 'code') {
         btnCode.classList.add('active');
         btnDesign.classList.remove('active');
@@ -297,6 +403,9 @@ class VoxStudioApp {
       if (e.key === 'F12') {
         e.preventDefault();
         this.toggleDesignCodeView();
+      } else if (e.key === 'F11') {
+        e.preventDefault();
+        this.focusObjectInspector();
       } else if (e.key === 'F9') {
         e.preventDefault();
         if (this.debugger && this.debugger.state === 'PAUSED') {
@@ -328,6 +437,18 @@ class VoxStudioApp {
       } else if (e.ctrlKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
         this.saveForm();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        this.openProjectDialog();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        this.openFileDialog();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        this.newForm();
+      } else if (e.ctrlKey && e.key === 'F4') {
+        e.preventDefault();
+        this.closeActiveFile();
       } else if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         this.openSearch();
@@ -1239,16 +1360,819 @@ class VoxStudioApp {
     }
   }
 
-  loadTemplate(templateKey) {
-    const tmpl = window.VOX_TEMPLATES[templateKey];
-    if (!tmpl) return;
+  editCut() {
+    if (this.currentView === 'code') {
+      document.execCommand('cut');
+    } else if (this.designer) {
+      this.designer.cutSelected();
+    }
+  }
 
+  editCopy() {
+    if (this.currentView === 'code') {
+      document.execCommand('copy');
+    } else if (this.designer) {
+      this.designer.copySelected();
+    }
+  }
+
+  editPaste() {
+    if (this.currentView === 'code') {
+      document.execCommand('paste');
+    } else if (this.designer) {
+      this.designer.pasteComponent();
+    }
+  }
+
+  focusObjectInspector() {
+    if (this.inspector && this.designer) {
+      this.inspector.update(this.designer.selectedComponent);
+    }
+    const leftDock = document.querySelector('.left-dock');
+    if (leftDock) {
+      leftDock.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  loadExampleTemplate(templateKey) {
+    if (!templateKey) return;
+    if (templateKey === '__custom_folder__') {
+      this.openCreateFromExampleModal();
+      return;
+    }
+
+    const tmpl = window.VOX_TEMPLATES && window.VOX_TEMPLATES[templateKey];
+    if (!tmpl) {
+      this.showToast(`⚠️ Modelo [${templateKey}] não encontrado.`);
+      return;
+    }
+
+    // 1. Garantir que a visão visual do Designer esteja ativa
+    if (typeof this.switchView === 'function') {
+      this.switchView('designer');
+    }
+
+    // 2. Clonar profundamente os dados do modelo no designer
     this.designer.form = JSON.parse(JSON.stringify(tmpl));
+    if (!this.designer.form.components) {
+      this.designer.form.components = [];
+    }
+    this.designer.syncIdCounter();
     this.designer.selectedComponent = null;
+
+    // 3. Renderizar no canvas visual
     this.designer.renderForm();
-    this.inspector.update(null);
+
+    // 4. Atualizar Object Inspector e Structure Tree
+    if (this.inspector) {
+      this.inspector.update(null);
+    }
     this.updateStructureTree();
+
+    // 5. Sincronizar código Vox no editor Monaco
     this.syncCodeFromDesigner();
+
+    // 6. Atualizar abas e árvore de projeto
+    const formName = this.designer.form.name || 'Form1';
+    const docTab = document.getElementById('docTabTitle');
+    if (docTab) docTab.innerText = `${formName}.vox`;
+    const projUnit = document.getElementById('projTreeUnitName');
+    if (projUnit) projUnit.innerText = `${formName}.vox`;
+    const projVxf = document.getElementById('projTreeVxfName');
+    if (projVxf) projVxf.innerText = `${formName}.vxf`;
+
+    // 7. Atualizar título do projeto no dock lateral
+    const projTitle = document.querySelector('.project-header span');
+    if (projTitle) projTitle.textContent = `${formName}.dproj - Projects`;
+
+    // 8. Sincronizar selects na toolbar e no modal
+    const tbSelect = document.getElementById('toolbarTemplateSelect');
+    if (tbSelect) tbSelect.value = templateKey;
+    const cfeSelect = document.getElementById('cfeTemplateSelect');
+    if (cfeSelect) cfeSelect.value = templateKey;
+
+    // 9. Notificação toast
+    this.showToast(`✨ Projeto exemplo "${tmpl.title || formName}" carregado no Designer (${this.designer.form.components.length} componentes)!`);
+  }
+
+  loadTemplate(templateKey) {
+    return this.loadExampleTemplate(templateKey);
+  }
+
+  async loadForm(formNameOrPath = 'Form1') {
+    try {
+      const res = await fetch(`/api/form/load?file=${encodeURIComponent(formNameOrPath)}`);
+      const data = await res.json();
+      if (!data.success || !data.form) {
+        return false;
+      }
+
+      this.designer.form = data.form;
+      if (!this.designer.form.components) {
+        this.designer.form.components = [];
+      }
+      this.designer.syncIdCounter();
+      this.designer.selectedComponent = this.designer.form.components.length > 0 ? this.designer.form.components[0] : null;
+      this.designer.renderForm();
+      if (this.inspector) {
+        this.inspector.update(this.designer.selectedComponent);
+      }
+      this.updateStructureTree();
+
+      if (data.voxCode) {
+        this.editor.setCode(data.voxCode);
+      } else {
+        this.syncCodeFromDesigner();
+      }
+
+      const formName = this.designer.form.name || 'Form1';
+      const docTab = document.getElementById('docTabTitle');
+      if (docTab) docTab.innerText = `${formName}.vox`;
+      const projUnit = document.getElementById('projTreeUnitName');
+      if (projUnit) projUnit.innerText = `${formName}.vox`;
+      const projVxf = document.getElementById('projTreeVxfName');
+      if (projVxf) projVxf.innerText = `${formName}.vxf`;
+
+      this.showToast(`📂 Formulário ${formName} carregado com sucesso (${this.designer.form.components.length} componentes)!`);
+      return true;
+    } catch (e) {
+      console.warn('Não foi possível carregar o formulário:', e.message);
+      return false;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Gerenciador de Arquivos, Projetos e Grupos de Projetos (Delphi 12 Standard)
+  // --------------------------------------------------------------------------
+  async loadWorkspaceFiles() {
+    try {
+      const res = await fetch('/api/workspace/files');
+      const data = await res.json();
+      if (data.success) {
+        this.workspaceFiles = {
+          units: data.units || [],
+          projects: data.projects || [],
+          groups: data.groups || []
+        };
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar arquivos do workspace:', err);
+    }
+  }
+
+  initProjectManager() {
+    this.loadWorkspaceFiles().then(() => {
+      this.updateProjectsTree();
+    });
+  }
+
+  updateProjectsTree() {
+    const container = document.getElementById('projectsTreeContainer');
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (!container) return;
+
+    if (!this.currentProjectGroup && !this.currentProject) {
+      if (headerTitle) headerTitle.textContent = 'Projects - Nenhum Projeto Aberto';
+      container.innerHTML = `
+        <div style="padding: 18px 12px; color: #64748b; font-size: 11px; text-align: center; line-height: 1.5;">
+          <div style="font-size: 24px; margin-bottom: 8px;">📂</div>
+          <strong style="color: #94a3b8;">Nenhum Projeto Aberto</strong><br>
+          Selecione um projeto ou abra um arquivo para começar.<br><br>
+          <button class="tool-btn" onclick="window.app.openProjectDialog()" style="width: 100%; margin-bottom: 6px; padding: 6px; font-weight: 600; color: #38bdf8;">📁 Abrir Projeto...</button>
+          <button class="tool-btn" onclick="window.app.openProjectGroupDialog()" style="width: 100%; margin-bottom: 6px; padding: 6px; color: #c084fc;">📦 Abrir Grupo de Projetos...</button>
+          <button class="tool-btn" onclick="window.app.openFileDialog()" style="width: 100%; margin-bottom: 6px; padding: 6px;">📂 Abrir Arquivo / Unit...</button>
+          <button class="tool-btn" onclick="window.app.newProject()" style="width: 100%; padding: 6px;">➕ Novo Projeto</button>
+        </div>
+      `;
+      return;
+    }
+
+    const proj = this.currentProject;
+    const group = this.currentProjectGroup;
+    const projName = proj ? proj.name : 'Project1';
+
+    if (headerTitle) {
+      headerTitle.textContent = `${projName}.dproj - Projects`;
+    }
+
+    let html = '';
+
+    // Raiz do Grupo de Projetos
+    if (group) {
+      html += `
+        <div class="tree-node" style="cursor: pointer; background: rgba(192, 132, 252, 0.08); border-bottom: 1px solid rgba(192, 132, 252, 0.15);" title="Grupo de Projetos: ${group.name}" onclick="window.app.openProjectGroupDialog()">
+          <span>📦</span>
+          <strong style="color: #c084fc;">${group.name}</strong>
+          <span style="font-size: 9.5px; color: #94a3b8; margin-left: 4px;">(${group.projects ? group.projects.length : 1} projetos)</span>
+        </div>
+      `;
+    }
+
+    // Lista de Projetos
+    const projectList = (group && group.projects && group.projects.length > 0)
+      ? group.projects.map(p => typeof p === 'string' ? { name: p.replace(/\.(dproj|vproj)$/, ''), file: p } : p)
+      : [proj || { name: 'Project1', file: 'Project1.dproj' }];
+
+    projectList.forEach((pItem) => {
+      const isCurrent = proj && proj.name === pItem.name;
+      const padLeft = group ? '16px' : '0px';
+      html += `
+        <div class="tree-node ${isCurrent ? 'selected' : ''}" style="padding-left: ${padLeft}; cursor: pointer;" onclick="window.app.openProject('${pItem.name}')" title="Projeto: ${pItem.name}">
+          <span>💻</span>
+          <span style="font-weight: 600; color: ${isCurrent ? '#38bdf8' : '#cbd5e1'};">${pItem.name}.exe</span>
+        </div>
+      `;
+
+      if (isCurrent) {
+        html += `
+          <div class="tree-node" style="padding-left: calc(${padLeft} + 16px); color: #64748b; font-size: 10px;">
+            <span>⚙️</span>
+            <span>Build Configurations (Debug)</span>
+          </div>
+          <div class="tree-node" style="padding-left: calc(${padLeft} + 16px); color: #64748b; font-size: 10px;">
+            <span>🎯</span>
+            <span>Target Platforms (Web HTML5)</span>
+          </div>
+        `;
+
+        // Units e Formulários do Projeto Ativo
+        const units = (proj && proj.units && proj.units.length > 0)
+          ? proj.units
+          : (this.designer && this.designer.form ? [`${this.designer.form.name || 'Unit1'}.vox`, `${this.designer.form.name || 'Form1'}.vxf`] : ['Unit1.vox', 'Form1.vxf']);
+
+        units.forEach(u => {
+          const isVxf = u.endsWith('.vxf');
+          const isSelected = this.currentFile && this.currentFile.name === u;
+          const icon = isVxf ? '🎨' : '📄';
+          const clickFn = isVxf ? `window.app.loadForm('${u}')` : `window.app.openFile('${u}')`;
+          html += `
+            <div class="tree-node ${isSelected ? 'selected' : ''}" style="padding-left: calc(${padLeft} + 16px); cursor: pointer;" onclick="${clickFn}" title="${isVxf ? 'Abrir no Designer Visual' : 'Abrir no Editor de Código'}">
+              <span>${icon}</span>
+              <span style="color: ${isSelected ? '#38bdf8' : '#94a3b8'};">${u}</span>
+            </div>
+          `;
+        });
+      }
+    });
+
+    container.innerHTML = html;
+  }
+
+  // --- 1. ABRIR ARQUIVO (UNIT, CLASSE, FORM) ---
+  async openFileDialog() {
+    await this.loadWorkspaceFiles();
+    const modal = document.getElementById('openFileModal');
+    if (!modal) return;
+
+    this.currentOpenFileCategory = 'all';
+    this.openFileSearchQuery = '';
+    const filterTabs = document.getElementById('openFileFilterTabs');
+    if (filterTabs) {
+      filterTabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      const btnAll = document.getElementById('btnFilterAll');
+      if (btnAll) btnAll.classList.add('active');
+    }
+
+    const searchInput = document.getElementById('openFileSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    const selInput = document.getElementById('selectedOpenFilePath');
+    if (selInput) selInput.value = '';
+    this.selectedOpenFile = null;
+
+    this.renderOpenFileTable(this.workspaceFiles.units || []);
+    modal.style.display = 'flex';
+  }
+
+  closeOpenFileModal() {
+    const modal = document.getElementById('openFileModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  filterOpenFileCategory(category, btnEl) {
+    this.currentOpenFileCategory = category;
+    if (btnEl) {
+      const parent = btnEl.parentElement;
+      if (parent) parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btnEl.classList.add('active');
+    }
+    this.applyOpenFileFilters();
+  }
+
+  filterOpenFileSearch(query) {
+    this.openFileSearchQuery = (query || '').toLowerCase().trim();
+    this.applyOpenFileFilters();
+  }
+
+  applyOpenFileFilters() {
+    const cat = this.currentOpenFileCategory || 'all';
+    const q = this.openFileSearchQuery || '';
+    const all = this.workspaceFiles.units || [];
+
+    const filtered = all.filter(u => {
+      const matchesCat = (cat === 'all')
+        || (cat === 'Unit' && u.ext === '.vox' && !u.category.includes('Controller') && !u.category.includes('Model'))
+        || (cat === 'Controller' && (u.category.includes('Controller') || u.category.includes('Model')))
+        || (cat === 'View / Form' && (u.ext === '.vxf' || u.category.includes('Form') || u.category.includes('View')))
+        || (cat === 'Exemplo' && (u.category.includes('Exemplo') || u.relPath.includes('example')));
+
+      const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.relPath.toLowerCase().includes(q) || u.category.toLowerCase().includes(q);
+
+      return matchesCat && matchesSearch;
+    });
+
+    this.renderOpenFileTable(filtered);
+  }
+
+  renderOpenFileTable(items) {
+    const tbody = document.getElementById('openFileListBody');
+    const info = document.getElementById('openFileCountInfo');
+    if (info) info.textContent = `${items.length} arquivos disponíveis`;
+    if (!tbody) return;
+
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">Nenhum arquivo encontrado com os filtros atuais.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items.map((u, i) => {
+      const isSelected = this.selectedOpenFile === u.relPath;
+      const icon = u.ext === '.vxf' ? '🎨' : (u.category.includes('Controller') ? '⚡' : (u.category.includes('Model') ? '🏛️' : '📄'));
+      const sizeStr = u.size ? (u.size < 1024 ? `${u.size} B` : `${(u.size / 1024).toFixed(1)} KB`) : '-';
+
+      return `
+        <tr style="cursor: pointer; border-bottom: 1px solid #1f2530; background: ${isSelected ? '#1e3a5f' : (i % 2 === 0 ? '#11141a' : '#141820')};"
+            onclick="window.app.selectOpenFileRow('${u.relPath}')"
+            ondblclick="window.app.selectOpenFileRow('${u.relPath}'); window.app.confirmOpenFile();">
+          <td style="padding: 6px 10px; font-size: 13px;">${icon}</td>
+          <td style="padding: 6px 10px; font-weight: 600; color: ${isSelected ? '#38bdf8' : '#f1f5f9'};">${u.name}</td>
+          <td style="padding: 6px 10px; color: #94a3b8;"><span style="background:#1e293b; padding: 2px 6px; border-radius: 3px; font-size: 10.5px;">${u.category}</span></td>
+          <td style="padding: 6px 10px; color: #64748b; font-family: monospace;">${u.relPath}</td>
+          <td style="padding: 6px 10px; text-align: right; color: #64748b;">${sizeStr}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  selectOpenFileRow(relPath) {
+    this.selectedOpenFile = relPath;
+    const input = document.getElementById('selectedOpenFilePath');
+    if (input) input.value = relPath;
+    this.applyOpenFileFilters();
+  }
+
+  async confirmOpenFile() {
+    const input = document.getElementById('selectedOpenFilePath');
+    const pathVal = (input ? input.value : this.selectedOpenFile) || '';
+    if (!pathVal.trim()) {
+      alert('Selecione ou digite o arquivo a ser aberto.');
+      return;
+    }
+    this.closeOpenFileModal();
+    await this.openFile(pathVal.trim());
+  }
+
+  async openFile(relPath) {
+    try {
+      if (!relPath) return;
+      if (relPath.endsWith('.vxf')) {
+        await this.loadForm(relPath);
+        this.switchView('designer');
+        return;
+      }
+
+      this.showToast(`⏳ Abrindo arquivo ${relPath}...`);
+      const res = await fetch(`/api/file/read?file=${encodeURIComponent(relPath)}`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Falha ao ler arquivo');
+      }
+
+      this.currentFile = {
+        name: data.fileName,
+        path: data.filePath,
+        type: data.ext === '.vox' ? 'vox' : 'text'
+      };
+
+      if (this.editor) {
+        this.editor.setCode(data.content);
+      }
+      this.switchView('code');
+
+      const docTab = document.getElementById('docTabTitle');
+      if (docTab) docTab.innerText = data.fileName;
+
+      const projUnit = document.getElementById('projTreeUnitName');
+      if (projUnit) projUnit.innerText = data.fileName;
+
+      this.showToast(`📂 Arquivo "${data.fileName}" aberto com sucesso!`);
+      this.updateProjectsTree();
+    } catch (err) {
+      alert('Erro ao abrir arquivo: ' + err.message);
+    }
+  }
+
+  handleLocalFileOpen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target.result;
+      this.closeOpenFileModal();
+
+      if (file.name.endsWith('.vxf')) {
+        try {
+          this.designer.form = JSON.parse(content);
+          if (!this.designer.form.components) {
+            this.designer.form.components = [];
+          }
+          this.designer.syncIdCounter();
+          this.designer.renderForm();
+          this.syncCodeFromDesigner();
+          this.switchView('designer');
+        } catch (e) {
+          alert('Arquivo .vxf inválido.');
+        }
+      } else {
+        if (this.editor) this.editor.setCode(content);
+        this.switchView('code');
+      }
+
+      const docTab = document.getElementById('docTabTitle');
+      if (docTab) docTab.innerText = file.name;
+      this.currentFile = { name: file.name, path: file.name, type: 'vox' };
+      this.showToast(`💻 Arquivo "${file.name}" carregado do computador!`);
+      this.updateProjectsTree();
+    };
+    reader.readAsText(file);
+  }
+
+  async openFormDialog() {
+    return this.openFileDialog();
+  }
+
+  // --- 2. ABRIR PROJETO (.DPROJ / .VPROJ) ---
+  async openProjectDialog() {
+    await this.loadWorkspaceFiles();
+    const modal = document.getElementById('openProjectModal');
+    if (!modal) return;
+
+    const searchInput = document.getElementById('openProjSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    const selInput = document.getElementById('selectedOpenProjPath');
+    if (selInput) selInput.value = '';
+    this.selectedOpenProject = null;
+
+    this.renderOpenProjectList(this.workspaceFiles.projects || []);
+    modal.style.display = 'flex';
+  }
+
+  closeOpenProjectModal() {
+    const modal = document.getElementById('openProjectModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  filterOpenProjectSearch(query) {
+    const q = (query || '').toLowerCase().trim();
+    const all = this.workspaceFiles.projects || [];
+    const filtered = all.filter(p => !q || p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)) || (p.folder && p.folder.toLowerCase().includes(q)));
+    this.renderOpenProjectList(filtered);
+  }
+
+  renderOpenProjectList(items) {
+    const container = document.getElementById('openProjectListContainer');
+    if (!container) return;
+
+    if (items.length === 0) {
+      container.innerHTML = `<div style="text-align: center; padding: 24px; color: #64748b;">Nenhum projeto encontrado.</div>`;
+      return;
+    }
+
+    container.innerHTML = items.map((p) => {
+      const isSelected = this.selectedOpenProject === p.name || this.selectedOpenProject === p.file;
+      return `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#1e3a5f' : '#141820'}; border: 1px solid ${isSelected ? '#38bdf8' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
+             onclick="window.app.selectOpenProjectCard('${p.file || p.name}')"
+             ondblclick="window.app.selectOpenProjectCard('${p.file || p.name}'); window.app.confirmOpenProject();">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">💻</span>
+            <div>
+              <div style="font-weight: 700; color: ${isSelected ? '#38bdf8' : '#f8fafc'}; font-size: 13px;">${p.name}.dproj</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">${p.description || 'Projeto Delphi / Vox'}</div>
+              <div style="font-size: 10px; color: #64748b; font-family: monospace; margin-top: 2px;">📁 ${p.folder || p.file || '.'}</div>
+            </div>
+          </div>
+          <span style="background: #1e293b; color: #38bdf8; font-size: 11px; padding: 3px 8px; border-radius: 3px; font-weight: 600;">Abrir ➔</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  selectOpenProjectCard(projPath) {
+    this.selectedOpenProject = projPath;
+    const input = document.getElementById('selectedOpenProjPath');
+    if (input) input.value = projPath;
+    this.renderOpenProjectList(this.workspaceFiles.projects || []);
+  }
+
+  async confirmOpenProject() {
+    const input = document.getElementById('selectedOpenProjPath');
+    const pathVal = (input ? input.value : this.selectedOpenProject) || '';
+    if (!pathVal.trim()) {
+      alert('Selecione ou informe o projeto a ser aberto.');
+      return;
+    }
+    this.closeOpenProjectModal();
+    await this.openProject(pathVal.trim());
+  }
+
+  async openProject(projNameOrPath) {
+    const rawName = (typeof projNameOrPath === 'string') ? projNameOrPath.replace(/\.(dproj|vproj)$/, '').split(/[\/\\]/).pop() : (projNameOrPath.name || 'Projeto');
+
+    // Se corresponder a um dos modelos principais, carrega seu conjunto
+    if (rawName.includes('ERP') || rawName === 'VoxERP_Comercial') {
+      this.currentProject = {
+        name: 'VoxERP_Comercial',
+        file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
+        folder: 'projetos/VoxERP_Comercial',
+        mainForm: 'FormERP',
+        units: ['FormERP.vox', 'FormERP.vxf', 'cliente_controller.vox', 'produto_controller.vox']
+      };
+      this.loadExampleTemplate('erpCompleto');
+    } else if (rawName.includes('Clientes') || rawName === 'Projeto_Clientes') {
+      this.currentProject = {
+        name: 'Projeto_Clientes',
+        file: 'clientes/Projeto_Clientes.dproj',
+        folder: 'clientes',
+        mainForm: 'Form1',
+        units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox', 'Form1.vox', 'Form1.vxf']
+      };
+      this.loadExampleTemplate('crudClientes');
+    } else if (rawName.includes('Sidebar') || rawName === 'Sistema_Sidebar') {
+      this.currentProject = {
+        name: 'Sistema_Sidebar',
+        file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
+        folder: 'projetos/Sistema_Sidebar',
+        mainForm: 'Form1',
+        units: ['Form1.vox', 'Form1.vxf']
+      };
+      this.loadExampleTemplate('sistemaSidebar');
+    } else if (rawName.includes('PDV') || rawName === 'PDV_FrenteDeCaixa') {
+      this.currentProject = {
+        name: 'PDV_FrenteDeCaixa',
+        file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
+        folder: 'projetos/PDV_FrenteDeCaixa',
+        mainForm: 'Form1',
+        units: ['pdv_controller.vox', 'pdv_model.vox', 'Form1.vox', 'Form1.vxf']
+      };
+      this.loadExampleTemplate('pdv');
+    } else if (rawName.includes('Calculadora') || rawName === 'Calculadora_RAD') {
+      this.currentProject = {
+        name: 'Calculadora_RAD',
+        file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
+        folder: 'projetos/Calculadora_RAD',
+        mainForm: 'Form1',
+        units: ['Form1.vox', 'Form1.vxf']
+      };
+      this.loadExampleTemplate('calculadora');
+    } else {
+      this.currentProject = {
+        name: rawName,
+        file: `${rawName}.dproj`,
+        folder: '.',
+        mainForm: 'Form1',
+        units: ['Form1.vox', 'Form1.vxf']
+      };
+      this.showToast(`📁 Projeto "${rawName}" aberto.`);
+    }
+
+    this.updateProjectsTree();
+    this.showToast(`📁 Projeto "${this.currentProject.name}" carregado com sucesso!`);
+  }
+
+  handleLocalProjectOpen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    this.closeOpenProjectModal();
+    const projName = file.name.replace(/\.(dproj|vproj|json)$/i, '');
+    this.openProject(projName);
+  }
+
+  // --- 3. ABRIR GRUPO DE PROJETOS (.GROUPPROJ) ---
+  async openProjectGroupDialog() {
+    await this.loadWorkspaceFiles();
+    const modal = document.getElementById('openProjectGroupModal');
+    if (!modal) return;
+
+    const selInput = document.getElementById('selectedOpenGroupPath');
+    if (selInput) selInput.value = '';
+    this.selectedOpenGroup = null;
+
+    this.renderOpenGroupList(this.workspaceFiles.groups || []);
+    modal.style.display = 'flex';
+  }
+
+  closeOpenProjectGroupModal() {
+    const modal = document.getElementById('openProjectGroupModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  renderOpenGroupList(items) {
+    const container = document.getElementById('openGroupListContainer');
+    if (!container) return;
+
+    container.innerHTML = items.map((g) => {
+      const isSelected = this.selectedOpenGroup === g.name || this.selectedOpenGroup === g.file;
+      const projCount = g.projects ? g.projects.length : 2;
+      return `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#2e1065' : '#141820'}; border: 1px solid ${isSelected ? '#c084fc' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
+             onclick="window.app.selectOpenGroupCard('${g.file || g.name}')"
+             ondblclick="window.app.selectOpenGroupCard('${g.file || g.name}'); window.app.confirmOpenProjectGroup();">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 22px;">📦</span>
+            <div>
+              <div style="font-weight: 700; color: ${isSelected ? '#d8b4fe' : '#f8fafc'}; font-size: 13px;">${g.name}.groupproj</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">${g.description || 'Grupo de Projetos Multi-Módulos'}</div>
+              <div style="font-size: 10.5px; color: #38bdf8; margin-top: 2px;">Contém ${projCount} projetos associados</div>
+            </div>
+          </div>
+          <span style="background: #3b0764; color: #d8b4fe; font-size: 11px; padding: 3px 10px; border-radius: 3px; font-weight: 600; border: 1px solid #7c3aed;">Carregar Grupo ➔</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  selectOpenGroupCard(groupFile) {
+    this.selectedOpenGroup = groupFile;
+    const input = document.getElementById('selectedOpenGroupPath');
+    if (input) input.value = groupFile;
+    this.renderOpenGroupList(this.workspaceFiles.groups || []);
+  }
+
+  async confirmOpenProjectGroup() {
+    const input = document.getElementById('selectedOpenGroupPath');
+    const pathVal = (input ? input.value : this.selectedOpenGroup) || 'ProjectGroup1';
+    this.closeOpenProjectGroupModal();
+    await this.openProjectGroup(pathVal);
+  }
+
+  async openProjectGroup(groupNameOrPath) {
+    const rawName = (typeof groupNameOrPath === 'string') ? groupNameOrPath.replace(/\.(groupproj|vgroup)$/, '').split(/[\/\\]/).pop() : (groupNameOrPath.name || 'ProjectGroup1');
+
+    const matched = (this.workspaceFiles.groups || []).find(g => g.name === rawName || g.file === groupNameOrPath);
+
+    this.currentProjectGroup = matched || {
+      name: rawName,
+      file: `${rawName}.groupproj`,
+      projects: ['VoxERP_Comercial.dproj', 'Projeto_Clientes.dproj', 'PDV_FrenteDeCaixa.dproj']
+    };
+
+    // Abre o primeiro projeto do grupo
+    const firstProj = (this.currentProjectGroup.projects && this.currentProjectGroup.projects[0]) || 'VoxERP_Comercial';
+    await this.openProject(firstProj);
+
+    this.updateProjectsTree();
+    this.showToast(`📦 Grupo de Projetos "${this.currentProjectGroup.name}" carregado com sucesso!`);
+  }
+
+  handleLocalGroupOpen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    this.closeOpenProjectGroupModal();
+    const groupName = file.name.replace(/\.(groupproj|vgroup)$/i, '');
+    this.openProjectGroup(groupName);
+  }
+
+  promptCreateNewProjectGroup() {
+    const name = prompt('Nome do novo Grupo de Projetos (.groupproj):', 'MeuGrupoDeProjetos');
+    if (!name || !name.trim()) return;
+    this.closeOpenProjectGroupModal();
+    this.openProjectGroup(name.trim());
+  }
+
+  // --- 4. SALVAR PROJETO COMO (.DPROJ) ---
+  openSaveProjectAsModal() {
+    const modal = document.getElementById('saveProjectAsModal');
+    if (!modal) return;
+    const nameInput = document.getElementById('saveProjNameInput');
+    const folderInput = document.getElementById('saveProjFolderInput');
+
+    const curName = this.currentProject ? this.currentProject.name : 'MeuProjeto';
+    if (nameInput) nameInput.value = curName;
+    if (folderInput) folderInput.value = `projetos/${curName}`;
+
+    modal.style.display = 'flex';
+  }
+
+  closeSaveProjectAsModal() {
+    const modal = document.getElementById('saveProjectAsModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  setSaveProjFolder(baseFolder) {
+    const nameInput = document.getElementById('saveProjNameInput');
+    const folderInput = document.getElementById('saveProjFolderInput');
+    const name = nameInput ? nameInput.value.trim() : 'MeuProjeto';
+    if (folderInput) folderInput.value = `${baseFolder}/${name}`;
+  }
+
+  updateSaveProjPreview() {
+    const nameInput = document.getElementById('saveProjNameInput');
+    const folderInput = document.getElementById('saveProjFolderInput');
+    if (nameInput && folderInput && folderInput.value.startsWith('projetos/')) {
+      folderInput.value = `projetos/${nameInput.value.trim()}`;
+    }
+  }
+
+  async confirmSaveProjectAs() {
+    const nameInput = document.getElementById('saveProjNameInput');
+    const folderInput = document.getElementById('saveProjFolderInput');
+    const projectName = nameInput ? nameInput.value.trim() : 'NovoProjeto';
+    const folder = folderInput ? folderInput.value.trim() : `projetos/${projectName}`;
+
+    try {
+      this.showToast('💾 Salvando projeto...');
+      const res = await fetch('/api/project/save-as', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectName, folder })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Erro ao salvar projeto');
+
+      this.closeSaveProjectAsModal();
+      this.currentProject = {
+        name: data.projectName,
+        file: data.filePath,
+        folder: data.folder,
+        units: [`${this.designer.form.name || 'Form1'}.vox`, `${this.designer.form.name || 'Form1'}.vxf`]
+      };
+      this.updateProjectsTree();
+      this.showToast(`💾 Projeto "${data.projectName}" salvo com sucesso em ${data.folder}/!`);
+    } catch (err) {
+      alert('Falha ao salvar projeto: ' + err.message);
+    }
+  }
+
+  // --- 5. FECHAR (ARQUIVO / PROJETO / GRUPO DE PROJETOS) ---
+  closeActiveFile() {
+    this.currentFile = null;
+
+    // Reseta editor para estado neutro
+    if (this.editor) {
+      this.editor.setCode('// Nenhum arquivo aberto.\n// Abra um arquivo pelo menu File > Abrir Arquivo (Ctrl+O) ou clique duas vezes em uma Unit no Gerenciador de Projetos.');
+    }
+
+    // Reseta designer
+    this.designer.form = {
+      name: 'SemForm',
+      title: 'Nenhum Formulário Aberto',
+      width: 680,
+      height: 440,
+      components: []
+    };
+    this.designer.syncIdCounter();
+    this.designer.renderForm();
+
+    const docTab = document.getElementById('docTabTitle');
+    if (docTab) docTab.innerText = '(Nenhum arquivo)';
+
+    if (this.inspector) this.inspector.update(null);
+    this.updateStructureTree();
+    this.updateProjectsTree();
+
+    this.showToast('❌ Arquivo/Unit fechado com sucesso.');
+  }
+
+  closeFormWindow() {
+    this.closeActiveFile();
+  }
+
+  closeCurrentProject() {
+    const projName = this.currentProject ? this.currentProject.name : 'Projeto';
+    this.currentProject = null;
+    this.closeActiveFile();
+
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = 'Projects - Nenhum Projeto Aberto';
+
+    this.updateProjectsTree();
+    this.showToast(`🚪 Projeto "${projName}" fechado com sucesso.`);
+  }
+
+  closeProjectGroup() {
+    const groupName = this.currentProjectGroup ? this.currentProjectGroup.name : 'Grupo de Projetos';
+    this.currentProjectGroup = null;
+    this.currentProject = null;
+    this.closeActiveFile();
+
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = 'Projects - Vazio';
+
+    this.updateProjectsTree();
+    this.showToast(`📦❌ Grupo de Projetos "${groupName}" fechado com sucesso.`);
   }
 
   // --------------------------------------------------------------------------
@@ -1608,7 +2532,7 @@ class VoxStudioApp {
   }
 
   // ==========================================================================
-  // CONNECTION EDITOR (DELPHI 13 ATHENS FIREDAC CONNECTION DIALOG)
+  // CONNECTION EDITOR (FIREDAC CONNECTION DIALOG)
   // ==========================================================================
   openConnectionEditor(compId) {
     let comp = null;
@@ -2401,6 +3325,12 @@ class VoxStudioApp {
     }
   }
 
+  loadTemplateFromModal() {
+    const templateKey = document.getElementById('cfeTemplateSelect')?.value || 'erpCompleto';
+    this.closeCreateFromExampleModal();
+    this.loadExampleTemplate(templateKey);
+  }
+
   async confirmCreateProjectFromExample() {
     const templateKey = document.getElementById('cfeTemplateSelect')?.value || 'erpCompleto';
     const projectName = document.getElementById('cfeProjectName')?.value.trim() || 'NovoProjeto';
@@ -2637,6 +3567,7 @@ class VoxStudioApp {
   }
 
   async gitPull() {
+    this.openGitDialog('log');
     this.appendGitLog('Executando git pull...');
     this.showToast('📥 Atualizando do repositório remoto...');
     try {

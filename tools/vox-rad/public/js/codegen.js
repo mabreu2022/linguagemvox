@@ -20,12 +20,27 @@ window.VoxCodeGen = {
 
       // Inicialização no construtor new()
       initLines.push(`        this.${comp.name} = new ${comp.type}();`);
+      if (comp.parent && comp.parent !== formName) {
+        initLines.push(`        this.${comp.name}.parent = "${comp.parent}";`);
+      }
       initLines.push(`        this.${comp.name}.left = ${comp.left};`);
       initLines.push(`        this.${comp.name}.top = ${comp.top};`);
       initLines.push(`        this.${comp.name}.width = ${comp.width};`);
       initLines.push(`        this.${comp.name}.height = ${comp.height};`);
 
       // Propriedades específicas
+      if (comp.props.Align !== undefined && comp.props.Align !== 'alNone') {
+        initLines.push(`        this.${comp.name}.align = "${comp.props.Align}";`);
+      }
+      if (comp.props.Alignment !== undefined) {
+        initLines.push(`        this.${comp.name}.alignment = "${comp.props.Alignment}";`);
+      }
+      if (comp.props.ActivePageIndex !== undefined) {
+        initLines.push(`        this.${comp.name}.activePageIndex = ${comp.props.ActivePageIndex};`);
+      }
+      if (comp.props.TabPosition !== undefined) {
+        initLines.push(`        this.${comp.name}.tabPosition = "${comp.props.TabPosition}";`);
+      }
       if (comp.props.Caption !== undefined) {
         initLines.push(`        this.${comp.name}.caption = "${comp.props.Caption}";`);
       }
@@ -219,135 +234,306 @@ public fn main() -> void {
     const queryComp = components.find(c => c.type === 'vox_Query' || c.type === 'TFDQuery');
     const sqlQuery = (queryComp && queryComp.props && queryComp.props.SQL) ? queryComp.props.SQL : 'SELECT * FROM clientes';
 
-    // 1. Gerar HTML dos Componentes
-    let compHtmlList = [];
-    components.forEach(comp => {
-      // Ignorar componentes não-visuais
-      const nonVisual = ['vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog', 'TDataSource', 'TFDConnection', 'TFDQuery'];
-      if (nonVisual.includes(comp.type)) return;
+    // 1. Gerar HTML dos Componentes (Hierárquico Delphi VCL)
+    const nonVisual = [
+      'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
+      'TDataSource', 'TFDConnection', 'TFDQuery', 'TTimer', 'TOpenDialog', 'TSaveDialog'
+    ];
 
-      const style = `position: absolute; left: ${comp.left}px; top: ${comp.top}px; width: ${comp.width}px; height: ${comp.height}px;`;
+    const isContainer = (type) => {
+      const containers = [
+        'vox_Panel', 'TPanel', 'vox_GroupBox', 'TGroupBox', 'vox_Card', 'TCard',
+        'vox_RadioGroup', 'TRadioGroup', 'vox_CheckListGroupBox', 'TCheckListBox',
+        'vox_PageControl', 'TPageControl', 'vox_TabSheet', 'TTabSheet'
+      ];
+      return containers.includes(type);
+    };
+
+    // Recalcular posições e dimensões com base nas propriedades de alinhamento (Align)
+    const alignGroup = (controls, areaW, areaH) => {
+      let clientRect = { left: 0, top: 0, right: areaW, bottom: areaH };
+      const mainMenu = controls.find(c => c.type === 'vox_MainMenu');
+      if (mainMenu) {
+        if (mainMenu.props && mainMenu.props.Layout === 'Left') {
+          mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = 180; mainMenu.height = areaH;
+          clientRect.left = 180;
+        } else {
+          mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = areaW; mainMenu.height = 38;
+          clientRect.top = 38;
+        }
+      }
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alTop').forEach(c => {
+        c.left = clientRect.left; c.top = clientRect.top; c.width = Math.max(20, clientRect.right - clientRect.left);
+        clientRect.top += (parseInt(c.height, 10) || 30);
+      });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alBottom').forEach(c => {
+        c.left = clientRect.left; c.width = Math.max(20, clientRect.right - clientRect.left);
+        const h = parseInt(c.height, 10) || 30; clientRect.bottom -= h;
+        c.top = Math.max(clientRect.top, clientRect.bottom);
+      });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alLeft').forEach(c => {
+        c.left = clientRect.left; c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
+        const w = parseInt(c.width, 10) || 120; clientRect.left += w;
+      });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alRight').forEach(c => {
+        c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
+        const w = parseInt(c.width, 10) || 120; clientRect.right -= w;
+        c.left = Math.max(clientRect.left, clientRect.right);
+      });
+      controls.filter(c => c !== mainMenu && c.props && c.props.Align === 'alClient').forEach(c => {
+        c.left = clientRect.left; c.top = clientRect.top;
+        c.width = Math.max(20, clientRect.right - clientRect.left);
+        c.height = Math.max(20, clientRect.bottom - clientRect.top);
+      });
+    };
+
+    const visualComps = components.filter(c => !nonVisual.includes(c.type));
+    const rootComps = visualComps.filter(c => !c.parent || c.parent === formName);
+    alignGroup(rootComps, width, height - 28);
+
+    const getDepth = (c) => {
+      let depth = 0;
+      let cur = c;
+      while (cur && cur.parent && cur.parent !== formName) {
+        depth++;
+        cur = components.find(x => x.name === cur.parent);
+      }
+      return depth;
+    };
+    const containers = visualComps
+      .filter(c => isContainer(c.type))
+      .sort((a, b) => getDepth(a) - getDepth(b));
+
+    containers.forEach(cont => {
+      const childComps = visualComps.filter(c => c.parent === cont.name);
+      alignGroup(childComps, parseInt(cont.width, 10) || 100, parseInt(cont.height, 10) || 100);
+    });
+
+    const renderCompMarkup = (comp) => {
+      if (!comp || nonVisual.includes(comp.type)) return '';
+      comp.props = comp.props || {};
+
+      const style = `position: absolute; left: ${comp.left || 0}px; top: ${comp.top || 0}px; width: ${comp.width || 120}px; height: ${comp.height || 30}px;`;
+
+      // Renderizar filhos recursivamente caso seja contêiner
+      let childrenHtml = '';
+      if (isContainer(comp.type)) {
+        const children = components.filter(c => c.parent === comp.name);
+        childrenHtml = children.map(ch => renderCompMarkup(ch)).join('\n');
+      }
 
       if (comp.type === 'vox_Button' || comp.type === 'TButton') {
-        compHtmlList.push(`
+        return `
           <button id="${comp.name}" class="web-btn" style="${style}" onclick="app.handleClick('${comp.name}')">
-            ${comp.props.Caption || 'Button'}
+            ${comp.props.Caption || comp.name || 'Button'}
           </button>
-        `);
-      } else if (comp.type === 'vox_SpeedButton') {
-        compHtmlList.push(`
+        `;
+      } else if (comp.type === 'vox_SpeedButton' || comp.type === 'TSpeedButton') {
+        return `
           <button id="${comp.name}" class="web-btn web-speedbtn" style="${style}" onclick="app.handleClick('${comp.name}')" title="${comp.props.Hint || ''}">
             ${comp.props.Caption || '⚡'}
           </button>
-        `);
+        `;
       } else if (comp.type === 'vox_Edit' || comp.type === 'TEdit') {
-        compHtmlList.push(`
+        return `
           <input type="text" id="${comp.name}" class="web-input" value="${comp.props.Text || ''}" placeholder="${comp.props.Placeholder || ''}" style="${style}">
-        `);
+        `;
       } else if (comp.type === 'vox_Label' || comp.type === 'TLabel') {
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" class="web-label" style="${style} color: ${comp.props.Color || '#e2e8f0'};">
-            ${comp.props.Caption || 'Label'}
+            ${comp.props.Caption || comp.name || 'Label'}
           </div>
-        `);
+        `;
       } else if (comp.type === 'vox_CheckBox' || comp.type === 'TCheckBox') {
-        compHtmlList.push(`
+        return `
           <label id="${comp.name}" class="web-checkbox" style="${style}">
             <input type="checkbox" ${comp.props.Checked ? 'checked' : ''}>
-            <span>${comp.props.Caption || 'CheckBox'}</span>
+            <span>${comp.props.Caption || comp.name || 'CheckBox'}</span>
           </label>
-        `);
+        `;
       } else if (comp.type === 'vox_RadioButton' || comp.type === 'TRadioButton') {
-        compHtmlList.push(`
+        return `
           <label id="${comp.name}" class="web-radio" style="${style}">
             <input type="radio" name="${comp.props.GroupName || 'grp1'}" ${comp.props.Checked ? 'checked' : ''}>
-            <span>${comp.props.Caption || 'RadioButton'}</span>
+            <span>${comp.props.Caption || comp.name || 'RadioButton'}</span>
           </label>
-        `);
+        `;
+      } else if (comp.type === 'vox_RadioGroup' || comp.type === 'TRadioGroup') {
+        const items = (comp.props.Items || 'Opção 1, Opção 2').split(',').map((it, idx) => `
+          <label class="web-radio" style="margin: 2px 0;">
+            <input type="radio" name="${comp.name}_grp" ${idx === (comp.props.ItemIndex || 0) ? 'checked' : ''}>
+            <span>${it.trim()}</span>
+          </label>
+        `).join('');
+        return `
+          <fieldset id="${comp.name}" class="web-groupbox web-radiogroup" style="${style}">
+            <legend>${comp.props.Caption || comp.name || 'RadioGroup'}</legend>
+            <div style="display: flex; flex-direction: column; gap: 4px; padding: 4px;">${items}</div>
+            ${childrenHtml}
+          </fieldset>
+        `;
+      } else if (comp.type === 'vox_CheckListGroupBox' || comp.type === 'TCheckListBox') {
+        const items = (comp.props.Items || 'Item 1, Item 2, Item 3').split(',').map((it, idx) => `
+          <label class="web-checkbox" style="margin: 2px 0;">
+            <input type="checkbox" ${idx === 0 ? 'checked' : ''}>
+            <span>${it.trim()}</span>
+          </label>
+        `).join('');
+        return `
+          <fieldset id="${comp.name}" class="web-groupbox web-checklist" style="${style}">
+            <legend>${comp.props.Caption || comp.name || 'CheckList'}</legend>
+            <div style="display: flex; flex-direction: column; gap: 4px; padding: 4px; max-height: 100%; overflow-y: auto;">${items}</div>
+            ${childrenHtml}
+          </fieldset>
+        `;
       } else if (comp.type === 'vox_ComboBox' || comp.type === 'TComboBox') {
         const items = (comp.props.Items || 'Item 1, Item 2, Item 3').split(',').map(i => `<option>${i.trim()}</option>`).join('');
-        compHtmlList.push(`
+        return `
           <select id="${comp.name}" class="web-input" style="${style}">
             ${items}
           </select>
-        `);
+        `;
       } else if (comp.type === 'vox_ListBox' || comp.type === 'TListBox') {
         const items = (comp.props.Items || 'Item 1, Item 2, Item 3').split(',').map(i => `<div class="web-listbox-item">${i.trim()}</div>`).join('');
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" class="web-listbox" style="${style}">
             ${items}
           </div>
-        `);
+        `;
       } else if (comp.type === 'vox_Memo' || comp.type === 'TMemo') {
-        compHtmlList.push(`
+        return `
           <textarea id="${comp.name}" class="web-input web-memo" style="${style}">${comp.props.Lines || ''}</textarea>
-        `);
+        `;
       } else if (comp.type === 'vox_GroupBox' || comp.type === 'TGroupBox') {
-        compHtmlList.push(`
+        return `
           <fieldset id="${comp.name}" class="web-groupbox" style="${style}">
-            <legend>${comp.props.Caption || 'GroupBox'}</legend>
+            <legend>${comp.props.Caption || comp.name || 'GroupBox'}</legend>
+            ${childrenHtml}
           </fieldset>
-        `);
+        `;
       } else if (comp.type === 'vox_Panel' || comp.type === 'TPanel') {
-        compHtmlList.push(`
-          <div id="${comp.name}" class="web-panel" style="${style}">
-            ${comp.props.Caption || ''}
+        const align = (comp.props && comp.props.Alignment) || 'taCenter';
+        const alignClass = align === 'taLeftJustify' ? 'text-left' :
+                           align === 'taRightJustify' ? 'text-right' : 'text-center';
+        return `
+          <div id="${comp.name}" class="web-panel" style="${style} background: ${comp.props.Color || '#1e2430'};">
+            ${comp.props.Caption ? `<span class="web-panel-caption ${alignClass}">${comp.props.Caption}</span>` : ''}
+            ${childrenHtml}
           </div>
-        `);
-      } else if (comp.type === 'vox_Image') {
-        const bg = comp.props.PictureUrl ? `background-image:url('${comp.props.PictureUrl}'); background-size:cover;` : 'background:#1a202c;';
-        compHtmlList.push(`
+        `;
+      } else if (comp.type === 'vox_Image' || comp.type === 'TImage') {
+        const bg = comp.props.PictureUrl ? `background-image:url('${comp.props.PictureUrl}'); background-size:cover;` : 'background:#161c26;';
+        return `
           <div id="${comp.name}" class="web-image" style="${style} ${bg}">
-            ${!comp.props.PictureUrl ? '<span style="font-size:11px; color:#888;">🖼️ Imagem</span>' : ''}
+            ${!comp.props.PictureUrl ? '<span style="font-size:11px; color:#888;">🖼️ ' + (comp.props.Caption || comp.name) + '</span>' : ''}
           </div>
-        `);
-      } else if (comp.type === 'vox_Card') {
-        compHtmlList.push(`
-          <div id="${comp.name}" class="web-card" style="${style}">
-            <div class="web-card-title">${comp.props.Title || 'Card'}</div>
-            <div class="web-card-desc">${comp.props.Subtitle || ''}</div>
+        `;
+      } else if (comp.type === 'vox_Shape' || comp.type === 'TShape') {
+        const shape = comp.props.Shape || 'Rectangle';
+        const isCircle = shape === 'Circle' || shape === 'stCircle';
+        const isRound = shape === 'RoundRect' || shape === 'stRoundRect';
+        const br = isCircle ? '50%' : (isRound ? '8px' : '2px');
+        return `
+          <div id="${comp.name}" class="web-shape" style="${style} background: ${comp.props.BrushColor || '#3b82f6'}; border: 2px solid ${comp.props.PenColor || '#1d4ed8'}; border-radius: ${br};"></div>
+        `;
+      } else if (comp.type === 'vox_Card' || comp.type === 'TCard') {
+        return `
+          <div id="${comp.name}" class="web-card" style="${style} background: ${comp.props.BgColor || '#1e293b'};">
+            <div class="web-card-title">${comp.props.Title || comp.name}</div>
+            ${comp.props.Subtitle ? `<div class="web-card-desc">${comp.props.Subtitle}</div>` : ''}
+            ${childrenHtml}
           </div>
-        `);
+        `;
+      } else if (comp.type === 'vox_PageControl' || comp.type === 'TPageControl') {
+        const pages = components.filter(c => (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === comp.name);
+        const activeIdx = parseInt(comp.props.ActivePageIndex, 10) || 0;
+        const tabPos = (comp.props.TabPosition || 'tpTop').toLowerCase();
+        return `
+          <div id="${comp.name}" class="web-pagecontrol tab-pos-${tabPos}" style="${style}">
+            <div class="web-tab-bar">
+              ${pages.map((p, idx) => `
+                <button class="web-tab-btn ${idx === activeIdx ? 'active' : ''}" data-pagecontrol="${comp.name}" data-tab-index="${idx}" onclick="window.voxSwitchTab('${comp.name}', ${idx})">
+                  ${p.props.Caption || p.name}
+                </button>
+              `).join('')}
+            </div>
+            <div class="web-pagecontrol-client">
+              ${childrenHtml}
+            </div>
+          </div>
+        `;
+      } else if (comp.type === 'vox_TabSheet' || comp.type === 'TTabSheet') {
+        let isActive = false;
+        const pc = components.find(c => c.name === comp.parent);
+        if (pc) {
+          const pages = components.filter(c => (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === pc.name);
+          const activeIdx = parseInt(pc.props.ActivePageIndex, 10) || 0;
+          const myIdx = pages.findIndex(p => p.name === comp.name);
+          isActive = (myIdx === activeIdx);
+        } else {
+          isActive = true;
+        }
+        return `
+          <div id="${comp.name}" class="web-tabsheet ${isActive ? 'active' : ''}" style="${style} display: ${isActive ? 'block' : 'none'}; position: absolute; inset: 0; width: 100%; height: 100%;">
+            ${childrenHtml}
+          </div>
+        `;
       } else if (comp.type === 'vox_Badge') {
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" class="web-badge" style="${style} background:${comp.props.Color || '#22c55e'}; color:${comp.props.TextColor || '#fff'};">
-            ${comp.props.Text || 'Badge'}
+            ${comp.props.Text || comp.props.Caption || 'Badge'}
           </div>
-        `);
+        `;
       } else if (comp.type === 'vox_Switch') {
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" class="web-switch ${comp.props.Checked ? 'checked' : ''}" style="${style}" onclick="this.classList.toggle('checked')">
             <div class="switch-ball"></div>
           </div>
-        `);
-      } else if (comp.type === 'vox_ProgressBar') {
+        `;
+      } else if (comp.type === 'vox_ProgressBar' || comp.type === 'TProgressBar') {
         const p = Math.min(100, Math.max(0, comp.props.Position || 50));
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" class="web-progress" style="${style}">
             <div class="progress-inner" style="width:${p}%; background:${comp.props.Color || '#0078d4'};"></div>
           </div>
-        `);
-      } else if (comp.type === 'vox_Slider') {
-        compHtmlList.push(`
+        `;
+      } else if (comp.type === 'vox_Slider' || comp.type === 'TTrackBar') {
+        return `
           <input type="range" id="${comp.name}" class="web-slider" min="${comp.props.Min || 0}" max="${comp.props.Max || 100}" value="${comp.props.Value || 50}" style="${style}">
-        `);
-      } else if (comp.type === 'vox_DatePicker') {
-        compHtmlList.push(`
+        `;
+      } else if (comp.type === 'vox_DatePicker' || comp.type === 'TDateTimePicker') {
+        return `
           <input type="date" id="${comp.name}" class="web-input" value="${comp.props.Value || '2026-09-20'}" style="${style}">
-        `);
+        `;
+      } else if (comp.type === 'vox_ColorPicker') {
+        return `
+          <input type="color" id="${comp.name}" class="web-colorpicker" value="${comp.props.SelectedColor || '#0078d4'}" style="${style}">
+        `;
+      } else if (comp.type === 'vox_RatingStars') {
+        const count = comp.props.MaxStars || 5;
+        const val = comp.props.Value || 4;
+        let stars = '';
+        for (let s = 1; s <= count; s++) {
+          stars += `<span style="color: ${s <= val ? '#f59e0b' : '#475569'}; font-size: 16px; cursor: pointer;">★</span>`;
+        }
+        return `
+          <div id="${comp.name}" class="web-ratingstars" style="${style} display: flex; align-items: center; gap: 2px;">
+            ${stars}
+          </div>
+        `;
       } else if (comp.type === 'vox_DBGrid' || comp.type === 'TDBGrid') {
         const cols = (comp.props.Columns || 'ID, Nome, Cidade, Saldo').split(',').map(c => c.trim());
         const headerHtml = cols.map(c => `<th>${c}</th>`).join('');
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" class="web-grid-wrapper" style="${style}">
             <table class="web-table">
               <thead><tr>${headerHtml}</tr></thead>
               <tbody id="grid_body"></tbody>
             </table>
           </div>
-        `);
+        `;
       } else if (comp.type === 'vox_DBNavigator' || comp.type === 'TDBNavigator') {
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" class="web-navigator" style="${style} display:flex; flex-direction:row;">
             <button onclick="app.navFirst('${comp.name}')" title="Primeiro (|◀)">|◀</button>
             <button onclick="app.navPrior('${comp.name}')" title="Anterior (◀)">◀</button>
@@ -360,19 +546,27 @@ public fn main() -> void {
             <button onclick="app.navCancel('${comp.name}')" title="Cancelar (❌)" style="color:#94a3b8;">❌</button>
             <button onclick="app.loadData('${comp.name}')" title="Atualizar (🔄)" style="color:#a855f7;">🔄</button>
           </div>
-        `);
+        `;
       } else if (comp.type === 'vox_DBEdit' || comp.type === 'TDBEdit') {
         const field = comp.props.DataField || 'nome';
-        compHtmlList.push(`
+        return `
           <input type="text" id="${comp.name}" data-field="${field}" class="web-input web-dbedit" placeholder="[${field}]" style="${style}">
-        `);
-      } else if (comp.type === 'vox_DBText') {
+        `;
+      } else if (comp.type === 'vox_DBText' || comp.type === 'TDBText') {
         const field = comp.props.DataField || 'saldo';
-        compHtmlList.push(`
+        return `
           <div id="${comp.name}" data-field="${field}" class="web-label web-dbtext" style="${style} font-weight:bold; color:#38bdf8;">
             [${field}]
           </div>
-        `);
+        `;
+      } else if (comp.type === 'vox_DBCheckBox') {
+        const field = comp.props.DataField || 'ativo';
+        return `
+          <label id="${comp.name}" data-field="${field}" class="web-checkbox" style="${style}">
+            <input type="checkbox" ${comp.props.Checked ? 'checked' : ''}>
+            <span>${comp.props.Caption || field}</span>
+          </label>
+        `;
       } else if (comp.type === 'vox_MainMenu' || comp.type === 'TMainMenu') {
         const isLeft = comp.props.Layout === 'Left' || comp.props.MenuType === 'Left';
         const items = (comp.props.Items || 'Cadastros, Vendas, Relatórios, Configurações')
@@ -391,7 +585,7 @@ public fn main() -> void {
             </div>
           `).join('');
 
-          compHtmlList.push(`
+          return `
             <aside id="${comp.name}" class="web-sidebar-menu">
               <div class="web-menu-brand">
                 <span class="web-sidebar-toggle-btn" onclick="app.toggleSidebar()" title="Recolher / Expandir Menu">☰</span>
@@ -402,7 +596,7 @@ public fn main() -> void {
               </nav>
               <div class="web-menu-footer">v1.0 • Vox Web</div>
             </aside>
-          `);
+          `;
         } else {
           let itemsHtml = items.map((item, idx) => `
             <div class="web-topbar-item ${idx === activeIdx ? 'active' : ''}" onclick="app.handleMenuClick('${item}', ${idx})">
@@ -410,7 +604,7 @@ public fn main() -> void {
             </div>
           `).join('');
 
-          compHtmlList.push(`
+          return `
             <nav id="${comp.name}" class="web-topbar-menu">
               <div class="web-menu-brand">
                 <span class="web-topbar-toggle-btn" onclick="app.toggleTopMenu()" title="Menu Mobile">☰</span>
@@ -420,10 +614,22 @@ public fn main() -> void {
                 ${itemsHtml}
               </div>
             </nav>
-          `);
+          `;
         }
+      } else {
+        // Fallback genérico para qualquer outro componente visual ou customizado
+        return `
+          <div id="${comp.name}" class="web-panel web-generic-comp" style="${style}">
+            <span style="font-size: 10px; color: #4cc2ff; font-weight: 600;">${comp.type}</span>
+            <span>${comp.props.Caption || comp.props.Text || comp.name}</span>
+          </div>
+        `;
       }
-    });
+    };
+
+    // Componentes raízes inseridos diretamente no canvas do formulário
+    const rootComponents = components.filter(c => !c.parent || c.parent === formName);
+    const compHtmlList = rootComponents.map(c => renderCompMarkup(c)).filter(Boolean);
 
     // 2. index.html Completo com Moldura de Janela Delphi e Botão Fechar [X]
     const htmlContent = `<!DOCTYPE html>
@@ -559,7 +765,9 @@ body {
   flex: 1;
   width: 100%;
   height: 100%;
+  min-height: 480px;
   overflow: auto;
+  box-sizing: border-box;
 }
 
 /* Controles Web */
@@ -666,6 +874,286 @@ body {
 .web-navigator button:hover {
   background: #283142;
   color: #4cc2ff;
+}
+
+/* Painéis e Contêineres */
+.web-panel {
+  background: #1e2430;
+  border: 1px solid #333f52;
+  border-radius: 4px;
+  padding: 6px;
+  box-sizing: border-box;
+  color: #e2e8f0;
+  font-size: 12px;
+  overflow: hidden;
+  position: absolute;
+}
+
+.web-panel-caption {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  user-select: none;
+  pointer-events: none;
+  padding: 4px 10px;
+}
+
+.web-panel-caption.text-left { justify-content: flex-start; }
+.web-panel-caption.text-right { justify-content: flex-end; }
+.web-panel-caption.text-center { justify-content: center; }
+
+.web-speedbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #252d3d;
+  border: 1px solid #3b475d;
+  color: #f8fafc;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 13px;
+}
+.web-speedbtn:hover {
+  background: #0078d4;
+  border-color: #4cc2ff;
+}
+
+.web-image {
+  background: #161c26;
+  border: 1px solid #313d50;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.web-card {
+  background: #19202c;
+  border: 1px solid #2d394e;
+  border-radius: 6px;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.web-card-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #38bdf8;
+}
+.web-card-desc {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.web-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.web-switch {
+  width: 42px;
+  height: 22px;
+  background: #334155;
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-sizing: border-box;
+}
+.web-switch.checked {
+  background: #22c55e;
+}
+.web-switch .switch-ball {
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+.web-switch.checked .switch-ball {
+  transform: translateX(20px);
+}
+
+.web-progress {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+.web-progress .progress-inner {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.web-slider {
+  accent-color: #0078d4;
+  cursor: pointer;
+}
+
+.web-checkbox, .web-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f0f6fc;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.web-checkbox input, .web-radio input {
+  accent-color: #0078d4;
+  cursor: pointer;
+}
+
+.web-radiogroup {
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.web-checklist {
+  box-sizing: border-box;
+}
+
+.web-listbox {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow-y: auto;
+  padding: 4px;
+  box-sizing: border-box;
+}
+.web-listbox-item {
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11.5px;
+  color: #c9d1d9;
+  cursor: pointer;
+}
+.web-listbox-item:hover {
+  background: #212631;
+  color: #4cc2ff;
+}
+
+.web-memo {
+  font-family: inherit;
+  padding: 6px 8px;
+  resize: none;
+  box-sizing: border-box;
+}
+
+.web-dbedit {
+  border-color: #0284c7;
+}
+
+.web-shape {
+  box-sizing: border-box;
+}
+
+.web-colorpicker {
+  border: 1px solid #30363d;
+  background: #161b22;
+  border-radius: 4px;
+  padding: 2px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* Web PageControl & TabSheet */
+.web-pagecontrol {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #333f52;
+  border-radius: 4px;
+  background: #1e2430;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: absolute;
+}
+.web-pagecontrol.tab-pos-tpbottom {
+  flex-direction: column-reverse;
+}
+.web-tab-bar {
+  height: 30px;
+  min-height: 30px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 4px;
+  background: #161c26;
+  border-bottom: 1px solid #333f52;
+  box-sizing: border-box;
+}
+.web-pagecontrol.tab-pos-tpbottom .web-tab-bar {
+  border-bottom: none;
+  border-top: 1px solid #333f52;
+  align-items: flex-start;
+}
+.web-tab-btn {
+  height: 26px;
+  padding: 0 12px;
+  background: #1e2430;
+  color: #94a3b8;
+  border: 1px solid #333f52;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.web-pagecontrol.tab-pos-tpbottom .web-tab-btn {
+  border-top: none;
+  border-bottom: 1px solid #333f52;
+  border-radius: 0 0 4px 4px;
+  margin-bottom: 0;
+  margin-top: -1px;
+}
+.web-tab-btn.active {
+  background: #242d3d;
+  color: #38bdf8;
+  font-weight: 600;
+  border-bottom-color: #242d3d;
+}
+.web-pagecontrol-client {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #242d3d;
+}
+.web-tabsheet {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.web-generic-comp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .web-form-window {
@@ -1061,6 +1549,26 @@ class WebAppController {
     }
   }
 }
+
+window.voxSwitchTab = function(pcName, tabIdx) {
+  var pc = document.getElementById(pcName);
+  if (!pc) return;
+  var btns = pc.querySelectorAll('.web-tab-bar .web-tab-btn');
+  btns.forEach(function(b, i) {
+    if (i === tabIdx) b.classList.add('active');
+    else b.classList.remove('active');
+  });
+  var sheets = pc.querySelectorAll('.web-pagecontrol-client > .web-tabsheet');
+  sheets.forEach(function(s, i) {
+    if (i === tabIdx) {
+      s.style.display = 'block';
+      s.classList.add('active');
+    } else {
+      s.style.display = 'none';
+      s.classList.remove('active');
+    }
+  });
+};
 
 window.app = new WebAppController();
 `;
