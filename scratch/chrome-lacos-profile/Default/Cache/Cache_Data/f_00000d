@@ -1,0 +1,5222 @@
+// ==============================================================================
+// tools/vox-rad/public/js/app.js — Orquestrador Central Vox Studio (RAD Studio Layout)
+// ==============================================================================
+
+class VoxStudioApp {
+  constructor() {
+    this.currentView = 'designer'; // 'designer' ou 'code'
+    this.isDirty = false;
+    this.currentTheme = localStorage.getItem('vox_rad_theme') || 'dark';
+
+    // Gerenciador de Projetos e Grupo de Projetos (Delphi 12 Standard)
+    this.currentProjectGroup = null;
+    this.currentProject = {
+      name: 'Project1',
+      file: 'Project1.dproj',
+      folder: '.',
+      mainForm: 'Form1',
+      units: ['Unit1.vox', 'Form1.vxf']
+    };
+    this.currentFile = {
+      name: 'Unit1.vox',
+      path: 'forms/Form1.vox',
+      type: 'vox'
+    };
+    this.openTabs = [];
+    this.activeTabId = null;
+    this.workspaceFiles = { units: [], projects: [], groups: [] };
+    this.selectedOpenFile = null;
+    this.selectedOpenProject = null;
+    this.selectedOpenGroup = null;
+    this.currentOpenFileCategory = 'all';
+    this.openFileSearchQuery = '';
+    this.currentView = 'designer';
+  }
+
+  init() {
+    console.log('Inicializando Vox Studio RAD...');
+
+    const canvas = document.getElementById('delphiFormCanvas');
+    const formWindow = document.getElementById('delphiFormWindow');
+    this.designer = new VoxDesigner(canvas, formWindow);
+
+    this.inspector = new VoxObjectInspector();
+
+    const editorContainer = document.getElementById('codeView');
+    const codeTextarea = document.getElementById('codeTextarea');
+    const lineNumbers = document.getElementById('lineNumbers');
+    this.editor = new VoxCodeEditor(editorContainer, codeTextarea, lineNumbers);
+
+    this.debugger = new VoxDebugger(this);
+
+    this.runner = new VoxFormRunner();
+
+    this.applyTheme(this.currentTheme);
+    this.initPalette();
+    this.initBottomTabs();
+    this.initKeyboardShortcuts();
+    this.initCodeSearch();
+    this.initComponentFactory();
+    this.initSaveDialogEvents();
+    this.initProjectManager();
+    this.initMenuBarEvents();
+    this.initTabs();
+    this.initDockSplitters();
+    this.checkServerStatus();
+
+    // Tentar carregar Form1.vxf existente do projeto; se não existir, tenta autosave do localStorage ou inicia limpo
+    this.loadForm('forms/Form1.vxf').then(loaded => {
+      if (!loaded) {
+        let restored = false;
+        try {
+          const autoSaved = localStorage.getItem('vox_autosave_form');
+          if (autoSaved) {
+            const parsed = JSON.parse(autoSaved);
+            if (parsed && parsed.components && parsed.components.length > 0) {
+              this.designer.form = parsed;
+              this.designer.syncIdCounter();
+              this.designer.renderForm();
+              this.syncCodeFromDesigner();
+              this.updateStructureTree();
+              restored = true;
+            }
+          }
+        } catch (_) {}
+
+        if (!restored) {
+          this.designer.form = {
+            name: 'Form1',
+            title: 'Form1',
+            width: 700,
+            height: 480,
+            components: []
+          };
+          this.designer.syncIdCounter();
+          this.designer.selectedComponent = null;
+          this.designer.renderForm();
+          this.inspector.update(null);
+          this.updateStructureTree();
+          this.syncCodeFromDesigner();
+        }
+      }
+      if (this.openTabs && this.openTabs[0]) {
+        this.openTabs[0].formState = JSON.parse(JSON.stringify(this.designer.form));
+      }
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Menu Bar Interativo (Delphi Standard)
+  // --------------------------------------------------------------------------
+  initMenuBarEvents() {
+    const menuItems = document.querySelectorAll('.delphi-menubar .delphi-menu-item');
+    if (!menuItems.length) return;
+
+    menuItems.forEach(item => {
+      const span = item.querySelector(':scope > span');
+      if (span) {
+        span.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasOpen = item.classList.contains('open');
+          menuItems.forEach(m => m.classList.remove('open'));
+          if (!wasOpen) {
+            item.classList.add('open');
+          }
+        });
+      }
+
+      item.addEventListener('mouseenter', () => {
+        const anyOpen = Array.from(menuItems).some(m => m.classList.contains('open'));
+        if (anyOpen) {
+          menuItems.forEach(m => m.classList.remove('open'));
+          item.classList.add('open');
+        }
+      });
+    });
+
+    const dropdownItems = document.querySelectorAll('.delphi-menubar .delphi-menu-dropdown-item');
+    dropdownItems.forEach(dItem => {
+      dItem.addEventListener('click', () => {
+        menuItems.forEach(m => m.classList.remove('open'));
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.delphi-menubar')) {
+        menuItems.forEach(m => m.classList.remove('open'));
+      }
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Redimensionamento de Painéis Estilo Delphi IDE (Dock Splitters)
+  // Permite esticar/encolher Structure, Object Inspector e larguras das colunas
+  // --------------------------------------------------------------------------
+  initDockSplitters() {
+    // Referências aos elementos do DOM
+    const leftDock = document.getElementById('leftDockColumn') || document.querySelector('.left-dock-column');
+    const structurePanel = document.getElementById('structurePanel') || document.querySelector('.structure-panel');
+    const splitterStructureOI = document.getElementById('splitterStructureOI');
+    const splitterLeftCenter = document.getElementById('splitterLeftCenter');
+
+    const rightDock = document.getElementById('rightDockColumn') || document.querySelector('.right-dock-column');
+    const projectsPanel = document.getElementById('projectsPanel') || document.querySelector('.projects-panel');
+    const splitterProjectsPalette = document.getElementById('splitterProjectsPalette');
+    const splitterCenterRight = document.getElementById('splitterCenterRight');
+
+    // 1. Restaurar layout previamente salvo no localStorage (Delphi Workspace Persistence)
+    try {
+      const savedStructureH = localStorage.getItem('vox_dock_structure_height');
+      if (savedStructureH && structurePanel) {
+        structurePanel.style.height = `${parseInt(savedStructureH, 10)}px`;
+      }
+
+      const savedLeftW = localStorage.getItem('vox_dock_left_width');
+      if (savedLeftW && leftDock) {
+        leftDock.style.width = `${parseInt(savedLeftW, 10)}px`;
+      }
+
+      const savedProjectsH = localStorage.getItem('vox_dock_projects_height');
+      if (savedProjectsH && projectsPanel) {
+        projectsPanel.style.height = `${parseInt(savedProjectsH, 10)}px`;
+      }
+
+      const savedRightW = localStorage.getItem('vox_dock_right_width');
+      if (savedRightW && rightDock) {
+        rightDock.style.width = `${parseInt(savedRightW, 10)}px`;
+      }
+    } catch (_) {}
+
+    // 2. Função genérica para arrasto de splitters com segurança e precisão
+    const setupSplitterDrag = ({
+      splitter,
+      type, // 'h' (horizontal) ou 'v' (vertical)
+      onStart,
+      onMove,
+      onEnd,
+      onReset
+    }) => {
+      if (!splitter) return;
+
+      splitter.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Apenas botão principal
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+
+        splitter.classList.add('dragging');
+        document.body.classList.add('dock-resizing', type === 'h' ? 'dock-resizing-h' : 'dock-resizing-v');
+
+        if (onStart) onStart({ startX, startY });
+
+        const handleMouseMove = (ev) => {
+          ev.preventDefault();
+          const deltaX = ev.clientX - startX;
+          const deltaY = ev.clientY - startY;
+          if (onMove) {
+            onMove({
+              currentX: ev.clientX,
+              currentY: ev.clientY,
+              deltaX,
+              deltaY,
+              startX,
+              startY
+            });
+          }
+        };
+
+        const handleMouseUp = (ev) => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+
+          splitter.classList.remove('dragging');
+          document.body.classList.remove('dock-resizing', 'dock-resizing-h', 'dock-resizing-v');
+
+          if (onEnd) onEnd();
+          try {
+            window.dispatchEvent(new Event('resize'));
+          } catch (_) {}
+        };
+
+        window.addEventListener('mousemove', handleMouseMove, { passive: false });
+        window.addEventListener('mouseup', handleMouseUp);
+      });
+
+      if (onReset) {
+        splitter.addEventListener('dblclick', (e) => {
+          e.preventDefault();
+          onReset();
+          try {
+            window.dispatchEvent(new Event('resize'));
+          } catch (_) {}
+        });
+      }
+    };
+
+    // A. Splitter Horizontal Structure / Object Inspector
+    if (splitterStructureOI && structurePanel && leftDock) {
+      let initialHeight = 0;
+      setupSplitterDrag({
+        splitter: splitterStructureOI,
+        type: 'h',
+        onStart: () => {
+          initialHeight = structurePanel.offsetHeight;
+        },
+        onMove: ({ deltaY }) => {
+          const totalH = leftDock.clientHeight;
+          const minStructureH = 80;
+          const minOIH = 100;
+          const maxStructureH = Math.max(minStructureH, totalH - minOIH - (splitterStructureOI.offsetHeight || 5));
+          const newH = Math.min(Math.max(initialHeight + deltaY, minStructureH), maxStructureH);
+          structurePanel.style.height = `${newH}px`;
+        },
+        onEnd: () => {
+          const finalH = parseInt(structurePanel.style.height, 10);
+          if (finalH) {
+            localStorage.setItem('vox_dock_structure_height', finalH);
+          }
+        },
+        onReset: () => {
+          structurePanel.style.height = '200px';
+          localStorage.removeItem('vox_dock_structure_height');
+        }
+      });
+    }
+
+    // B. Splitter Vertical Coluna Esquerda / Centro (Esticar Structure & Object Inspector)
+    if (splitterLeftCenter && leftDock) {
+      let initialWidth = 0;
+      setupSplitterDrag({
+        splitter: splitterLeftCenter,
+        type: 'v',
+        onStart: () => {
+          initialWidth = leftDock.offsetWidth;
+        },
+        onMove: ({ deltaX }) => {
+          const minW = 180;
+          const maxW = Math.max(minW, Math.min(window.innerWidth - 350, 750));
+          const newW = Math.min(Math.max(initialWidth + deltaX, minW), maxW);
+          leftDock.style.width = `${newW}px`;
+        },
+        onEnd: () => {
+          const finalW = parseInt(leftDock.style.width, 10);
+          if (finalW) {
+            localStorage.setItem('vox_dock_left_width', finalW);
+          }
+        },
+        onReset: () => {
+          leftDock.style.width = '280px';
+          localStorage.removeItem('vox_dock_left_width');
+        }
+      });
+    }
+
+    // C. Splitter Horizontal Projects / Tool Palette
+    if (splitterProjectsPalette && projectsPanel && rightDock) {
+      let initialHeight = 0;
+      setupSplitterDrag({
+        splitter: splitterProjectsPalette,
+        type: 'h',
+        onStart: () => {
+          initialHeight = projectsPanel.offsetHeight;
+        },
+        onMove: ({ deltaY }) => {
+          const totalH = rightDock.clientHeight;
+          const minProjectsH = 80;
+          const minPaletteH = 100;
+          const maxProjectsH = Math.max(minProjectsH, totalH - minPaletteH - (splitterProjectsPalette.offsetHeight || 5));
+          const newH = Math.min(Math.max(initialHeight + deltaY, minProjectsH), maxProjectsH);
+          projectsPanel.style.height = `${newH}px`;
+        },
+        onEnd: () => {
+          const finalH = parseInt(projectsPanel.style.height, 10);
+          if (finalH) {
+            localStorage.setItem('vox_dock_projects_height', finalH);
+          }
+        },
+        onReset: () => {
+          projectsPanel.style.height = '240px';
+          localStorage.removeItem('vox_dock_projects_height');
+        }
+      });
+    }
+
+    // D. Splitter Vertical Centro / Coluna Direita (Esticar Projects & Palette)
+    if (splitterCenterRight && rightDock) {
+      let initialWidth = 0;
+      setupSplitterDrag({
+        splitter: splitterCenterRight,
+        type: 'v',
+        onStart: () => {
+          initialWidth = rightDock.offsetWidth;
+        },
+        onMove: ({ deltaX }) => {
+          // Arrastar para a esquerda (deltaX negativo) alarga a coluna direita
+          const minW = 180;
+          const maxW = Math.max(minW, Math.min(window.innerWidth - 350, 750));
+          const newW = Math.min(Math.max(initialWidth - deltaX, minW), maxW);
+          rightDock.style.width = `${newW}px`;
+        },
+        onEnd: () => {
+          const finalW = parseInt(rightDock.style.width, 10);
+          if (finalW) {
+            localStorage.setItem('vox_dock_right_width', finalW);
+          }
+        },
+        onReset: () => {
+          rightDock.style.width = '290px';
+          localStorage.removeItem('vox_dock_right_width');
+        }
+      });
+    }
+  }
+
+  get editorTabs() {
+    return this;
+  }
+
+  // --------------------------------------------------------------------------
+  // Gerenciador de Abas de Documentos (EditorTabsStore)
+  // --------------------------------------------------------------------------
+  initTabs() {
+    this.openTabs = [
+      this.createTabObject({
+        id: 'tab_form1',
+        name: 'Form1.vxf',
+        path: 'forms/Form1.vxf',
+        type: 'form',
+        isForm: true,
+        isDirty: false
+      }),
+      this.createTabObject({
+        id: 'tab_unit1',
+        name: 'Unit1.vox',
+        path: 'forms/Form1.vox',
+        type: 'unit',
+        isForm: false,
+        isDirty: false
+      })
+    ];
+    this.activeTabId = 'tab_form1';
+    this.renderTabs();
+  }
+
+  createTabObject(cfg) {
+    const tab = {
+      id: cfg.id || ('tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+      name: cfg.name || cfg.title || 'NovaUnit.vox',
+      path: cfg.path || cfg.name || '',
+      type: cfg.type || (cfg.name && cfg.name.split('.').pop()) || 'vox',
+      isForm: !!(cfg.isForm || (cfg.name && (cfg.name.endsWith('.vxf') || cfg.name.endsWith('.dfm')))),
+      isDirty: !!(cfg.isDirty || cfg.dirty),
+      content: cfg.content || '',
+      formState: cfg.formState || null
+    };
+
+    Object.defineProperty(tab, 'title', {
+      get() { return this.name; },
+      set(v) { this.name = v; },
+      configurable: true,
+      enumerable: true
+    });
+
+    Object.defineProperty(tab, 'dirty', {
+      get() { return this.isDirty; },
+      set(v) { this.isDirty = v; },
+      configurable: true,
+      enumerable: true
+    });
+
+    return tab;
+  }
+
+  renderTabs() {
+    const container = document.getElementById('documentTabBar');
+    if (!container) return;
+
+    if (!this.openTabs || this.openTabs.length === 0) {
+      container.innerHTML = `
+        <div class="doc-tab active" style="font-style: italic; color: #64748b;">
+          <span>(Nenhum arquivo aberto)</span>
+        </div>
+      `;
+      const docTab = document.getElementById('docTabTitle');
+      if (docTab) docTab.innerText = '(Nenhum arquivo)';
+      return;
+    }
+
+    container.innerHTML = this.openTabs.map(tab => {
+      const isActive = tab.id === this.activeTabId;
+      const isDirty = !!tab.isDirty;
+      const icon = tab.isForm || tab.name.endsWith('.vxf') || tab.name.endsWith('.dfm') ? '🎨' :
+                   (tab.name.endsWith('.pas') ? '⚡' :
+                   (tab.name.endsWith('.js') || tab.name.endsWith('.ts') ? '📜' : '📄'));
+      return `
+        <div class="doc-tab ${isActive ? 'active' : ''} ${isDirty ? 'dirty' : ''}" 
+             data-tab-id="${tab.id}" 
+             onclick="window.app.switchTab('${tab.id}')"
+             title="${tab.path || tab.name}">
+          <span style="font-size: 11px;">${icon}</span>
+          <div class="doc-tab-dot"></div>
+          <span>${tab.name}</span>
+          <span class="doc-tab-close" onclick="event.stopPropagation(); window.app.closeTab('${tab.id}')" title="Fechar aba">✕</span>
+        </div>
+      `;
+    }).join('');
+
+    const activeTab = this.getActiveTab();
+    const docTab = document.getElementById('docTabTitle');
+    if (docTab && activeTab) {
+      docTab.innerText = activeTab.name + (activeTab.isDirty ? ' ●' : '');
+    }
+  }
+
+  getActiveTab() {
+    return (this.openTabs || []).find(t => t.id === this.activeTabId) || null;
+  }
+
+  openTab(fileInfo) {
+    if (!this.openTabs) this.openTabs = [];
+    
+    let existing = this.openTabs.find(t => (fileInfo.path && t.path === fileInfo.path) || t.name === fileInfo.name);
+    if (existing) {
+      if (fileInfo.content !== undefined) existing.content = fileInfo.content;
+      this.activeTabId = existing.id;
+      this.renderTabs();
+      this.applyTabToView(existing);
+      return existing;
+    }
+
+    const newTab = this.createTabObject(fileInfo);
+    this.openTabs.push(newTab);
+    this.activeTabId = newTab.id;
+    this.renderTabs();
+    this.applyTabToView(newTab);
+    return newTab;
+  }
+
+  switchTab(tabId) {
+    if (tabId === this.activeTabId) return;
+
+    // Preservar formulário atual no estado das abas
+    if (this.designer && this.designer.form) {
+      if (this.openTabs) {
+        this.openTabs.forEach(t => {
+          if (t.isForm || (t.name && t.name.endsWith('.vxf'))) {
+            t.formState = JSON.parse(JSON.stringify(this.designer.form));
+          }
+        });
+      }
+      try {
+        localStorage.setItem('vox_autosave_form', JSON.stringify(this.designer.form));
+      } catch (_) {}
+    }
+
+    const curTab = this.getActiveTab();
+    if (curTab) {
+      if (this.currentView === 'code' && this.editor) {
+        curTab.content = this.editor.getCode();
+      } else if (this.currentView === 'designer' && this.designer && curTab.isForm) {
+        curTab.formState = JSON.parse(JSON.stringify(this.designer.form));
+      }
+    }
+
+    const nextTab = (this.openTabs || []).find(t => t.id === tabId);
+    if (!nextTab) return;
+
+    this.activeTabId = tabId;
+    this.renderTabs();
+    this.applyTabToView(nextTab);
+  }
+
+  applyTabToView(tab) {
+    this.currentFile = {
+      name: tab.name,
+      path: tab.path,
+      type: tab.type
+    };
+
+    if (tab.isForm) {
+      if (tab.formState && tab.formState.components && tab.formState.components.length > 0) {
+        this.designer.form = JSON.parse(JSON.stringify(tab.formState));
+      } else if (this.designer.form && this.designer.form.components && this.designer.form.components.length > 0) {
+        // Se o designer já possui componentes desenhados e a aba estiver vazia, preserva os componentes!
+        tab.formState = JSON.parse(JSON.stringify(this.designer.form));
+      } else if (tab.formState) {
+        this.designer.form = tab.formState;
+      } else if (tab.content) {
+        try {
+          this.designer.form = JSON.parse(tab.content);
+        } catch (_) {}
+      }
+      this.designer.syncIdCounter();
+      this.designer.renderForm();
+      this.syncCodeFromDesigner();
+      this.switchView('designer');
+    } else {
+      if (tab.content !== undefined && this.editor) {
+        this.editor.setCode(tab.content);
+      }
+      this.switchView('code');
+    }
+
+    this.updateProjectsTree();
+  }
+
+  closeTab(tabId) {
+    if (!this.openTabs) return;
+    const idx = this.openTabs.findIndex(t => t.id === tabId);
+    if (idx === -1) return;
+
+    const tab = this.openTabs[idx];
+    if (tab.isDirty) {
+      if (!confirm(`O arquivo "${tab.name}" possui alterações não salvas. Deseja fechar mesmo assim?`)) {
+        return;
+      }
+    }
+
+    this.openTabs.splice(idx, 1);
+
+    if (this.activeTabId === tabId) {
+      if (this.openTabs.length > 0) {
+        const nextIdx = Math.max(0, idx - 1);
+        this.activeTabId = this.openTabs[nextIdx].id;
+        this.applyTabToView(this.openTabs[nextIdx]);
+      } else {
+        this.activeTabId = null;
+        this.currentFile = null;
+        if (this.editor) this.editor.setCode('// Nenhum arquivo aberto.\n// Abra um arquivo pelo menu File > Abrir Arquivo (Ctrl+O).');
+        this.switchView('code');
+      }
+    }
+
+    this.renderTabs();
+    this.updateProjectsTree();
+    this.showToast(`Aba "${tab.name}" fechada.`);
+  }
+
+  closeAllFiles() {
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    if (dirty.length > 0) {
+      if (!confirm(`Existem ${dirty.length} arquivos com alterações não salvas. Deseja fechar todos mesmo assim?`)) {
+        return;
+      }
+    }
+
+    this.openTabs = [];
+    this.activeTabId = null;
+    this.currentFile = null;
+    if (this.editor) this.editor.setCode('// Nenhum arquivo aberto.\n// Abra um arquivo pelo menu File > Abrir Arquivo (Ctrl+O).');
+    this.renderTabs();
+    this.updateProjectsTree();
+    this.showToast('❌ Todos os arquivos foram fechados.');
+  }
+
+  // --------------------------------------------------------------------------
+  // 1. Tool Palette Lateral (Categorias Accordion e Busca)
+  // --------------------------------------------------------------------------
+  initPalette() {
+    const accordion = document.getElementById('paletteAccordion');
+    const searchInput = document.getElementById('paletteSearchInput');
+    const clearBtn = document.getElementById('paletteSearchClear');
+    if (!accordion) return;
+
+    // Limpar qualquer preenchimento automático indevido do navegador
+    if (searchInput) {
+      searchInput.value = '';
+    }
+
+    // Obter lista única de componentes (evita duplicações de aliases de retrocompatibilidade como TMemo -> vox_Memo)
+    const uniqueCompsMap = new Map();
+    for (const [key, comp] of Object.entries(window.VOX_COMPONENTS || {})) {
+      if (!comp || !comp.name) continue;
+      if (!uniqueCompsMap.has(comp.name)) {
+        uniqueCompsMap.set(comp.name, comp);
+      }
+    }
+    const uniqueComps = Array.from(uniqueCompsMap.values());
+
+    // Categorias padrão com ordenação fixa e suporte a categorias dinâmicas (Custom, Dialogs, Reports, etc.)
+    const defaultOrder = ['Standard', 'Additional', 'Win32', 'Data Access', 'Data Controls', 'Reports', 'Dialogs', 'Custom'];
+    const allCats = Array.from(new Set(uniqueComps.map(c => c.category || 'Standard')));
+    allCats.sort((a, b) => {
+      const ia = defaultOrder.indexOf(a);
+      const ib = defaultOrder.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    const renderPalette = (filter = '') => {
+      accordion.innerHTML = '';
+      let filterTrim = (filter || '').trim().toLowerCase();
+
+      // Proteção radical anti-autofill: anula qualquer busca que contenha @ ou padrão de e-mail
+      if (filterTrim.includes('@') || filterTrim.includes('admin@') || filterTrim.includes('.com')) {
+        filterTrim = '';
+        if (searchInput) searchInput.value = '';
+      }
+
+      if (clearBtn) {
+        clearBtn.style.display = filterTrim ? 'block' : 'none';
+      }
+
+      let totalMatched = 0;
+
+      allCats.forEach(cat => {
+        const comps = uniqueComps.filter(c => {
+          const matchCat = (c.category || 'Standard') === cat;
+          const matchFilter = !filterTrim || 
+            c.name.toLowerCase().includes(filterTrim) || 
+            (c.label && c.label.toLowerCase().includes(filterTrim));
+          return matchCat && matchFilter;
+        });
+
+        if (comps.length === 0) return;
+        totalMatched += comps.length;
+
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'palette-group';
+
+        const hdrDiv = document.createElement('div');
+        hdrDiv.className = 'palette-group-hdr';
+        hdrDiv.innerHTML = `<span class="arrow">▼</span> <span>${cat}</span>`;
+
+        const itemsDiv = document.createElement('div');
+        itemsDiv.className = 'palette-group-items';
+
+        comps.forEach(c => {
+          const row = document.createElement('div');
+          row.className = 'palette-comp-row';
+          row.draggable = true;
+          row.dataset.type = c.name;
+          const classType = c.className || (window.getVoxClassType ? window.getVoxClassType(c.name) : c.name);
+          row.title = `${c.name} (${classType})`;
+          row.innerHTML = `
+            <span>${c.icon || '▫️'}</span>
+            <span>${c.name}</span>
+          `;
+
+          row.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', c.name);
+          });
+
+          row.addEventListener('click', () => {
+            const sel = this.designer.selectedComponent;
+            let targetParent = null;
+            if (sel) {
+              if (this.designer.isTabSheetComponent(sel.type)) {
+                targetParent = sel.name;
+              } else if (this.designer.isPageControlComponent(sel.type)) {
+                const pages = this.designer.form.components.filter(cp =>
+                  this.designer.isTabSheetComponent(cp.type) && cp.parent === sel.name
+                );
+                const activeIdx = Math.min(pages.length - 1, Math.max(0, parseInt(sel.props.ActivePageIndex, 10) || 0));
+                targetParent = pages[activeIdx] ? pages[activeIdx].name : sel.name;
+              } else if (this.designer.isContainerComponent(sel.type)) {
+                targetParent = sel.name;
+              }
+            }
+            if (targetParent) {
+              this.designer.addComponent(c.name, 20, 20, targetParent);
+            } else {
+              this.designer.addComponent(c.name, 40, 40, null);
+            }
+          });
+
+          itemsDiv.appendChild(row);
+        });
+
+        // Alternar colapso da categoria
+        hdrDiv.addEventListener('click', () => {
+          const isCollapsed = itemsDiv.style.display === 'none';
+          itemsDiv.style.display = isCollapsed ? 'flex' : 'none';
+          hdrDiv.querySelector('.arrow').innerText = isCollapsed ? '▼' : '▶';
+        });
+
+        groupDiv.appendChild(hdrDiv);
+        groupDiv.appendChild(itemsDiv);
+        accordion.appendChild(groupDiv);
+      });
+
+      // Se nenhum componente foi encontrado no filtro
+      if (totalMatched === 0 && filterTrim) {
+        accordion.innerHTML = `
+          <div style="padding: 20px 12px; text-align: center; color: #94a3b8; font-size: 11.5px; line-height: 1.5;">
+            <div>🔍 Nenhum componente encontrado para:</div>
+            <div style="color: #38bdf8; font-weight: 600; margin: 4px 0; word-break: break-all;">"${filter}"</div>
+            <button onclick="window.app.clearPaletteSearch()" class="tool-btn" style="margin-top: 10px; padding: 4px 12px; font-size: 11px; background: #0078d4; color: #ffffff; border-radius: 3px; cursor: pointer;">
+              ✕ Limpar Filtro
+            </button>
+          </div>
+        `;
+      }
+    };
+
+    renderPalette();
+
+    if (searchInput) {
+      const purgeAutofill = () => {
+        if (searchInput.value && (searchInput.value.includes('@') || searchInput.value.includes('admin') || searchInput.value.includes('.com'))) {
+          searchInput.value = '';
+          renderPalette('');
+        }
+      };
+
+      searchInput.onfocus = () => {
+        searchInput.removeAttribute('readonly');
+        purgeAutofill();
+      };
+
+      searchInput.oninput = (e) => {
+        if (e.target.value.includes('@') || e.target.value.includes('admin@')) {
+          e.target.value = '';
+          renderPalette('');
+          return;
+        }
+        renderPalette(e.target.value);
+      };
+
+      searchInput.onchange = purgeAutofill;
+      searchInput.onpaste = () => setTimeout(purgeAutofill, 20);
+
+      // Limpezas periódicas de segurança anti-autofill do navegador
+      [50, 150, 300, 600, 1200, 2500].forEach(ms => setTimeout(purgeAutofill, ms));
+    }
+  }
+
+  clearPaletteSearch() {
+    const searchInput = document.getElementById('paletteSearchInput');
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    this.initPalette();
+  }
+
+  // --------------------------------------------------------------------------
+  // 2. Structure Tree (Painel Superior Esquerdo)
+  // --------------------------------------------------------------------------
+  updateStructureTree() {
+    const tree = document.getElementById('structureTree');
+    if (!tree || !this.designer) return;
+
+    const form = this.designer.form;
+    const selected = this.designer.selectedComponent;
+
+    const formClassType = 'TVoxForm';
+
+    let html = `
+      <div class="tree-node ${!selected ? 'selected' : ''}"
+        onclick="window.app.designer.selectComponent(null)"
+        ondragover="window.app.onTreeDragOver(event)"
+        ondrop="window.app.onTreeDrop(event, '${form.name}')"
+        title="Formulário Raiz: ${form.name}">
+        <span>🪟</span>
+        <span style="font-weight:700;">${form.name}</span>
+        <span style="color:#6c7889; font-size:10px;">: ${formClassType}</span>
+      </div>
+    `;
+
+    const renderBranch = (parentName, depth) => {
+      const children = form.components.filter(c => {
+        if (!parentName || parentName === form.name) {
+          return !c.parent || c.parent === form.name;
+        }
+        return c.parent === parentName;
+      });
+
+      children.forEach(c => {
+        const isSel = selected && selected.id === c.id;
+        const classType = window.getVoxClassType ? window.getVoxClassType(c.type || c.className) : (c.type || 'TVoxComponent');
+        const meta = window.VOX_COMPONENTS ? window.VOX_COMPONENTS[c.type] : null;
+        const icon = meta ? meta.icon : '▫️';
+        const isContainer = this.designer.isContainerComponent(c.type);
+        const padLeft = 20 + depth * 16;
+
+        const containerDropEvents = isContainer ? `
+          ondragover="window.app.onTreeDragOver(event)"
+          ondrop="window.app.onTreeDrop(event, '${c.name}')"
+        ` : '';
+
+        html += `
+          <div class="tree-node ${isSel ? 'selected' : ''} ${isContainer ? 'tree-node-container' : ''}"
+            style="padding-left: ${padLeft}px;"
+            draggable="true"
+            ondragstart="window.app.onTreeDragStart(event, '${c.name}')"
+            ${containerDropEvents}
+            onclick="window.app.selectComponentById('${c.id}')"
+            title="${c.name} (${classType})${c.parent ? ' • Pai: ' + c.parent : ''}">
+            <span>${icon}</span>
+            <span style="font-weight:${isContainer ? '600' : 'normal'}; color:${isContainer ? '#38bdf8' : 'inherit'};">${c.name}</span>
+            <span style="color:#6c7889; font-size:10px;">: ${classType}</span>
+          </div>
+        `;
+
+        if (isContainer) {
+          renderBranch(c.name, depth + 1);
+        }
+      });
+    };
+
+    renderBranch(null, 0);
+
+    tree.innerHTML = html;
+  }
+
+  onTreeDragStart(e, compName) {
+    e.stopPropagation();
+    e.dataTransfer.setData('text/rad-comp-name', compName);
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  onTreeDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  onTreeDrop(e, targetParentName) {
+    e.preventDefault();
+    e.stopPropagation();
+    const draggedName = e.dataTransfer.getData('text/rad-comp-name');
+    if (!draggedName || draggedName === targetParentName) return;
+
+    const comp = this.designer.getComponentByName(draggedName);
+    if (!comp) return;
+
+    // Evitar ciclo (não pode soltar o pai dentro do próprio filho)
+    if (targetParentName !== this.designer.form.name) {
+      let cur = this.designer.getComponentByName(targetParentName);
+      while (cur) {
+        if (cur.name === draggedName) return;
+        cur = cur.parent ? this.designer.getComponentByName(cur.parent) : null;
+      }
+    }
+
+    this.designer.reparentComponent(comp, targetParentName);
+  }
+
+  selectComponentById(id) {
+    const comp = this.designer.form.components.find(c => c.id === id);
+    if (comp) {
+      this.designer.selectComponent(comp);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. Abas Inferiores Direitas: [ Code ] [ Design ] [ History ]
+  // --------------------------------------------------------------------------
+  initBottomTabs() {
+    const btnCode = document.getElementById('btnTabCode');
+    const btnDesign = document.getElementById('btnTabDesign');
+    const btnHistory = document.getElementById('btnTabHistory');
+
+    const designerContainer = document.getElementById('designerContainer');
+    const codeView = document.getElementById('codeView');
+
+    const switchView = (view) => {
+      this.currentView = view;
+      if (view === 'designer') {
+        btnDesign.classList.add('active');
+        btnCode.classList.remove('active');
+        if (btnHistory) btnHistory.classList.remove('active');
+        designerContainer.style.display = 'flex';
+        codeView.style.display = 'none';
+        if (this.designer) {
+          this.designer.recalculateAlignments(false);
+          this.designer.renderForm();
+        }
+      } else if (view === 'code') {
+        btnCode.classList.add('active');
+        btnDesign.classList.remove('active');
+        if (btnHistory) btnHistory.classList.remove('active');
+        designerContainer.style.display = 'none';
+        codeView.style.display = 'flex';
+        this.syncCodeFromDesigner();
+      }
+    };
+
+    btnCode.addEventListener('click', () => switchView('code'));
+    btnDesign.addEventListener('click', () => switchView('designer'));
+    if (btnHistory) {
+      btnHistory.addEventListener('click', () => {
+        alert('Histórico de versões: Formulário sincronizado com Git/Workspace.');
+      });
+    }
+
+    this.switchView = switchView;
+  }
+
+  toggleDesignCodeView() {
+    const nextView = this.currentView === 'designer' ? 'code' : 'designer';
+    this.switchView(nextView);
+  }
+
+  // --------------------------------------------------------------------------
+  // 4. Atalhos Globais (F12, F9, Ctrl+S, Ctrl+F, Ctrl+H, F3, etc.)
+  // --------------------------------------------------------------------------
+  initKeyboardShortcuts() {
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'F12') {
+        e.preventDefault();
+        this.toggleDesignCodeView();
+      } else if (e.key === 'F11') {
+        e.preventDefault();
+        this.focusObjectInspector();
+      } else if (e.key === 'F9') {
+        e.preventDefault();
+        if (this.debugger && this.debugger.state === 'PAUSED') {
+          this.continueDebug();
+        } else if (e.ctrlKey) {
+          this.runApp();
+        } else {
+          this.startDebug();
+        }
+      } else if (e.key === 'Escape') {
+        // Padrão Delphi clássico: Escape seleciona o contêiner pai (TabSheet -> PageControl -> Form)
+        if (this.currentView !== 'code' && this.designer && this.designer.selectedComponent) {
+          const sel = this.designer.selectedComponent;
+          if (sel.parent && sel.parent !== this.designer.form.name) {
+            const parentComp = this.designer.getComponentByName(sel.parent);
+            if (parentComp) {
+              e.preventDefault();
+              this.designer.selectComponent(parentComp);
+            }
+          } else {
+            e.preventDefault();
+            this.designer.selectComponent(null);
+          }
+        }
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        this.toggleBreakpointCurrentLine();
+      } else if (e.key === 'F8') {
+        e.preventDefault();
+        if (e.shiftKey) this.stepOut();
+        else this.stepOver();
+      } else if (e.key === 'F7') {
+        e.preventDefault();
+        this.stepInto();
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        this.runToCursor();
+      } else if (e.ctrlKey && e.key === 'F2') {
+        e.preventDefault();
+        this.stopDebug();
+      } else if (e.ctrlKey && e.key === 'F5') {
+        e.preventDefault();
+        this.openAddWatchModal();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        this.saveAll();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        this.saveForm();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        this.openProjectDialog();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        this.openFileDialog();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        this.newUnit();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        this.newForm();
+      } else if (e.altKey && e.key === 'F4') {
+        e.preventDefault();
+        this.exitApp();
+      } else if (e.ctrlKey && e.key === 'F4') {
+        e.preventDefault();
+        this.closeActiveFile();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        this.openSearch();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        this.openReplace();
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        if (e.shiftKey) this.findPrev();
+        else this.findNext();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        this.openGitDialog('commit');
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        this.gotoLine();
+      } else if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        if (this.editor) this.editor.increaseFontSize();
+      } else if (e.ctrlKey && e.key === '-') {
+        e.preventDefault();
+        if (this.editor) this.editor.decreaseFontSize();
+      }
+    });
+  }
+
+  syncCodeFromDesigner() {
+    const generatedVox = window.VoxCodeGen.generateVoxCode(this.designer.form);
+    this.editor.setCode(generatedVox);
+  }
+
+  onFormChanged() {
+    this.isDirty = true;
+    if (this.designer && this.designer.form) {
+      if (this.openTabs) {
+        this.openTabs.forEach(t => {
+          if (t.isForm || (t.name && t.name.endsWith('.vxf'))) {
+            t.formState = JSON.parse(JSON.stringify(this.designer.form));
+            t.isDirty = true;
+          }
+        });
+      }
+      try {
+        localStorage.setItem('vox_autosave_form', JSON.stringify(this.designer.form));
+      } catch (_) {}
+    }
+    if (this.currentView === 'code') {
+      this.syncCodeFromDesigner();
+    }
+    this.updateStructureTree();
+  }
+
+  jumpToEvent(comp, eventName, cleanItem, rawItem) {
+    if (!comp) return;
+
+    // Se der duplo-clique em um vox_Query ou TFDQuery, abre direto o SQL Command Editor clássico do Delphi!
+    if (comp.type === 'vox_Query' || comp.type === 'TFDQuery') {
+      this.openSqlEditor(comp);
+      return;
+    }
+
+    let handlerName = comp.events && comp.events[eventName];
+    if (!handlerName) {
+      if (eventName && eventName.startsWith('OnClick_')) {
+        const itemClean = cleanItem || eventName.replace('OnClick_', '');
+        handlerName = `${comp.name}_${itemClean}Click`;
+      } else {
+        handlerName = `${comp.name}${eventName.replace('On', '')}`;
+      }
+      if (!comp.events) comp.events = {};
+      comp.events[eventName] = handlerName;
+    }
+
+    this.switchView('code');
+
+    const currentCode = this.editor.getCode();
+    const result = window.VoxCodeGen.ensureEventHandler(currentCode, handlerName, comp.name, eventName, rawItem || cleanItem);
+    this.editor.setCode(result.voxCode);
+
+    setTimeout(() => {
+      this.editor.jumpToMethod(handlerName);
+    }, 50);
+
+    if (this.inspector && this.inspector.target === comp) {
+      this.inspector.render();
+    }
+  }
+
+  // Pular para manipulador de Evento do Formulário Delphi (OnCreate, OnShow, OnClose, etc.)
+  jumpToFormEvent(eventName) {
+    if (!this.designer || !this.designer.form) return;
+    const form = this.designer.form;
+
+    let handlerName = form.events && form.events[eventName];
+    if (!handlerName) {
+      handlerName = `${form.name}_${eventName}`;
+      if (!form.events) form.events = {};
+      form.events[eventName] = handlerName;
+    }
+
+    this.switchView('code');
+
+    const currentCode = this.editor.getCode();
+    const result = window.VoxCodeGen.ensureFormEventHandler(currentCode, handlerName, form.name, eventName);
+    this.editor.setCode(result.voxCode);
+
+    setTimeout(() => {
+      this.editor.jumpToMethod(handlerName);
+    }, 50);
+
+    if (this.inspector) {
+      this.inspector.update(null);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 5. Busca e Substituição no Código do Editor Vox (Ctrl+F, F3, Shift+F3, Ctrl+H)
+  // --------------------------------------------------------------------------
+  initCodeSearch() {
+    const searchBar = document.getElementById('codeSearchBar');
+    const searchInput = document.getElementById('codeSearchInput');
+    if (!searchBar || !searchInput) return;
+
+    this.searchMatches = [];
+    this.currentMatchIndex = -1;
+
+    searchInput.addEventListener('input', () => {
+      this.performCodeSearch(searchInput.value);
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          this.findPrev();
+        } else {
+          this.findNext();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeSearch();
+      }
+    });
+  }
+
+  openSearch() {
+    if (this.currentView !== 'code') {
+      this.switchView('code');
+    }
+
+    const searchBar = document.getElementById('codeSearchBar');
+    const searchInput = document.getElementById('codeSearchInput');
+    if (!searchBar || !searchInput) return;
+
+    searchBar.style.display = 'flex';
+
+    const selStart = this.editor.textarea.selectionStart;
+    const selEnd = this.editor.textarea.selectionEnd;
+    if (selEnd > selStart) {
+      const selText = this.editor.textarea.value.substring(selStart, selEnd);
+      if (selText.trim() && !selText.includes('\n')) {
+        searchInput.value = selText;
+      }
+    }
+
+    searchInput.focus();
+    searchInput.select();
+    this.performCodeSearch(searchInput.value);
+  }
+
+  closeSearch() {
+    const searchBar = document.getElementById('codeSearchBar');
+    if (searchBar) searchBar.style.display = 'none';
+    this.editor.textarea.focus();
+  }
+
+  performCodeSearch(query) {
+    const countEl = document.getElementById('codeSearchCount');
+    if (!query) {
+      this.searchMatches = [];
+      this.currentMatchIndex = -1;
+      if (countEl) countEl.innerText = '0 / 0';
+      return;
+    }
+
+    const code = this.editor.getCode();
+    const qLower = query.toLowerCase();
+    const cLower = code.toLowerCase();
+    this.searchMatches = [];
+
+    let pos = 0;
+    while ((pos = cLower.indexOf(qLower, pos)) !== -1) {
+      this.searchMatches.push({ start: pos, end: pos + query.length });
+      pos += query.length;
+    }
+
+    if (this.searchMatches.length === 0) {
+      this.currentMatchIndex = -1;
+      if (countEl) countEl.innerText = '0 / 0';
+      return;
+    }
+
+    const curPos = this.editor.textarea.selectionStart;
+    let nextIdx = this.searchMatches.findIndex(m => m.start >= curPos);
+    if (nextIdx === -1) nextIdx = 0;
+    this.currentMatchIndex = nextIdx;
+
+    this.highlightMatch(this.currentMatchIndex);
+  }
+
+  highlightMatch(index) {
+    const countEl = document.getElementById('codeSearchCount');
+    if (index < 0 || index >= this.searchMatches.length) {
+      if (countEl) countEl.innerText = '0 / 0';
+      return;
+    }
+
+    const match = this.searchMatches[index];
+    this.editor.textarea.focus();
+    this.editor.textarea.setSelectionRange(match.start, match.end);
+
+    const codeBefore = this.editor.getCode().substring(0, match.start);
+    const line = codeBefore.split('\n').length;
+    const lineHeight = 21;
+    this.editor.textarea.scrollTop = Math.max(0, (line - 5) * lineHeight);
+
+    if (countEl) {
+      countEl.innerText = `${index + 1} / ${this.searchMatches.length}`;
+    }
+  }
+
+  findNext() {
+    if (this.searchMatches.length === 0) {
+      const searchInput = document.getElementById('codeSearchInput');
+      if (searchInput && searchInput.value) {
+        this.performCodeSearch(searchInput.value);
+      } else {
+        this.openSearch();
+        return;
+      }
+    }
+    if (this.searchMatches.length === 0) return;
+
+    this.currentMatchIndex = (this.currentMatchIndex + 1) % this.searchMatches.length;
+    this.highlightMatch(this.currentMatchIndex);
+  }
+
+  findPrev() {
+    if (this.searchMatches.length === 0) {
+      const searchInput = document.getElementById('codeSearchInput');
+      if (searchInput && searchInput.value) {
+        this.performCodeSearch(searchInput.value);
+      } else {
+        this.openSearch();
+        return;
+      }
+    }
+    if (this.searchMatches.length === 0) return;
+
+    this.currentMatchIndex = (this.currentMatchIndex - 1 + this.searchMatches.length) % this.searchMatches.length;
+    this.highlightMatch(this.currentMatchIndex);
+  }
+
+  openReplace() {
+    if (this.currentView !== 'code') {
+      this.switchView('code');
+    }
+
+    const searchInput = document.getElementById('codeSearchInput');
+    const defaultFind = (searchInput && searchInput.value) || '';
+
+    const findStr = prompt('Substituir no Código Vox:\nDigite o termo a localizar:', defaultFind);
+    if (!findStr) return;
+
+    const replaceStr = prompt(`Substituir todas as ocorrências de "${findStr}" por:`, '');
+    if (replaceStr === null) return;
+
+    const code = this.editor.getCode();
+    const count = code.split(findStr).length - 1;
+    if (count === 0) {
+      alert(`Nenhuma ocorrência de "${findStr}" encontrada.`);
+      return;
+    }
+
+    const newCode = code.split(findStr).join(replaceStr);
+    this.editor.setCode(newCode);
+    this.onFormChanged();
+    this.showToast(`🔄 ${count} ocorrência(s) substituída(s) com sucesso!`);
+  }
+
+  gotoLine() {
+    if (this.currentView !== 'code') {
+      this.switchView('code');
+    }
+
+    const lines = this.editor.getCode().split('\n');
+    const lineStr = prompt(`Ir para a linha (1 a ${lines.length}):`, '1');
+    if (!lineStr) return;
+
+    const lineNum = parseInt(lineStr, 10);
+    if (isNaN(lineNum) || lineNum < 1 || lineNum > lines.length) {
+      alert('Número de linha inválido.');
+      return;
+    }
+
+    let charPos = 0;
+    for (let i = 0; i < lineNum - 1; i++) {
+      charPos += lines[i].length + 1;
+    }
+
+    this.editor.textarea.focus();
+    this.editor.textarea.setSelectionRange(charPos, charPos + lines[lineNum - 1].length);
+    const lineHeight = 21;
+    this.editor.textarea.scrollTop = Math.max(0, (lineNum - 5) * lineHeight);
+  }
+
+  // --------------------------------------------------------------------------
+  // 6. Refatoração de Código Vox (Refactor Menu)
+  // --------------------------------------------------------------------------
+  refactorRename() {
+    if (this.currentView !== 'code') {
+      this.switchView('code');
+    }
+
+    const selStart = this.editor.textarea.selectionStart;
+    const selEnd = this.editor.textarea.selectionEnd;
+    let selectedText = '';
+    if (selEnd > selStart) {
+      selectedText = this.editor.textarea.value.substring(selStart, selEnd).trim();
+    }
+
+    const oldName = prompt('Refatorar / Renomear Símbolo:\nDigite o identificador a renomear:', selectedText);
+    if (!oldName || !oldName.trim()) return;
+
+    const newName = prompt(`Renomear "${oldName}" para:`, oldName);
+    if (!newName || !newName.trim() || newName === oldName) return;
+
+    const code = this.editor.getCode();
+    const regex = new RegExp(`\\b${oldName}\\b`, 'g');
+    const matchCount = (code.match(regex) || []).length;
+
+    if (matchCount === 0) {
+      alert(`Símbolo "${oldName}" não encontrado no código.`);
+      return;
+    }
+
+    const newCode = code.replace(regex, newName);
+    this.editor.setCode(newCode);
+    this.onFormChanged();
+    this.showToast(`🏷️ Símbolo renomeado: ${matchCount} ocorrência(s) de "${oldName}" -> "${newName}"`);
+  }
+
+  refactorExtractFn() {
+    if (this.currentView !== 'code') {
+      this.switchView('code');
+    }
+
+    const selStart = this.editor.textarea.selectionStart;
+    const selEnd = this.editor.textarea.selectionEnd;
+    if (selEnd <= selStart) {
+      alert('Selecione um bloco de código no Editor Vox para extrair como novo método/função.');
+      return;
+    }
+
+    const selectedCode = this.editor.textarea.value.substring(selStart, selEnd).trim();
+    const fnName = prompt('Nome do novo procedimento / método a extrair:', 'ExecutarAcao');
+    if (!fnName || !fnName.trim()) return;
+
+    const cleanFnName = fnName.replace(/[^a-zA-Z0-9_]/g, '');
+    const currentCode = this.editor.getCode();
+
+    const callSnippet = `this.${cleanFnName}();`;
+    const newMethodSnippet = `
+    // Método Extraído via Refactor
+    pub fn ${cleanFnName}() -> void {
+        ${selectedCode.replace(/\n/g, '\n        ')}
+    }
+`;
+
+    let updatedCode = currentCode.substring(0, selStart) + callSnippet + currentCode.substring(selEnd);
+
+    const lastBraceIndex = updatedCode.lastIndexOf('}');
+    if (lastBraceIndex !== -1) {
+      updatedCode = updatedCode.substring(0, lastBraceIndex) + newMethodSnippet + updatedCode.substring(lastBraceIndex);
+    } else {
+      updatedCode += '\n' + newMethodSnippet;
+    }
+
+    this.editor.setCode(updatedCode);
+    this.onFormChanged();
+    this.showToast(`⚡ Método "${cleanFnName}" extraído com sucesso!`);
+  }
+
+  refactorFormat() {
+    if (this.currentView !== 'code') {
+      this.switchView('code');
+    }
+
+    const code = this.editor.getCode();
+    const lines = code.split('\n');
+    let indentLevel = 0;
+    const indentStep = '    ';
+
+    const formattedLines = lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+
+      if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith(')')) {
+        indentLevel = Math.max(0, indentLevel - 1);
+      }
+
+      const formatted = indentStep.repeat(indentLevel) + trimmed;
+
+      const openCount = (trimmed.match(/\{/g) || []).length;
+      const closeCount = (trimmed.match(/\}/g) || []).length;
+      const netBraces = openCount - closeCount;
+      if (netBraces > 0 && !trimmed.startsWith('}')) {
+        indentLevel += netBraces;
+      } else if (netBraces < 0 && !trimmed.startsWith('}')) {
+        indentLevel = Math.max(0, indentLevel + netBraces);
+      }
+
+      return formatted;
+    });
+
+    const formattedCode = formattedLines.join('\n');
+    this.editor.setCode(formattedCode);
+    this.onFormChanged();
+    this.showToast('✨ Código Vox formatado com indentação limpa!');
+  }
+
+  refactorAddHandler() {
+    const compName = prompt('Nome do componente (Ex: vox_Button1 ou Form1):', 'Form1');
+    if (!compName) return;
+
+    const eventName = prompt('Nome do Evento Delphi (Ex: OnClick, OnCreate, OnShow, OnClose):', 'OnClick');
+    if (!eventName) return;
+
+    if (compName.toLowerCase() === 'form1' || compName === this.designer.form.name) {
+      this.jumpToFormEvent(eventName);
+    } else {
+      const comp = this.designer.form.components.find(c => c.name.toLowerCase() === compName.toLowerCase());
+      if (comp) {
+        this.jumpToEvent(comp, eventName);
+      } else {
+        alert(`Componente "${compName}" não encontrado no formulário.`);
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 7. Fábrica de Componentes (Component Factory)
+  // --------------------------------------------------------------------------
+  initComponentFactory() {
+    const modal = document.getElementById('componentFactoryModal');
+    if (!modal) return;
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) this.closeComponentFactory();
+    });
+  }
+
+  openComponentFactory() {
+    const modal = document.getElementById('componentFactoryModal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    this.updateCfPreview();
+
+    const nameInput = document.getElementById('cfNameInput');
+    if (nameInput) {
+      setTimeout(() => {
+        nameInput.focus();
+        nameInput.select();
+      }, 50);
+    }
+  }
+
+  closeComponentFactory() {
+    const modal = document.getElementById('componentFactoryModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  updateCfPreview() {
+    const nameInput = document.getElementById('cfNameInput');
+    const baseInput = document.getElementById('cfBaseInput');
+    const propNameInput = document.getElementById('cfPropNameInput');
+    const propValInput = document.getElementById('cfPropValInput');
+    const previewEl = document.getElementById('cfCodePreview');
+
+    let compName = (nameInput && nameInput.value.trim()) || 'vox_CardDestaque';
+    if (!compName.startsWith('vox_')) {
+      compName = 'vox_' + compName.replace(/[^a-zA-Z0-9_]/g, '');
+    }
+
+    const baseName = (baseInput && baseInput.value) || 'vox_Panel';
+    const propName = (propNameInput && propNameInput.value.trim()) || 'Titulo';
+    const propVal = (propValInput && propValInput.value.trim()) || 'Item em Destaque';
+
+    if (previewEl) {
+      previewEl.innerText = `classe ${compName} herda ${baseName} {
+    var ${propName}: Texto
+
+    procedimento Inicializar() {
+        this.${propName} = "${propVal}"
+    }
+
+    procedimento Renderizar() {
+        // Renderização nativa do componente customizado
+        println("Componente ${compName} renderizado.");
+    }
+}`;
+    }
+  }
+
+  createCustomComponent() {
+    const nameInput = document.getElementById('cfNameInput');
+    const categoryInput = document.getElementById('cfCategoryInput');
+    const baseInput = document.getElementById('cfBaseInput');
+    const iconInput = document.getElementById('cfIconInput');
+    const propNameInput = document.getElementById('cfPropNameInput');
+    const propValInput = document.getElementById('cfPropValInput');
+    const statusEl = document.getElementById('cfStatus');
+
+    let compName = (nameInput && nameInput.value.trim()) || 'vox_CustomWidget';
+    if (!compName.startsWith('vox_')) {
+      compName = 'vox_' + compName.replace(/[^a-zA-Z0-9_]/g, '');
+    }
+
+    const category = (categoryInput && categoryInput.value) || 'Custom';
+    const baseName = (baseInput && baseInput.value) || 'vox_Panel';
+    const icon = (iconInput && iconInput.value) || '📦';
+    const propName = (propNameInput && propNameInput.value.trim()) || 'Titulo';
+    const propVal = (propValInput && propValInput.value.trim()) || 'Valor';
+
+    const baseMeta = window.VOX_COMPONENTS[baseName];
+
+    const customCompDef = {
+      name: compName,
+      category: category,
+      label: compName,
+      icon: icon,
+      defaultWidth: baseMeta ? baseMeta.defaultWidth : 140,
+      defaultHeight: baseMeta ? baseMeta.defaultHeight : 50,
+      defaultProps: {
+        ...(baseMeta ? baseMeta.defaultProps : {}),
+        [propName]: propVal
+      },
+      events: baseMeta ? [...baseMeta.events] : ['OnClick', 'OnDblClick'],
+      render(comp) {
+        return `
+          <div class="vcl-panel vcl-card" style="display:flex; flex-direction:column; justify-content:center; align-items:center; border: 1px dashed #0078d4; background: rgba(0,120,212,0.06); border-radius: 4px; padding: 6px; box-sizing: border-box; width: 100%; height: 100%;">
+            <div style="font-weight: 600; font-size: 11px; color: #4cc2ff; display: flex; align-items: center; gap: 4px;">
+              <span>${icon}</span>
+              <span>${comp.props[propName] || compName}</span>
+            </div>
+            <span style="font-size: 9px; color: #8b949e;">${compName}</span>
+          </div>
+        `;
+      }
+    };
+
+    const success = window.registerCustomComponent(customCompDef);
+    if (success) {
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color:#22c55e;">✅ Componente ${compName} criado e instalado na paleta!</span>`;
+      }
+
+      this.initPalette();
+      this.showToast(`🏭 Componente ${compName} criado com sucesso na Paleta [${category}]!`);
+
+      setTimeout(() => {
+        this.closeComponentFactory();
+        if (statusEl) statusEl.innerText = '';
+      }, 1000);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 8. Menus e Ações Auxiliares
+  // --------------------------------------------------------------------------
+  selectAll() {
+    if (this.currentView === 'code') {
+      this.editor.textarea.focus();
+      this.editor.textarea.select();
+    } else {
+      if (this.designer && this.designer.form.components.length > 0) {
+        this.designer.selectComponent(this.designer.form.components[0]);
+      }
+    }
+  }
+
+  showProjectOptions() {
+    alert(`[Opções do Projeto Vox RAD]\n\n• Projeto: Project1\n• Plataforma Alvo: Aplicação Web Standalone (Navegador)\n• Servidor Web: Node.js HTTP/REST na Porta 5000\n• Banco de Dados: SQLite3 (app.db)\n• Linguagem: Vox Language Compiler & Runtime\n• Nomenclatura: vox_* Standard`);
+  }
+
+  showAbout() {
+    alert(`[Vox Studio RAD — Web Edition]\n\nAmbiente de Desenvolvimento Rápido de Aplicações para a Linguagem Vox.\n\n• Padrão de Componentes: vox_* (vox_Connection, vox_DataSource, vox_Query, vox_Button, etc.)\n• Designer Visual com Redimensionamento e Esticamento ao Vivo\n• Eventos Oficiais do Form Delphi (OnCreate, OnShow, OnClose, etc.)\n• Editor com Busca (Ctrl+F) e Refatoração de Código\n• Fábrica de Componentes Extensível\n• Compilação Web Standalone com Janela Delphi e Botão Fechar [✕]`);
+  }
+
+  // --------------------------------------------------------------------------
+  // Help / Documentação
+  // --------------------------------------------------------------------------
+  openHelpDoc(docKey) {
+    const docMap = {
+      'language_spec': '/docs/LANGUAGE_SPEC.md',
+      'tutorial': '/docs/TUTORIAL.md',
+      'manual_clientes': '/docs/manual_clientes.html',
+      'livro_componentes': '/docs/livro_componentes.html',
+      'livro_vox': '/docs/livro_vox.html',
+      'index': '/docs/index.html'
+    };
+
+    const url = docMap[docKey];
+    if (!url) {
+      alert('Documento não encontrado: ' + docKey);
+      return;
+    }
+
+    // Para arquivos .html, abrir em nova aba diretamente
+    if (url.endsWith('.html')) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    // Para arquivos .md, carregar no modal do livro
+    this.openMarkdownDocModal(url, docKey);
+  }
+
+  async openMarkdownDocModal(url, docKey) {
+    const modal = document.getElementById('componentBookModal');
+    const pane = document.getElementById('bookContentPane');
+    if (!modal || !pane) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    modal.style.display = 'flex';
+    pane.innerHTML = '<div style="color:#38bdf8; padding: 20px;">Carregando documento...</div>';
+
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const mdContent = await res.text();
+        pane.innerHTML = this.renderMarkdown(mdContent);
+      } else {
+        pane.innerHTML = `<div style="color:#ef4444;">Erro ao carregar: ${url} (${res.status})</div>`;
+      }
+    } catch(e) {
+      pane.innerHTML = `<div style="color:#ef4444;">Erro ao carregar documento: ${e.message}</div>`;
+    }
+  }
+
+  showToast(msg) {
+    const sb = document.getElementById('sbServerStatus');
+    if (sb) {
+      const prev = sb.innerText;
+      const prevColor = sb.style.color;
+      sb.innerText = msg;
+      sb.style.color = '#38bdf8';
+      setTimeout(() => {
+        sb.innerText = prev;
+        sb.style.color = prevColor;
+      }, 4000);
+    }
+    console.log('[Toast]', msg);
+  }
+
+  log(msg) {
+    console.log('[Vox Studio]', msg);
+  }
+
+  // --------------------------------------------------------------------------
+  // Alternância de Temas (Dark Mode / Light Mode)
+  // --------------------------------------------------------------------------
+  applyTheme(theme) {
+    this.currentTheme = theme;
+    try {
+      localStorage.setItem('vox_rad_theme', theme);
+    } catch (e) {}
+
+    const isLight = theme === 'light';
+    if (isLight) {
+      document.body.classList.add('theme-light');
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.body.classList.remove('theme-light');
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    // Atualizar labels e ícones na interface
+    const themeIcon = document.getElementById('themeIcon');
+    const themeText = document.getElementById('themeText');
+    const btnThemeToggle = document.getElementById('btnThemeToggle');
+    const menuThemeIcon = document.getElementById('menuThemeIcon');
+    const menuThemeText = document.getElementById('menuThemeText');
+    const sbThemeToggle = document.getElementById('sbThemeToggle');
+
+    if (themeIcon) themeIcon.innerText = isLight ? '🌙' : '☀️';
+    if (themeText) themeText.innerText = isLight ? 'Modo Escuro' : 'Modo Claro';
+    if (btnThemeToggle) btnThemeToggle.title = isLight ? 'Alternar para Modo Escuro (Dark Theme)' : 'Alternar para Modo Claro (Light Theme)';
+    if (menuThemeIcon) menuThemeIcon.innerText = isLight ? '🌙' : '☀️';
+    if (menuThemeText) menuThemeText.innerText = isLight ? 'Modo Escuro (Dark Mode)' : 'Modo Claro (Light Mode)';
+    if (sbThemeToggle) sbThemeToggle.innerText = isLight ? '🎨 Tema: Claro' : '🎨 Tema: Escuro';
+  }
+
+  toggleTheme() {
+    const nextTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+    this.applyTheme(nextTheme);
+    this.showToast(`🎨 Modo ${nextTheme === 'light' ? 'Claro (Light Mode)' : 'Escuro (Dark Mode)'} ativado!`);
+  }
+
+  // --------------------------------------------------------------------------
+  // 9. Delphi SQL Command Editor Modal
+  // --------------------------------------------------------------------------
+  openSqlEditor(comp) {
+    if (!comp) {
+      comp = this.designer.form.components.find(c => c.type === 'vox_Query' || c.type === 'TFDQuery');
+      if (!comp) {
+        alert('Nenhum componente vox_Query encontrado no formulário. Adicione um vox_Query pela paleta Data Access para editar consultas SQL.');
+        return;
+      }
+    }
+    this.editingSqlComp = comp;
+    const modal = document.getElementById('sqlEditorModal');
+    const textarea = document.getElementById('sqlEditorTextarea');
+    const title = document.getElementById('sqlEditorTitle');
+    const status = document.getElementById('sqlTestStatus');
+    const result = document.getElementById('sqlTestResult');
+
+    if (title) title.innerText = `${comp.name}: vox_Query — SQL Command Editor`;
+    if (textarea) textarea.value = comp.props.SQL || 'SELECT * FROM clientes';
+    if (status) status.innerText = '';
+    if (result) result.innerHTML = '<span style="color: #6c7889;">Clique em "Testar / Executar Consulta" para verificar a sintaxe e dados.</span>';
+
+    if (modal) modal.style.display = 'flex';
+  }
+
+  closeSqlEditor() {
+    const modal = document.getElementById('sqlEditorModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  applySqlEditor() {
+    const textarea = document.getElementById('sqlEditorTextarea');
+    if (this.editingSqlComp && textarea) {
+      this.editingSqlComp.props.SQL = textarea.value.trim();
+      this.inspector.update(this.editingSqlComp);
+      this.onFormChanged();
+    }
+    this.closeSqlEditor();
+  }
+
+  async testQuerySql() {
+    const textarea = document.getElementById('sqlEditorTextarea');
+    const status = document.getElementById('sqlTestStatus');
+    const result = document.getElementById('sqlTestResult');
+    if (!textarea || !result) return;
+
+    const sql = textarea.value.trim();
+    if (!sql) return;
+
+    if (status) status.innerText = 'Executando no SQLite...';
+
+    try {
+      const res = await fetch('/api/db/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sql })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        if (status) status.innerText = '❌ Erro de Sintaxe SQL';
+        result.innerHTML = `<span style="color:#ef4444;">${data.error}</span>`;
+        return;
+      }
+
+      const rows = data.rows || [];
+      if (status) status.innerText = `✅ Sucesso: ${rows.length} registros retornados.`;
+
+      if (rows.length === 0) {
+        result.innerHTML = '<span style="color:#9aa7b8;">Consulta executada com sucesso. Nenhum registro retornado.</span>';
+        return;
+      }
+
+      // Renderizar mini grid de teste
+      const cols = Object.keys(rows[0]);
+      let tableHtml = '<table style="width:100%; border-collapse:collapse; font-size:11px;">';
+      tableHtml += '<tr style="background:#1e242f; color:#00e5ff; font-weight:bold;">';
+      cols.forEach(c => { tableHtml += `<th style="padding:3px 6px; border:1px solid #282f3a; text-align:left;">${c}</th>`; });
+      tableHtml += '</tr>';
+
+      rows.slice(0, 5).forEach(r => {
+        tableHtml += '<tr style="border-bottom:1px solid #232833;">';
+        cols.forEach(c => { tableHtml += `<td style="padding:3px 6px; border:1px solid #232833; color:#e2e8f0;">${r[c]}</td>`; });
+        tableHtml += '</tr>';
+      });
+      tableHtml += '</table>';
+      if (rows.length > 5) {
+        tableHtml += `<div style="font-size:10px; color:#6c7889; padding:2px;">Mostrando os primeiros 5 de ${rows.length} registros.</div>`;
+      }
+
+      result.innerHTML = tableHtml;
+    } catch (e) {
+      if (status) status.innerText = '❌ Falha de Rede';
+      result.innerHTML = `<span style="color:#ef4444;">${e.message}</span>`;
+    }
+  }
+
+  newForm() {
+    let idx = 1;
+    const existingForms = (this.currentProject && this.currentProject.units) ? this.currentProject.units : [];
+    while (existingForms.some(u => {
+      const lower = u.toLowerCase();
+      return lower === `vox_form${idx}.vxf` || lower === `vox_form${idx}.vox` || lower === `form${idx}.vxf` || lower === `form${idx}.vox`;
+    })) {
+      idx++;
+    }
+    const formName = `vox_form${idx}`;
+    const vxfName = `${formName}.vxf`;
+    const voxName = `${formName}.vox`;
+
+    this.designer.form = {
+      name: formName,
+      title: formName,
+      width: 720,
+      height: 480,
+      components: []
+    };
+    this.designer.syncIdCounter();
+    this.designer.selectedComponent = null;
+    this.designer.renderForm();
+    if (this.inspector) this.inspector.update(null);
+    this.updateStructureTree();
+    this.syncCodeFromDesigner();
+
+    if (!this.currentProject) {
+      this.currentProject = {
+        name: 'Project1',
+        file: 'Project1.dproj',
+        folder: '.',
+        mainForm: formName,
+        units: []
+      };
+    }
+    if (!this.currentProject.units) this.currentProject.units = [];
+    if (!this.currentProject.units.includes(voxName)) this.currentProject.units.push(voxName);
+    if (!this.currentProject.units.includes(vxfName)) this.currentProject.units.push(vxfName);
+
+    this.openTab({
+      name: vxfName,
+      title: vxfName,
+      path: `forms/${vxfName}`,
+      type: 'form',
+      isForm: true,
+      isDirty: true,
+      formState: JSON.parse(JSON.stringify(this.designer.form))
+    });
+
+    this.switchView('designer');
+    this.updateProjectsTree();
+    this.showToast(`📄 Novo Formulário "${formName}" criado com sucesso!`);
+  }
+
+  newUnit() {
+    let idx = 1;
+    const existingUnits = (this.currentProject && this.currentProject.units) ? this.currentProject.units : [];
+    while (existingUnits.some(u => u.toLowerCase() === `unit${idx}.vox`)) {
+      idx++;
+    }
+    const unitName = `Unit${idx}.vox`;
+    const baseName = `Unit${idx}`;
+
+    const starterCode = `// ==============================================================================
+// Unit: ${baseName}
+// Projeto: ${this.currentProject ? this.currentProject.name : 'Project1'}
+// ==============================================================================
+
+class ${baseName} {
+  constructor() {
+    // Inicialização da Unit
+  }
+
+  executar() {
+    println("${baseName} executada com sucesso!");
+  }
+}
+`;
+
+    if (!this.currentProject) {
+      this.currentProject = {
+        name: 'Project1',
+        file: 'Project1.dproj',
+        folder: '.',
+        mainForm: 'Form1',
+        units: []
+      };
+    }
+    if (!this.currentProject.units) this.currentProject.units = [];
+    if (!this.currentProject.units.includes(unitName)) this.currentProject.units.push(unitName);
+
+    this.openTab({
+      name: unitName,
+      title: unitName,
+      path: `units/${unitName}`,
+      type: 'unit',
+      isForm: false,
+      isDirty: true,
+      content: starterCode
+    });
+
+    if (this.editor) this.editor.setCode(starterCode);
+    this.switchView('code');
+    this.updateProjectsTree();
+    this.showToast(`📝 Nova Unit "${unitName}" criada com sucesso!`);
+  }
+
+  newProject() {
+    this.openNewProjectModal();
+  }
+
+  openNewProjectModal() {
+    const modal = document.getElementById('newProjectModal');
+    if (!modal) return;
+
+    let idx = 1;
+    const existing = (this.workspaceFiles && this.workspaceFiles.projects) || [];
+    while (existing.some(p => p.name.toLowerCase() === `project${idx}`.toLowerCase())) {
+      idx++;
+    }
+    const nameInput = document.getElementById('newProjectNameInput');
+    if (nameInput) nameInput.value = `Project${idx}`;
+
+    this.selectedNewProjMenu = 'Top';
+    this.selectNewProjOption('Top');
+    modal.style.display = 'flex';
+  }
+
+  closeNewProjectModal() {
+    const modal = document.getElementById('newProjectModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  selectNewProjOption(type) {
+    this.selectedNewProjMenu = type;
+    const optTop = document.getElementById('optMenuTop');
+    const optLeft = document.getElementById('optMenuLeft');
+    if (optTop && optLeft) {
+      if (type === 'Top') {
+        optTop.classList.add('selected');
+        optLeft.classList.remove('selected');
+      } else {
+        optLeft.classList.add('selected');
+        optTop.classList.remove('selected');
+      }
+    }
+  }
+
+  confirmCreateNewProject() {
+    this.createNewFormWithMenu(this.selectedNewProjMenu || 'Top');
+  }
+
+  createNewFormWithMenu(menuType) {
+    this.closeNewProjectModal();
+
+    const nameInput = document.getElementById('newProjectNameInput');
+    let projName = (nameInput && nameInput.value.trim()) || '';
+    if (!projName) {
+      let idx = 1;
+      const existing = (this.workspaceFiles && this.workspaceFiles.projects) || [];
+      while (existing.some(p => p.name.toLowerCase() === `project${idx}`.toLowerCase())) {
+        idx++;
+      }
+      projName = `Project${idx}`;
+    }
+
+    const formWidth = 720;
+    const formHeight = 500;
+    const components = [];
+
+    if (menuType === 'Top') {
+      components.push({
+        id: 'comp_menu_' + Date.now(),
+        name: 'vox_MainMenu1',
+        type: 'vox_MainMenu',
+        left: 0,
+        top: 0,
+        width: formWidth,
+        height: 40,
+        props: {
+          Layout: 'Top',
+          Title: 'Meu Sistema',
+          Items: 'Cadastros, Vendas, Relatórios, Configurações'
+        }
+      });
+    } else if (menuType === 'Left') {
+      components.push({
+        id: 'comp_menu_' + Date.now(),
+        name: 'vox_MainMenu1',
+        type: 'vox_MainMenu',
+        left: 0,
+        top: 0,
+        width: 180,
+        height: formHeight,
+        props: {
+          Layout: 'Left',
+          Title: 'Meu Sistema',
+          Items: 'Dashboard, Clientes, Vendas, Relatórios, Ajustes'
+        }
+      });
+    }
+
+    this.designer.form = {
+      name: 'vox_form1',
+      title: 'vox_form1',
+      width: formWidth,
+      height: formHeight,
+      components: components
+    };
+
+    this.designer.syncIdCounter();
+    this.designer.selectedComponent = components.length > 0 ? components[0] : null;
+    this.designer.renderForm();
+    if (this.inspector) this.inspector.update(this.designer.selectedComponent);
+    this.updateStructureTree();
+    this.syncCodeFromDesigner();
+
+    // 1. Configurar estado do projeto ativo
+    this.currentProjectGroup = null;
+    this.currentProject = {
+      name: projName,
+      file: `${projName}.dproj`,
+      folder: '.',
+      mainForm: 'vox_form1',
+      units: ['vox_form1.vox', 'vox_form1.vxf']
+    };
+    this.currentFile = {
+      name: 'vox_form1.vxf',
+      path: 'forms/vox_form1.vxf',
+      type: 'vxf'
+    };
+
+    // 2. Inicializar abas de documentos
+    this.openTabs = [
+      this.createTabObject({
+        id: 'tab_vox_form1',
+        name: 'vox_form1.vxf',
+        title: 'vox_form1.vxf',
+        path: 'forms/vox_form1.vxf',
+        type: 'form',
+        isForm: true,
+        isDirty: true,
+        formState: JSON.parse(JSON.stringify(this.designer.form))
+      }),
+      this.createTabObject({
+        id: 'tab_vox_unit1',
+        name: 'vox_form1.vox',
+        title: 'vox_form1.vox',
+        path: 'forms/vox_form1.vox',
+        type: 'unit',
+        isForm: false,
+        isDirty: true,
+        content: window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : ''
+      })
+    ];
+    this.activeTabId = 'tab_vox_form1';
+    this.renderTabs();
+
+    // 3. Atualizar Project Explorer e cabeçalho
+    this.updateProjectsTree();
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = `${this.currentProject.name}.dproj - Projects`;
+
+    // 4. Mudar para o Designer
+    this.switchView('designer');
+
+    const desc = menuType === 'Top' ? 'Menu Horizontal no Topo' : (menuType === 'Left' ? 'Menu Lateral à Esquerda' : 'em Branco');
+    this.showToast(`✨ Novo Projeto "${projName}" criado com ${desc}!`);
+  }
+
+  async saveAll() {
+    try {
+      this.showToast('📁💾 Salvando todos os arquivos e projeto...');
+      let savedCount = 0;
+
+      // 1. Salvar formulário visual corrente se estiver aberto
+      if (this.designer && this.designer.form && this.designer.form.name) {
+        const vxfContent = JSON.stringify(this.designer.form, null, 2);
+        const curName = this.designer.form.name;
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${curName}.vxf`, content: vxfContent })
+        });
+
+        const voxCode = window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : (this.editor ? this.editor.getCode() : '');
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${curName}.vox`, content: voxCode })
+        });
+        savedCount++;
+      }
+
+      // 2. Salvar todas as abas abertas que possuem caminho
+      if (this.openTabs && this.openTabs.length > 0) {
+        for (const tab of this.openTabs) {
+          if (tab.path && !tab.isForm) {
+            const code = (tab.id === this.activeTabId && this.editor) ? this.editor.getCode() : (tab.content || '');
+            await fetch('/api/file/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ filePath: tab.path, content: code })
+            });
+            tab.isDirty = false;
+            savedCount++;
+          } else if (tab.isForm) {
+            tab.isDirty = false;
+          }
+        }
+      }
+
+      // 3. Salvar manifesto do projeto atual se configurado
+      if (this.currentProject && this.currentProject.file) {
+        await fetch('/api/project/save-as', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectName: this.currentProject.name,
+            folder: this.currentProject.folder || '.',
+            content: JSON.stringify({
+              ProjectName: this.currentProject.name,
+              MainForm: this.currentProject.mainForm || 'Form1',
+              Units: this.currentProject.units || [],
+              Updated: new Date().toISOString()
+            }, null, 2)
+          })
+        });
+      }
+
+      this.renderTabs();
+      this.showToast(`📁💾 Salvar Tudo concluído com sucesso (${savedCount} itens salvos)!`);
+    } catch (err) {
+      alert('Erro ao executar Salvar Tudo: ' + err.message);
+    }
+  }
+
+  closeFormWindow() {
+    if (confirm('Deseja fechar o formulário corrente? Alterações não salvas serão perdidas.')) {
+      this.createNewFormWithMenu('None');
+    }
+  }
+
+  editUndo() {
+    if (this.currentView === 'code') {
+      document.execCommand('undo');
+    } else {
+      this.showToast('↩️ Desfazer (Undo)');
+    }
+  }
+
+  editRedo() {
+    if (this.currentView === 'code') {
+      document.execCommand('redo');
+    } else {
+      this.showToast('↪️ Refazer (Redo)');
+    }
+  }
+
+  editCut() {
+    if (this.currentView === 'code') {
+      document.execCommand('cut');
+    } else if (this.designer) {
+      this.designer.cutSelected();
+    }
+  }
+
+  editCopy() {
+    if (this.currentView === 'code') {
+      document.execCommand('copy');
+    } else if (this.designer) {
+      this.designer.copySelected();
+    }
+  }
+
+  editPaste() {
+    if (this.currentView === 'code') {
+      document.execCommand('paste');
+    } else if (this.designer) {
+      this.designer.pasteComponent();
+    }
+  }
+
+  focusObjectInspector() {
+    if (this.inspector && this.designer) {
+      this.inspector.update(this.designer.selectedComponent);
+    }
+    const leftDock = document.querySelector('.left-dock');
+    if (leftDock) {
+      leftDock.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  loadExampleTemplate(templateKey) {
+    if (!templateKey) return;
+    if (templateKey === '__custom_folder__') {
+      this.openCreateFromExampleModal();
+      return;
+    }
+
+    const tmpl = window.VOX_TEMPLATES && window.VOX_TEMPLATES[templateKey];
+    if (!tmpl) {
+      this.showToast(`⚠️ Modelo [${templateKey}] não encontrado.`);
+      return;
+    }
+
+    // 1. Garantir que a visão visual do Designer esteja ativa
+    if (typeof this.switchView === 'function') {
+      this.switchView('designer');
+    }
+
+    // 2. Clonar profundamente os dados do modelo no designer
+    this.designer.form = JSON.parse(JSON.stringify(tmpl));
+    if (!this.designer.form.components) {
+      this.designer.form.components = [];
+    }
+    this.designer.syncIdCounter();
+    this.designer.selectedComponent = null;
+
+    // 3. Renderizar no canvas visual
+    this.designer.renderForm();
+
+    // 4. Atualizar Object Inspector e Structure Tree
+    if (this.inspector) {
+      this.inspector.update(null);
+    }
+    this.updateStructureTree();
+
+    // 5. Sincronizar código Vox no editor Monaco
+    this.syncCodeFromDesigner();
+
+    // 6. Atualizar estado do projeto atual
+    const tmplConfigs = {
+      erpCompleto: {
+        name: 'VoxERP_Comercial',
+        file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
+        folder: 'projetos/VoxERP_Comercial',
+        mainForm: 'FormERP',
+        units: ['FormERP.vox', 'FormERP.vxf', 'cliente_controller.vox', 'produto_controller.vox']
+      },
+      crudClientes: {
+        name: 'Projeto_Clientes',
+        file: 'clientes/Projeto_Clientes.dproj',
+        folder: 'clientes',
+        mainForm: 'Form1',
+        units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox', 'Form1.vox', 'Form1.vxf']
+      },
+      sistemaSidebar: {
+        name: 'Sistema_Sidebar',
+        file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
+        folder: 'projetos/Sistema_Sidebar',
+        mainForm: 'Form1',
+        units: ['Form1.vox', 'Form1.vxf']
+      },
+      pdv: {
+        name: 'PDV_FrenteDeCaixa',
+        file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
+        folder: 'projetos/PDV_FrenteDeCaixa',
+        mainForm: 'Form1',
+        units: ['pdv_controller.vox', 'pdv_model.vox', 'Form1.vox', 'Form1.vxf']
+      },
+      calculadora: {
+        name: 'Calculadora_RAD',
+        file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
+        folder: 'projetos/Calculadora_RAD',
+        mainForm: 'Form1',
+        units: ['Form1.vox', 'Form1.vxf']
+      },
+      lacosBancoDados: {
+        name: 'Lacos_Banco_Dados',
+        file: 'projetos/Lacos_Banco_Dados/Lacos_Banco_Dados.dproj',
+        folder: 'projetos/Lacos_Banco_Dados',
+        mainForm: 'FormLacosBanco',
+        units: ['FormLacosBanco.vox', 'FormLacosBanco.vxf']
+      },
+      relatorioVendas: {
+        name: 'Relatorio_Vendas_Delphi',
+        file: 'projetos/Relatorio_Vendas_Delphi/Relatorio_Vendas_Delphi.dproj',
+        folder: 'projetos/Relatorio_Vendas_Delphi',
+        mainForm: 'FormRelatorioVendas',
+        units: ['FormRelatorioVendas.vox', 'FormRelatorioVendas.vxf']
+      }
+    };
+
+    const formName = this.designer.form.name || 'Form1';
+    this.currentProjectGroup = null;
+    this.currentProject = tmplConfigs[templateKey] || {
+      name: formName,
+      file: `${formName}.dproj`,
+      folder: '.',
+      mainForm: formName,
+      units: [`${formName}.vox`, `${formName}.vxf`]
+    };
+
+    const vxfName = `${formName}.vxf`;
+    const voxName = `${formName}.vox`;
+    this.currentFile = {
+      name: vxfName,
+      path: `forms/${vxfName}`,
+      type: 'vxf'
+    };
+
+    // 7. Atualizar abas de documentos
+    this.openTabs = [
+      this.createTabObject({
+        id: 'tab_' + formName + '_vxf',
+        name: vxfName,
+        title: vxfName,
+        path: `forms/${vxfName}`,
+        type: 'form',
+        isForm: true,
+        isDirty: false,
+        formState: JSON.parse(JSON.stringify(this.designer.form))
+      }),
+      this.createTabObject({
+        id: 'tab_' + formName + '_vox',
+        name: voxName,
+        title: voxName,
+        path: `forms/${voxName}`,
+        type: 'unit',
+        isForm: false,
+        isDirty: false,
+        content: window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : ''
+      })
+    ];
+    this.activeTabId = 'tab_' + formName + '_vxf';
+    this.renderTabs();
+
+    // 8. Atualizar Project Explorer e cabeçalho
+    this.updateProjectsTree();
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = `${this.currentProject.name}.dproj - Projects`;
+
+    // 9. Sincronizar selects na toolbar e no modal
+    const tbSelect = document.getElementById('toolbarTemplateSelect');
+    if (tbSelect) tbSelect.value = templateKey;
+    const cfeSelect = document.getElementById('cfeTemplateSelect');
+    if (cfeSelect) cfeSelect.value = templateKey;
+
+    // 10. Notificação toast
+    this.showToast(`✨ Projeto exemplo "${tmpl.title || formName}" carregado no Designer (${this.designer.form.components.length} componentes)!`);
+  }
+
+  loadTemplate(templateKey) {
+    return this.loadExampleTemplate(templateKey);
+  }
+
+  async loadForm(formNameOrPath = 'Form1') {
+    try {
+      const res = await fetch(`/api/form/load?file=${encodeURIComponent(formNameOrPath)}`);
+      const data = await res.json();
+      if (!data.success || !data.form) {
+        return false;
+      }
+
+      this.designer.form = data.form;
+      if (!this.designer.form.components) {
+        this.designer.form.components = [];
+      }
+      this.designer.syncIdCounter();
+      this.designer.selectedComponent = this.designer.form.components.length > 0 ? this.designer.form.components[0] : null;
+      this.designer.renderForm();
+      if (this.inspector) {
+        this.inspector.update(this.designer.selectedComponent);
+      }
+      this.updateStructureTree();
+
+      if (data.voxCode) {
+        this.editor.setCode(data.voxCode);
+      } else {
+        this.syncCodeFromDesigner();
+      }
+
+      const formName = this.designer.form.name || 'Form1';
+      const docTab = document.getElementById('docTabTitle');
+      if (docTab) docTab.innerText = `${formName}.vox`;
+      const projUnit = document.getElementById('projTreeUnitName');
+      if (projUnit) projUnit.innerText = `${formName}.vox`;
+      const projVxf = document.getElementById('projTreeVxfName');
+      if (projVxf) projVxf.innerText = `${formName}.vxf`;
+
+      this.showToast(`📂 Formulário ${formName} carregado com sucesso (${this.designer.form.components.length} componentes)!`);
+      return true;
+    } catch (e) {
+      console.warn('Não foi possível carregar o formulário:', e.message);
+      return false;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Gerenciador de Arquivos, Projetos e Grupos de Projetos (Delphi 12 Standard)
+  // --------------------------------------------------------------------------
+  async loadWorkspaceFiles() {
+    try {
+      const res = await fetch('/api/workspace/files');
+      const data = await res.json();
+      if (data.success) {
+        this.workspaceFiles = {
+          units: data.units || [],
+          projects: data.projects || [],
+          groups: data.groups || []
+        };
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar arquivos do workspace:', err);
+    }
+  }
+
+  initProjectManager() {
+    this.loadWorkspaceFiles().then(() => {
+      this.updateProjectsTree();
+    });
+  }
+
+  updateProjectsTree() {
+    const container = document.getElementById('projectsTreeContainer');
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (!container) return;
+
+    if (!this.currentProjectGroup && !this.currentProject) {
+      if (headerTitle) headerTitle.textContent = 'Projects - Nenhum Projeto Aberto';
+      container.innerHTML = `
+        <div style="padding: 18px 12px; color: #64748b; font-size: 11px; text-align: center; line-height: 1.5;">
+          <div style="font-size: 24px; margin-bottom: 8px;">📂</div>
+          <strong style="color: #94a3b8;">Nenhum Projeto Aberto</strong><br>
+          Selecione um projeto ou abra um arquivo para começar.<br><br>
+          <button class="tool-btn" onclick="window.app.openProjectDialog()" style="width: 100%; margin-bottom: 6px; padding: 6px; font-weight: 600; color: #38bdf8;">📁 Abrir Projeto...</button>
+          <button class="tool-btn" onclick="window.app.openProjectGroupDialog()" style="width: 100%; margin-bottom: 6px; padding: 6px; color: #c084fc;">📦 Abrir Grupo de Projetos...</button>
+          <button class="tool-btn" onclick="window.app.openFileDialog()" style="width: 100%; margin-bottom: 6px; padding: 6px;">📂 Abrir Arquivo / Unit...</button>
+          <button class="tool-btn" onclick="window.app.newProject()" style="width: 100%; padding: 6px;">➕ Novo Projeto</button>
+        </div>
+      `;
+      return;
+    }
+
+    const proj = this.currentProject;
+    const group = this.currentProjectGroup;
+    const projName = proj ? proj.name : 'Project1';
+
+    if (headerTitle) {
+      headerTitle.textContent = `${projName}.dproj - Projects`;
+    }
+
+    let html = '';
+
+    // Raiz do Grupo de Projetos
+    if (group) {
+      html += `
+        <div class="tree-node" style="cursor: pointer; background: rgba(192, 132, 252, 0.08); border-bottom: 1px solid rgba(192, 132, 252, 0.15);" title="Grupo de Projetos: ${group.name}" onclick="window.app.openProjectGroupDialog()">
+          <span>📦</span>
+          <strong style="color: #c084fc;">${group.name}</strong>
+          <span style="font-size: 9.5px; color: #94a3b8; margin-left: 4px;">(${group.projects ? group.projects.length : 1} projetos)</span>
+        </div>
+      `;
+    }
+
+    // Lista de Projetos
+    const projectList = (group && group.projects && group.projects.length > 0)
+      ? group.projects.map(p => typeof p === 'string' ? { name: p.replace(/\.(dproj|vproj)$/, ''), file: p } : p)
+      : [proj || { name: 'Project1', file: 'Project1.dproj' }];
+
+    projectList.forEach((pItem) => {
+      const isCurrent = proj && proj.name === pItem.name;
+      const padLeft = group ? '16px' : '0px';
+      html += `
+        <div class="tree-node ${isCurrent ? 'selected' : ''}" style="padding-left: ${padLeft}; cursor: pointer;" onclick="window.app.openProject('${pItem.name}')" title="Projeto: ${pItem.name}">
+          <span>💻</span>
+          <span style="font-weight: 600; color: ${isCurrent ? '#38bdf8' : '#cbd5e1'};">${pItem.name}.exe</span>
+        </div>
+      `;
+
+      if (isCurrent) {
+        html += `
+          <div class="tree-node" style="padding-left: calc(${padLeft} + 16px); color: #64748b; font-size: 10px;">
+            <span>⚙️</span>
+            <span>Build Configurations (Debug)</span>
+          </div>
+          <div class="tree-node" style="padding-left: calc(${padLeft} + 16px); color: #64748b; font-size: 10px;">
+            <span>🎯</span>
+            <span>Target Platforms (Web HTML5)</span>
+          </div>
+        `;
+
+        // Units e Formulários do Projeto Ativo
+        const units = (proj && proj.units && proj.units.length > 0)
+          ? proj.units
+          : (this.designer && this.designer.form ? [`${this.designer.form.name || 'Unit1'}.vox`, `${this.designer.form.name || 'Form1'}.vxf`] : ['Unit1.vox', 'Form1.vxf']);
+
+        units.forEach(u => {
+          const isVxf = u.endsWith('.vxf');
+          const isSelected = this.currentFile && this.currentFile.name === u;
+          const icon = isVxf ? '🎨' : '📄';
+          const clickFn = isVxf ? `window.app.loadForm('${u}')` : `window.app.openFile('${u}')`;
+          html += `
+            <div class="tree-node ${isSelected ? 'selected' : ''}" style="padding-left: calc(${padLeft} + 16px); cursor: pointer;" onclick="${clickFn}" title="${isVxf ? 'Abrir no Designer Visual' : 'Abrir no Editor de Código'}">
+              <span>${icon}</span>
+              <span style="color: ${isSelected ? '#38bdf8' : '#94a3b8'};">${u}</span>
+            </div>
+          `;
+        });
+      }
+    });
+
+    container.innerHTML = html;
+  }
+
+  // --- 1. ABRIR ARQUIVO (UNIT, CLASSE, FORM) ---
+  async openFileDialog() {
+    await this.loadWorkspaceFiles();
+    const modal = document.getElementById('openFileModal');
+    if (!modal) return;
+
+    this.currentOpenFileCategory = 'all';
+    this.openFileSearchQuery = '';
+    const filterTabs = document.getElementById('openFileFilterTabs');
+    if (filterTabs) {
+      filterTabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      const btnAll = document.getElementById('btnFilterAll');
+      if (btnAll) btnAll.classList.add('active');
+    }
+
+    const searchInput = document.getElementById('openFileSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    const selInput = document.getElementById('selectedOpenFilePath');
+    if (selInput) selInput.value = '';
+    this.selectedOpenFile = null;
+
+    this.renderOpenFileTable(this.workspaceFiles.units || []);
+    modal.style.display = 'flex';
+  }
+
+  closeOpenFileModal() {
+    const modal = document.getElementById('openFileModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  filterOpenFileCategory(category, btnEl) {
+    this.currentOpenFileCategory = category;
+    if (btnEl) {
+      const parent = btnEl.parentElement;
+      if (parent) parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btnEl.classList.add('active');
+    }
+    this.applyOpenFileFilters();
+  }
+
+  filterOpenFileSearch(query) {
+    this.openFileSearchQuery = (query || '').toLowerCase().trim();
+    this.applyOpenFileFilters();
+  }
+
+  applyOpenFileFilters() {
+    const cat = this.currentOpenFileCategory || 'all';
+    const q = this.openFileSearchQuery || '';
+    const all = this.workspaceFiles.units || [];
+
+    const filtered = all.filter(u => {
+      const ext = (u.ext || '').toLowerCase();
+      const catLower = (u.category || '').toLowerCase();
+
+      const matchesCat = (cat === 'all')
+        || (cat === 'Unit' && (ext === '.vox' || ext === '.pas') && !catLower.includes('controller') && !catLower.includes('model'))
+        || (cat === 'Controller' && (catLower.includes('controller') || catLower.includes('model')))
+        || (cat === 'View / Form' && (ext === '.vxf' || ext === '.dfm' || catLower.includes('form') || catLower.includes('view')))
+        || (cat === 'Script' && (ext === '.js' || ext === '.ts' || ext === '.json' || ext === '.sql' || ext === '.html' || ext === '.css'))
+        || (cat === 'Exemplo' && (catLower.includes('exemplo') || u.relPath.includes('example')));
+
+      const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.relPath.toLowerCase().includes(q) || catLower.includes(q);
+
+      return matchesCat && matchesSearch;
+    });
+
+    this.renderOpenFileTable(filtered);
+  }
+
+  renderOpenFileTable(items) {
+    const tbody = document.getElementById('openFileListBody');
+    const info = document.getElementById('openFileCountInfo');
+    if (info) info.textContent = `${items.length} arquivos disponíveis`;
+    if (!tbody) return;
+
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">Nenhum arquivo encontrado com os filtros atuais.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items.map((u, i) => {
+      const isSelected = this.selectedOpenFile === u.relPath;
+      const ext = (u.ext || '').toLowerCase();
+      const icon = (ext === '.vxf' || ext === '.dfm') ? '🎨' :
+                   (ext === '.pas' ? '⚡' :
+                   (ext === '.js' || ext === '.ts' ? '📜' :
+                   (ext === '.sql' ? '🗄️' :
+                   (ext === '.json' ? '⚙️' :
+                   (u.category.includes('Controller') ? '⚡' :
+                   (u.category.includes('Model') ? '🏛️' : '📄'))))));
+      const sizeStr = u.size ? (u.size < 1024 ? `${u.size} B` : `${(u.size / 1024).toFixed(1)} KB`) : '-';
+
+      return `
+        <tr style="cursor: pointer; border-bottom: 1px solid #1f2530; background: ${isSelected ? '#1e3a5f' : (i % 2 === 0 ? '#11141a' : '#141820')};"
+            onclick="window.app.selectOpenFileRow('${u.relPath}')"
+            ondblclick="window.app.selectOpenFileRow('${u.relPath}'); window.app.confirmOpenFile();">
+          <td style="padding: 6px 10px; font-size: 13px;">${icon}</td>
+          <td style="padding: 6px 10px; font-weight: 600; color: ${isSelected ? '#38bdf8' : '#f1f5f9'};">${u.name}</td>
+          <td style="padding: 6px 10px; color: #94a3b8;"><span style="background:#1e293b; padding: 2px 6px; border-radius: 3px; font-size: 10.5px;">${u.category}</span></td>
+          <td style="padding: 6px 10px; color: #64748b; font-family: monospace;">${u.relPath}</td>
+          <td style="padding: 6px 10px; text-align: right; color: #64748b;">${sizeStr}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  selectOpenFileRow(relPath) {
+    this.selectedOpenFile = relPath;
+    const input = document.getElementById('selectedOpenFilePath');
+    if (input) input.value = relPath;
+    this.applyOpenFileFilters();
+  }
+
+  async confirmOpenFile() {
+    const input = document.getElementById('selectedOpenFilePath');
+    const pathVal = (input ? input.value : this.selectedOpenFile) || '';
+    if (!pathVal.trim()) {
+      alert('Selecione ou digite o arquivo a ser aberto.');
+      return;
+    }
+    this.closeOpenFileModal();
+    await this.openFile(pathVal.trim());
+  }
+
+  async openFile(relPath) {
+    try {
+      if (!relPath) return;
+      this.showToast(`⏳ Abrindo arquivo ${relPath}...`);
+
+      const fileName = relPath.split(/[\/\\]/).pop();
+      const ext = '.' + fileName.split('.').pop().toLowerCase();
+      const isVxf = ext === '.vxf';
+
+      if (isVxf) {
+        await this.loadForm(relPath);
+        this.openTab({
+          name: fileName,
+          path: relPath,
+          type: 'vxf',
+          isForm: true,
+          formState: JSON.parse(JSON.stringify(this.designer.form))
+        });
+        this.switchView('designer');
+        this.showToast(`🎨 Formulário "${fileName}" carregado no Designer!`);
+        return;
+      }
+
+      const res = await fetch(`/api/file/read?file=${encodeURIComponent(relPath)}`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Falha ao ler arquivo');
+      }
+
+      this.currentFile = {
+        name: data.fileName,
+        path: data.filePath,
+        type: data.ext ? data.ext.slice(1) : 'vox'
+      };
+
+      if (this.editor) {
+        this.editor.setCode(data.content);
+      }
+
+      this.openTab({
+        name: data.fileName,
+        path: data.filePath,
+        type: data.ext ? data.ext.slice(1) : 'vox',
+        isForm: false,
+        content: data.content
+      });
+
+      this.switchView('code');
+
+      if (this.currentProject && this.currentProject.units && !this.currentProject.units.includes(data.fileName)) {
+        this.currentProject.units.push(data.fileName);
+      }
+
+      const docTab = document.getElementById('docTabTitle');
+      if (docTab) docTab.innerText = data.fileName;
+
+      const projUnit = document.getElementById('projTreeUnitName');
+      if (projUnit) projUnit.innerText = data.fileName;
+
+      this.showToast(`📂 Arquivo "${data.fileName}" aberto com sucesso!`);
+      this.updateProjectsTree();
+    } catch (err) {
+      console.error('Erro ao abrir arquivo:', err);
+      this.showToast(`❌ Erro ao abrir arquivo: ${err.message}`);
+    }
+  }
+
+  async openLocalOsFile() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [
+            {
+              description: 'Units, Formulários e Códigos (.vox, .vxf, .pas, .dfm, .js, .ts, .json, .txt, .sql)',
+              accept: {
+                'text/plain': ['.vox', '.pas', '.js', '.ts', '.txt', '.sql', '.html', '.css'],
+                'application/json': ['.vxf', '.dfm', '.json']
+              }
+            }
+          ],
+          multiple: false
+        });
+        const file = await handle.getFile();
+        const content = await file.text();
+        this.closeOpenFileModal();
+        this.loadOpenedFileContent(file.name, file.name, content);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('showOpenFilePicker error, falling back to input:', err);
+      }
+    }
+    const input = document.getElementById('localOsFileInput');
+    if (input) input.click();
+  }
+
+  handleLocalFileOpen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target.result;
+      this.closeOpenFileModal();
+      this.loadOpenedFileContent(file.name, file.name, content);
+    };
+    reader.readAsText(file);
+  }
+
+  loadOpenedFileContent(fileName, filePath, content) {
+    const ext = '.' + fileName.split('.').pop().toLowerCase();
+    const isVxf = ext === '.vxf';
+
+    if (isVxf) {
+      try {
+        const formObj = JSON.parse(content);
+        this.designer.form = formObj;
+        if (!this.designer.form.components) this.designer.form.components = [];
+        this.designer.syncIdCounter();
+        this.designer.renderForm();
+        this.syncCodeFromDesigner();
+        this.switchView('designer');
+      } catch (e) {
+        alert('Arquivo de formulário .vxf inválido: ' + e.message);
+        return;
+      }
+    } else {
+      if (this.editor) this.editor.setCode(content);
+      this.switchView('code');
+    }
+
+    if (this.currentProject && this.currentProject.units && !this.currentProject.units.includes(fileName)) {
+      this.currentProject.units.push(fileName);
+    }
+
+    this.openTab({
+      name: fileName,
+      path: filePath || fileName,
+      type: ext.slice(1),
+      isForm: isVxf,
+      content: content,
+      formState: isVxf ? JSON.parse(JSON.stringify(this.designer.form)) : null
+    });
+
+    const docTab = document.getElementById('docTabTitle');
+    if (docTab) docTab.innerText = fileName;
+    this.showToast(`💻 Arquivo "${fileName}" carregado do computador!`);
+    this.updateProjectsTree();
+  }
+
+  async openFormDialog() {
+    return this.openFileDialog();
+  }
+
+  // --- 2. ABRIR PROJETO (.DPROJ / .VPROJ) ---
+  async openProjectDialog() {
+    await this.loadWorkspaceFiles();
+    const modal = document.getElementById('openProjectModal');
+    if (!modal) return;
+
+    const searchInput = document.getElementById('openProjSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    const selInput = document.getElementById('selectedOpenProjPath');
+    if (selInput) selInput.value = '';
+    this.selectedOpenProject = null;
+
+    this.renderOpenProjectList(this.workspaceFiles.projects || []);
+    modal.style.display = 'flex';
+  }
+
+  closeOpenProjectModal() {
+    const modal = document.getElementById('openProjectModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  filterOpenProjectSearch(query) {
+    const q = (query || '').toLowerCase().trim();
+    const all = this.workspaceFiles.projects || [];
+    const filtered = all.filter(p => !q || p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q)) || (p.folder && p.folder.toLowerCase().includes(q)));
+    this.renderOpenProjectList(filtered);
+  }
+
+  renderOpenProjectList(items) {
+    const container = document.getElementById('openProjectListContainer');
+    if (!container) return;
+
+    if (items.length === 0) {
+      container.innerHTML = `<div style="text-align: center; padding: 24px; color: #64748b;">Nenhum projeto encontrado.</div>`;
+      return;
+    }
+
+    container.innerHTML = items.map((p) => {
+      const isSelected = this.selectedOpenProject === p.name || this.selectedOpenProject === p.file;
+      return `
+        <div class="workspace-project-card" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#1e3a5f' : '#141820'}; border: 1px solid ${isSelected ? '#38bdf8' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
+             onclick="window.app.selectOpenProjectCard('${p.file || p.name}')"
+             ondblclick="window.app.selectOpenProjectCard('${p.file || p.name}'); window.app.confirmOpenProject();">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">💻</span>
+            <div>
+              <div style="font-weight: 700; color: ${isSelected ? '#38bdf8' : '#f8fafc'}; font-size: 13px;">${p.name}.dproj</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">${p.description || 'Projeto Delphi / Vox'}</div>
+              <div style="font-size: 10px; color: #64748b; font-family: monospace; margin-top: 2px;">📁 ${p.folder || p.file || '.'}</div>
+            </div>
+          </div>
+          <span style="background: #1e293b; color: #38bdf8; font-size: 11px; padding: 3px 8px; border-radius: 3px; font-weight: 600;">Abrir ➔</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  selectOpenProjectCard(projPath) {
+    this.selectedOpenProject = projPath;
+    const input = document.getElementById('selectedOpenProjPath');
+    if (input) input.value = projPath;
+    this.renderOpenProjectList(this.workspaceFiles.projects || []);
+  }
+
+  async confirmOpenProject() {
+    const input = document.getElementById('selectedOpenProjPath');
+    const pathVal = (input ? input.value : this.selectedOpenProject) || '';
+    if (!pathVal.trim()) {
+      alert('Selecione ou informe o projeto a ser aberto.');
+      return;
+    }
+    this.closeOpenProjectModal();
+    await this.openProject(pathVal.trim());
+  }
+
+  async openProject(projNameOrPath) {
+    try {
+      this.showToast(`⏳ Carregando projeto ${projNameOrPath}...`);
+      const rawName = (typeof projNameOrPath === 'string') ? projNameOrPath.replace(/\.(dproj|vproj|dpr|vpr|json)$/i, '').split(/[\/\\]/).pop() : (projNameOrPath.name || 'Projeto');
+
+      // Se corresponder a um dos modelos principais, carrega seu conjunto
+      if (rawName.includes('ERP') || rawName === 'VoxERP_Comercial') {
+        this.currentProject = {
+          name: 'VoxERP_Comercial',
+          file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
+          folder: 'projetos/VoxERP_Comercial',
+          mainForm: 'FormERP',
+          units: ['FormERP.vox', 'FormERP.vxf', 'cliente_controller.vox', 'produto_controller.vox']
+        };
+        this.loadExampleTemplate('erpCompleto');
+      } else if (rawName.includes('Clientes') || rawName === 'Projeto_Clientes') {
+        this.currentProject = {
+          name: 'Projeto_Clientes',
+          file: 'clientes/Projeto_Clientes.dproj',
+          folder: 'clientes',
+          mainForm: 'Form1',
+          units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox', 'Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('crudClientes');
+      } else if (rawName.includes('Sidebar') || rawName === 'Sistema_Sidebar') {
+        this.currentProject = {
+          name: 'Sistema_Sidebar',
+          file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
+          folder: 'projetos/Sistema_Sidebar',
+          mainForm: 'Form1',
+          units: ['Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('sistemaSidebar');
+      } else if (rawName.includes('PDV') || rawName === 'PDV_FrenteDeCaixa') {
+        this.currentProject = {
+          name: 'PDV_FrenteDeCaixa',
+          file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
+          folder: 'projetos/PDV_FrenteDeCaixa',
+          mainForm: 'Form1',
+          units: ['pdv_controller.vox', 'pdv_model.vox', 'Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('pdv');
+      } else if (rawName.includes('Calculadora') || rawName === 'Calculadora_RAD') {
+        this.currentProject = {
+          name: 'Calculadora_RAD',
+          file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
+          folder: 'projetos/Calculadora_RAD',
+          mainForm: 'Form1',
+          units: ['Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('calculadora');
+      } else {
+        const projFilePath = (typeof projNameOrPath === 'string') ? projNameOrPath : (projNameOrPath.file || `${rawName}.dproj`);
+        const res = await fetch(`/api/project/read?file=${encodeURIComponent(projFilePath)}`);
+        const data = await res.json();
+        if (data.success && data.project) {
+          this.currentProject = data.project;
+        } else {
+          this.currentProject = {
+            name: rawName,
+            file: projFilePath,
+            folder: '.',
+            mainForm: 'Form1',
+            units: ['Form1.vox', 'Form1.vxf']
+          };
+        }
+
+        const mainVxf = (this.currentProject.units || []).find(u => u.endsWith('.vxf')) || `${this.currentProject.mainForm || 'Form1'}.vxf`;
+        const vxfPath = mainVxf.includes('/') ? mainVxf : `${this.currentProject.folder || 'forms'}/${mainVxf}`;
+        const loaded = await this.loadForm(vxfPath);
+        if (loaded) {
+          this.openTab({
+            name: mainVxf.split('/').pop(),
+            path: vxfPath,
+            type: 'vxf',
+            isForm: true
+          });
+        } else if (this.currentProject.units && this.currentProject.units.length > 0) {
+          const firstUnit = this.currentProject.units[0];
+          const unitPath = firstUnit.includes('/') ? firstUnit : `${this.currentProject.folder || '.'}/${firstUnit}`;
+          await this.openFile(unitPath);
+        }
+      }
+
+      this.updateProjectsTree();
+      this.showToast(`📁 Projeto "${this.currentProject.name}" carregado com sucesso!`);
+    } catch (err) {
+      console.error('Erro ao abrir projeto:', err);
+      this.showToast(`❌ Erro ao abrir projeto: ${err.message}`);
+    }
+  }
+
+  async openLocalOsProject() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [
+            {
+              description: 'Projetos Delphi e Vox (.dproj, .vproj, .dpr, .vpr, .json)',
+              accept: {
+                'text/plain': ['.dproj', '.vproj', '.dpr', '.vpr'],
+                'application/json': ['.json']
+              }
+            }
+          ],
+          multiple: false
+        });
+        const file = await handle.getFile();
+        this.closeOpenProjectModal();
+        await this.openProject(file.name);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('showOpenFilePicker error, falling back to input:', err);
+      }
+    }
+    const input = document.getElementById('localOsProjectInput');
+    if (input) input.click();
+  }
+
+  handleLocalProjectOpen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    this.closeOpenProjectModal();
+    const projName = file.name.replace(/\.(dproj|vproj|dpr|vpr|json)$/i, '');
+    this.openProject(file.name);
+  }
+
+  async openLocalOsGroup() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [
+            {
+              description: 'Grupos de Projetos (.groupproj, .vpg, .vgroup)',
+              accept: {
+                'text/plain': ['.groupproj', '.vpg', '.vgroup']
+              }
+            }
+          ],
+          multiple: false
+        });
+        const file = await handle.getFile();
+        this.closeOpenProjectGroupModal();
+        await this.openProjectGroup(file.name);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('showOpenFilePicker error, falling back to input:', err);
+      }
+    }
+    const input = document.getElementById('localOsGroupInput');
+    if (input) input.click();
+  }
+
+  // --- 3. ABRIR GRUPO DE PROJETOS (.GROUPPROJ) ---
+  async openProjectGroupDialog() {
+    await this.loadWorkspaceFiles();
+    const modal = document.getElementById('openProjectGroupModal');
+    if (!modal) return;
+
+    const selInput = document.getElementById('selectedOpenGroupPath');
+    if (selInput) selInput.value = '';
+    this.selectedOpenGroup = null;
+
+    this.renderOpenGroupList(this.workspaceFiles.groups || []);
+    modal.style.display = 'flex';
+  }
+
+  closeOpenProjectGroupModal() {
+    const modal = document.getElementById('openProjectGroupModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  renderOpenGroupList(items) {
+    const container = document.getElementById('openGroupListContainer');
+    if (!container) return;
+
+    container.innerHTML = items.map((g) => {
+      const isSelected = this.selectedOpenGroup === g.name || this.selectedOpenGroup === g.file;
+      const projCount = g.projects ? g.projects.length : 2;
+      return `
+        <div class="workspace-group-card" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#2e1065' : '#141820'}; border: 1px solid ${isSelected ? '#c084fc' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
+             onclick="window.app.selectOpenGroupCard('${g.file || g.name}')"
+             ondblclick="window.app.selectOpenGroupCard('${g.file || g.name}'); window.app.confirmOpenProjectGroup();">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 22px;">📦</span>
+            <div>
+              <div style="font-weight: 700; color: ${isSelected ? '#d8b4fe' : '#f8fafc'}; font-size: 13px;">${g.name}.groupproj</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">${g.description || 'Grupo de Projetos Multi-Módulos'}</div>
+              <div style="font-size: 10.5px; color: #38bdf8; margin-top: 2px;">Contém ${projCount} projetos associados</div>
+            </div>
+          </div>
+          <span style="background: #3b0764; color: #d8b4fe; font-size: 11px; padding: 3px 10px; border-radius: 3px; font-weight: 600; border: 1px solid #7c3aed;">Carregar Grupo ➔</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  selectOpenGroupCard(groupFile) {
+    this.selectedOpenGroup = groupFile;
+    const input = document.getElementById('selectedOpenGroupPath');
+    if (input) input.value = groupFile;
+    this.renderOpenGroupList(this.workspaceFiles.groups || []);
+  }
+
+  async confirmOpenProjectGroup() {
+    const input = document.getElementById('selectedOpenGroupPath');
+    const pathVal = (input ? input.value : this.selectedOpenGroup) || 'ProjectGroup1';
+    this.closeOpenProjectGroupModal();
+    await this.openProjectGroup(pathVal);
+  }
+
+  async openProjectGroup(groupNameOrPath) {
+    const rawName = (typeof groupNameOrPath === 'string') ? groupNameOrPath.replace(/\.(groupproj|vgroup)$/, '').split(/[\/\\]/).pop() : (groupNameOrPath.name || 'ProjectGroup1');
+
+    const matched = (this.workspaceFiles.groups || []).find(g => g.name === rawName || g.file === groupNameOrPath);
+
+    this.currentProjectGroup = matched || {
+      name: rawName,
+      file: `${rawName}.groupproj`,
+      projects: ['VoxERP_Comercial.dproj', 'Projeto_Clientes.dproj', 'PDV_FrenteDeCaixa.dproj']
+    };
+
+    // Abre o primeiro projeto do grupo
+    const firstProj = (this.currentProjectGroup.projects && this.currentProjectGroup.projects[0]) || 'VoxERP_Comercial';
+    await this.openProject(firstProj);
+
+    this.updateProjectsTree();
+    this.showToast(`📦 Grupo de Projetos "${this.currentProjectGroup.name}" carregado com sucesso!`);
+  }
+
+  handleLocalGroupOpen(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    this.closeOpenProjectGroupModal();
+    const groupName = file.name.replace(/\.(groupproj|vgroup)$/i, '');
+    this.openProjectGroup(groupName);
+  }
+
+  promptCreateNewProjectGroup() {
+    const name = prompt('Nome do novo Grupo de Projetos (.groupproj):', 'MeuGrupoDeProjetos');
+    if (!name || !name.trim()) return;
+    this.closeOpenProjectGroupModal();
+    this.openProjectGroup(name.trim());
+  }
+
+  // --- 4. SALVAR PROJETO COMO (.DPROJ) - PADRÃO DELPHI 13 ---
+  initSaveProjectDialogState() {
+    this.saveDialogState = {
+      currentDir: 'projetos',
+      history: ['projetos'],
+      historyIdx: 0,
+      sortBy: 'name',
+      sortAsc: true,
+      items: [],
+      selectedItem: null,
+      selectedType: '.dproj'
+    };
+  }
+
+  openSaveProjectAsModal() {
+    const modal = document.getElementById('saveProjectAsModal');
+    if (!modal) return;
+    if (!this.saveDialogState) {
+      this.initSaveProjectDialogState();
+    }
+
+    const curName = (this.currentProject && this.currentProject.name) ? this.currentProject.name : 'Project1';
+    const initialDir = (this.currentProject && this.currentProject.folder) ? this.currentProject.folder : 'projetos';
+    
+    this.saveDialogState.currentDir = initialDir;
+    this.saveDialogState.history = [initialDir];
+    this.saveDialogState.historyIdx = 0;
+    this.saveDialogState.selectedItem = null;
+
+    const nameInput = document.getElementById('saveProjNameInput');
+    if (nameInput) {
+      nameInput.value = `${curName}.dproj`;
+      setTimeout(() => {
+        nameInput.focus();
+        nameInput.setSelectionRange(0, curName.length);
+      }, 50);
+    }
+
+    const searchInput = document.getElementById('dsdSearchInput');
+    if (searchInput) searchInput.value = '';
+
+    modal.style.display = 'flex';
+    this.saveDialogLoadDir(this.saveDialogState.currentDir);
+  }
+
+  closeSaveProjectAsModal() {
+    const modal = document.getElementById('saveProjectAsModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async saveDialogLoadDir(dir) {
+    try {
+      const tbody = document.getElementById('dsdFilesTableBody');
+      const emptyNotice = document.getElementById('dsdEmptyNotice');
+      if (emptyNotice) emptyNotice.style.display = 'none';
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color:#888;">Carregando...</td></tr>`;
+
+      const relDir = dir || '';
+      const res = await fetch(`/api/fs/list-dir?dir=${encodeURIComponent(relDir)}`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao listar pasta');
+      }
+
+      this.saveDialogState.currentDir = data.currentDir;
+      this.saveDialogState.items = data.items || [];
+      this.saveDialogState.selectedItem = null;
+
+      // 1. Breadcrumbs
+      this.saveDialogRenderBreadcrumbs(data.currentDir);
+
+      // 2. Nav buttons state
+      this.saveDialogUpdateNavButtons();
+
+      // 3. Search placeholder
+      const searchInput = document.getElementById('dsdSearchInput');
+      const curFolderName = data.currentDir ? data.currentDir.split('/').pop() : 'Workspace';
+      if (searchInput) {
+        searchInput.placeholder = `Pesquisar em ${curFolderName}`;
+        if (searchInput.value.trim()) {
+          this.saveDialogFilter(searchInput.value);
+          return;
+        }
+      }
+
+      // 4. Sidebar highlights
+      this.saveDialogHighlightSidebar(data.currentDir);
+
+      // 5. Render files table
+      this.saveDialogRenderTable(this.saveDialogState.items);
+    } catch (err) {
+      console.error('saveDialogLoadDir error:', err);
+      const tbody = document.getElementById('dsdFilesTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#ef4444; padding:20px;">Falha ao carregar pasta: ${err.message}</td></tr>`;
+    }
+  }
+
+  saveDialogRenderBreadcrumbs(currentDir) {
+    const container = document.getElementById('dsdBreadcrumbs');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Raiz (Workspace)
+    const rootItem = document.createElement('span');
+    rootItem.className = 'dsd-crumb-item';
+    rootItem.textContent = 'Workspace';
+    rootItem.title = 'Ir para a raiz do workspace';
+    rootItem.onclick = () => this.saveDialogNavigateTo('');
+    container.appendChild(rootItem);
+
+    if (currentDir && currentDir.trim()) {
+      const parts = currentDir.split('/').filter(Boolean);
+      let accum = '';
+      for (let i = 0; i < parts.length; i++) {
+        const sep = document.createElement('span');
+        sep.className = 'dsd-crumb-sep';
+        sep.textContent = '>';
+        container.appendChild(sep);
+
+        accum += (accum ? '/' : '') + parts[i];
+        const target = accum;
+        const crumb = document.createElement('span');
+        crumb.className = 'dsd-crumb-item';
+        crumb.textContent = parts[i];
+        crumb.onclick = () => this.saveDialogNavigateTo(target);
+        container.appendChild(crumb);
+      }
+    }
+  }
+
+  saveDialogHighlightSidebar(currentDir) {
+    const norm = (currentDir || '').toLowerCase();
+    document.querySelectorAll('.dsd-place-item').forEach(el => el.classList.remove('active'));
+    if (norm === 'projetos' || norm.startsWith('projetos/')) {
+      const el = document.getElementById('dsdPlaceProj');
+      if (el) el.classList.add('active');
+    } else if (norm === 'clientes' || norm.startsWith('clientes/')) {
+      const el = document.getElementById('dsdPlaceCli');
+      if (el) el.classList.add('active');
+    } else if (norm === 'src' || norm.startsWith('src/')) {
+      const el = document.getElementById('dsdPlaceSrc');
+      if (el) el.classList.add('active');
+    } else if (norm === 'documentos' || norm.startsWith('documentos/')) {
+      const el = document.getElementById('dsdPlaceDocs');
+      if (el) el.classList.add('active');
+    } else if (norm === 'downloads' || norm.startsWith('downloads/')) {
+      const el = document.getElementById('dsdPlaceDown');
+      if (el) el.classList.add('active');
+    } else if (!norm) {
+      const el = document.getElementById('dsdPlaceRoot');
+      if (el) el.classList.add('active');
+    }
+  }
+
+  saveDialogNavigateTo(folder) {
+    const norm = (folder || '').replace(/\\/g, '/');
+    if (norm === this.saveDialogState.currentDir) return;
+
+    this.saveDialogState.history = this.saveDialogState.history.slice(0, this.saveDialogState.historyIdx + 1);
+    this.saveDialogState.history.push(norm);
+    this.saveDialogState.historyIdx = this.saveDialogState.history.length - 1;
+    this.saveDialogLoadDir(norm);
+  }
+
+  saveDialogNavBack() {
+    if (this.saveDialogState.historyIdx > 0) {
+      this.saveDialogState.historyIdx--;
+      const prev = this.saveDialogState.history[this.saveDialogState.historyIdx];
+      this.saveDialogLoadDir(prev);
+    }
+  }
+
+  saveDialogNavForward() {
+    if (this.saveDialogState.historyIdx < this.saveDialogState.history.length - 1) {
+      this.saveDialogState.historyIdx++;
+      const next = this.saveDialogState.history[this.saveDialogState.historyIdx];
+      this.saveDialogLoadDir(next);
+    }
+  }
+
+  saveDialogNavUp() {
+    const cur = this.saveDialogState.currentDir || '';
+    if (!cur) return;
+    const parts = cur.split('/').filter(Boolean);
+    parts.pop();
+    const parent = parts.join('/');
+    this.saveDialogNavigateTo(parent);
+  }
+
+  saveDialogRefresh() {
+    this.saveDialogLoadDir(this.saveDialogState.currentDir);
+  }
+
+  saveDialogUpdateNavButtons() {
+    const backBtn = document.getElementById('dsdNavBack');
+    const fwdBtn = document.getElementById('dsdNavForward');
+    const upBtn = document.getElementById('dsdNavUp');
+    if (backBtn) backBtn.disabled = this.saveDialogState.historyIdx <= 0;
+    if (fwdBtn) fwdBtn.disabled = this.saveDialogState.historyIdx >= this.saveDialogState.history.length - 1;
+    if (upBtn) upBtn.disabled = !this.saveDialogState.currentDir;
+  }
+
+  saveDialogRenderTable(items) {
+    const tbody = document.getElementById('dsdFilesTableBody');
+    const emptyNotice = document.getElementById('dsdEmptyNotice');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!items || items.length === 0) {
+      if (emptyNotice) emptyNotice.style.display = 'block';
+      return;
+    }
+    if (emptyNotice) emptyNotice.style.display = 'none';
+
+    const sorted = [...items];
+    const col = this.saveDialogState.sortBy || 'name';
+    const asc = this.saveDialogState.sortAsc ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+
+      if (col === 'name') {
+        return asc * a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      } else if (col === 'mtime') {
+        return asc * ((a.rawMtime || 0) - (b.rawMtime || 0));
+      } else if (col === 'type') {
+        return asc * (a.type || '').localeCompare(b.type || '');
+      } else if (col === 'size') {
+        return asc * ((a.rawSize || 0) - (b.rawSize || 0));
+      }
+      return 0;
+    });
+
+    sorted.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.className = 'dsd-file-row';
+
+      let icon = '📁';
+      if (!item.isDirectory) {
+        if (item.name.endsWith('.dproj')) icon = '⚡';
+        else if (item.name.endsWith('.vproj') || item.name.endsWith('.vpr')) icon = '🟣';
+        else if (item.name.endsWith('.vox') || item.name.endsWith('.pas')) icon = '📝';
+        else if (item.name.endsWith('.vxf') || item.name.endsWith('.dfm')) icon = '🪟';
+        else icon = '📄';
+      }
+
+      tr.innerHTML = `
+        <td>
+          <div class="dsd-item-name-cell">
+            <span style="font-size:14px;">${icon}</span>
+            <span>${item.name}</span>
+          </div>
+        </td>
+        <td>${item.mtime || ''}</td>
+        <td>${item.type || ''}</td>
+        <td style="text-align:right;">${item.size || ''}</td>
+      `;
+
+      tr.onclick = () => {
+        this.saveDialogSelectRow(item, tr);
+      };
+
+      tr.ondblclick = () => {
+        if (item.isDirectory) {
+          const nextDir = this.saveDialogState.currentDir ? `${this.saveDialogState.currentDir}/${item.name}` : item.name;
+          this.saveDialogNavigateTo(nextDir);
+        } else {
+          const nameInput = document.getElementById('saveProjNameInput');
+          if (nameInput) nameInput.value = item.name;
+        }
+      };
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  saveDialogSelectRow(item, rowEl) {
+    this.saveDialogState.selectedItem = item;
+    document.querySelectorAll('.dsd-file-row').forEach(r => r.classList.remove('selected'));
+    if (rowEl) rowEl.classList.add('selected');
+
+    if (!item.isDirectory) {
+      const nameInput = document.getElementById('saveProjNameInput');
+      if (nameInput) nameInput.value = item.name;
+    }
+  }
+
+  saveDialogFilter(query) {
+    if (!this.saveDialogState || !this.saveDialogState.items) return;
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+      this.saveDialogRenderTable(this.saveDialogState.items);
+      return;
+    }
+    const filtered = this.saveDialogState.items.filter(it =>
+      it.name.toLowerCase().includes(q) || (it.type && it.type.toLowerCase().includes(q))
+    );
+    this.saveDialogRenderTable(filtered);
+  }
+
+  saveDialogSortBy(col) {
+    if (this.saveDialogState.sortBy === col) {
+      this.saveDialogState.sortAsc = !this.saveDialogState.sortAsc;
+    } else {
+      this.saveDialogState.sortBy = col;
+      this.saveDialogState.sortAsc = true;
+    }
+
+    ['Name', 'Mtime', 'Type', 'Size'].forEach(k => {
+      const icon = document.getElementById(`dsdSortIcon${k}`);
+      if (icon) {
+        if (k.toLowerCase() === col) {
+          icon.textContent = this.saveDialogState.sortAsc ? '▲' : '▼';
+        } else {
+          icon.textContent = '';
+        }
+      }
+    });
+
+    const searchInput = document.getElementById('dsdSearchInput');
+    if (searchInput && searchInput.value.trim()) {
+      this.saveDialogFilter(searchInput.value);
+    } else {
+      this.saveDialogRenderTable(this.saveDialogState.items);
+    }
+  }
+
+  async saveDialogCreateNewFolder() {
+    const name = prompt('Nome da nova pasta:', 'Nova pasta');
+    if (!name || !name.trim()) return;
+
+    try {
+      const res = await fetch('/api/fs/create-dir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentDir: this.saveDialogState.currentDir,
+          folderName: name.trim()
+        })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Erro ao criar pasta');
+      this.showToast(`📁 Pasta "${data.folderName}" criada com sucesso!`);
+      await this.saveDialogLoadDir(this.saveDialogState.currentDir);
+    } catch (err) {
+      alert('Falha ao criar pasta: ' + err.message);
+    }
+  }
+
+  saveDialogChangeType(val) {
+    const nameInput = document.getElementById('saveProjNameInput');
+    if (!nameInput) return;
+    let name = nameInput.value.trim();
+    if (val === '.dproj') {
+      if (name.endsWith('.vproj')) name = name.replace(/\.vproj$/, '.dproj');
+      else if (!name.endsWith('.dproj')) name += '.dproj';
+    } else if (val === '.vproj') {
+      if (name.endsWith('.dproj')) name = name.replace(/\.dproj$/, '.vproj');
+      else if (!name.endsWith('.vproj')) name += '.vproj';
+    }
+    nameInput.value = name;
+  }
+
+  saveDialogToggleRecent() {
+    const choice = prompt('Ir para local recente:\n1: projetos/\n2: clientes/\n3: src/\n4: Workspace (raiz)\nDigite o número:', '1');
+    if (choice === '1') this.saveDialogNavigateTo('projetos');
+    else if (choice === '2') this.saveDialogNavigateTo('clientes');
+    else if (choice === '3') this.saveDialogNavigateTo('src');
+    else if (choice === '4') this.saveDialogNavigateTo('');
+  }
+
+  saveDialogToggleOrganize() {
+    this.saveDialogCreateNewFolder();
+  }
+
+  async confirmSaveProjectAs() {
+    const nameInput = document.getElementById('saveProjNameInput');
+    let filename = nameInput ? nameInput.value.trim() : 'Project1.dproj';
+    if (!filename) filename = 'Project1.dproj';
+
+    const typeSelect = document.getElementById('saveProjTypeSelect');
+    const selectedExt = typeSelect ? typeSelect.value : '.dproj';
+
+    if (!filename.includes('.') && selectedExt !== '*.*') {
+      filename += selectedExt;
+    }
+
+    let baseName = filename;
+    if (baseName.toLowerCase().endsWith('.dproj')) baseName = baseName.slice(0, -6);
+    else if (baseName.toLowerCase().endsWith('.vproj')) baseName = baseName.slice(0, -6);
+    else if (baseName.toLowerCase().endsWith('.vpr')) baseName = baseName.slice(0, -4);
+    baseName = baseName.replace(/[^a-zA-Z0-9_]/g, '') || 'Project1';
+
+    const folder = (this.saveDialogState && this.saveDialogState.currentDir) ? this.saveDialogState.currentDir : 'projetos';
+
+    try {
+      this.showToast('💾 Salvando projeto no padrão Delphi 13...');
+      const res = await fetch('/api/project/save-as', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectName: baseName, folder })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Erro ao salvar projeto');
+
+      this.closeSaveProjectAsModal();
+      this.currentProject = {
+        name: data.projectName,
+        file: data.filePath,
+        folder: data.folder,
+        units: [`${this.designer.form.name || 'Form1'}.vox`, `${this.designer.form.name || 'Form1'}.vxf`]
+      };
+      this.updateProjectsTree();
+      this.showToast(`💾 Projeto "${data.projectName}" salvo com sucesso em ${data.folder}/!`);
+    } catch (err) {
+      alert('Falha ao salvar projeto: ' + err.message);
+    }
+  }
+
+  // --- 5. FECHAR (ARQUIVO / PROJETO / GRUPO DE PROJETOS / SAIR) ---
+  closeActiveFile() {
+    if (this.activeTabId) {
+      this.closeTab(this.activeTabId);
+    } else {
+      this.showToast('ℹ️ Nenhum arquivo ativo para fechar.');
+    }
+  }
+
+  closeFormWindow() {
+    this.closeActiveFile();
+  }
+
+  closeCurrentProject() {
+    const projName = this.currentProject ? this.currentProject.name : 'Projeto';
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    if (dirty.length > 0) {
+      if (!confirm(`Existem ${dirty.length} arquivos com alterações não salvas. Deseja fechar o projeto mesmo assim?`)) {
+        return;
+      }
+    }
+
+    this.currentProject = null;
+    this.currentProjectGroup = null;
+    this.closeAllFiles();
+
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = 'Projects - Nenhum Projeto Aberto';
+
+    this.updateProjectsTree();
+    this.showToast(`🚪 Projeto "${projName}" fechado com sucesso.`);
+  }
+
+  closeProjectGroup() {
+    const groupName = this.currentProjectGroup ? this.currentProjectGroup.name : 'Grupo de Projetos';
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    if (dirty.length > 0) {
+      if (!confirm(`Existem ${dirty.length} arquivos com alterações não salvas. Deseja fechar o grupo mesmo assim?`)) {
+        return;
+      }
+    }
+
+    this.currentProjectGroup = null;
+    this.currentProject = null;
+    this.closeAllFiles();
+
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = 'Projects - Vazio';
+
+    this.updateProjectsTree();
+    this.showToast(`📦❌ Grupo de Projetos "${groupName}" fechado com sucesso.`);
+  }
+
+  exitApp() {
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    const msg = dirty.length > 0
+      ? `Existem ${dirty.length} arquivos com alterações não salvas. Deseja realmente sair do Vox Studio?`
+      : 'Deseja realmente encerrar a sessão do Vox Studio RAD IDE?';
+
+    if (confirm(msg)) {
+      this.showToast('👋 Encerrando Vox Studio RAD IDE...');
+      setTimeout(() => {
+        window.close();
+        document.body.innerHTML = `
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0f172a; color:#f8fafc; font-family:sans-serif; text-align:center;">
+            <div style="font-size:48px; margin-bottom:16px;">⚡ Vox Studio RAD IDE</div>
+            <p style="color:#94a3b8; font-size:16px;">Sessão encerrada com sucesso.</p>
+            <button onclick="location.reload()" style="margin-top:20px; padding:10px 24px; background:#0284c7; color:#fff; border:none; border-radius:4px; font-weight:600; cursor:pointer;">Reiniciar Vox Studio</button>
+          </div>
+        `;
+      }, 400);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 5. Diálogo de Salvamento Padrão RAD Studio (Save Unit As)
+  // --------------------------------------------------------------------------
+  initSaveDialogEvents() {
+    const unitInput = document.getElementById('saveUnitNameInput');
+    const folderInput = document.getElementById('saveFolderPathInput');
+
+    if (unitInput) {
+      unitInput.addEventListener('input', () => this.updateSavePreview());
+      unitInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.confirmSaveForm();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.closeSaveDialog();
+        }
+      });
+    }
+
+    if (folderInput) {
+      folderInput.addEventListener('input', () => {
+        this.highlightFolderButton(folderInput.value.trim());
+        this.updateSavePreview();
+      });
+      folderInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.confirmSaveForm();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.closeSaveDialog();
+        }
+      });
+    }
+  }
+
+  async saveForm() {
+    const curTab = this.getActiveTab();
+    if (!curTab || !curTab.path || (curTab.path.startsWith('forms/Form1') && !this.lastSavedFolder)) {
+      return this.openSaveDialog();
+    }
+
+    try {
+      this.showToast(`💾 Salvando "${curTab.name}"...`);
+      if (curTab.isForm) {
+        const vxfContent = JSON.stringify(this.designer.form, null, 2);
+        const vxfPath = curTab.path.endsWith('.vxf') ? curTab.path : curTab.path.replace(/\.[^.]+$/, '.vxf');
+        const resVxf = await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: vxfPath, content: vxfContent })
+        });
+        const dVxf = await resVxf.json();
+        if (!dVxf.success) throw new Error(dVxf.error || 'Erro ao salvar formulário');
+
+        const voxCode = window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : (this.editor ? this.editor.getCode() : '');
+        const voxPath = vxfPath.replace(/\.vxf$/, '.vox');
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: voxPath, content: voxCode })
+        });
+
+        curTab.isDirty = false;
+        this.renderTabs();
+        this.showToast(`💾 Formulário "${this.designer.form.name}" e Unit salvos com sucesso!`);
+      } else {
+        const content = this.editor ? this.editor.getCode() : curTab.content;
+        const res = await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: curTab.path, content })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Erro ao salvar arquivo');
+
+        curTab.isDirty = false;
+        curTab.content = content;
+        this.renderTabs();
+        this.showToast(`💾 Arquivo "${curTab.name}" salvo com sucesso!`);
+      }
+    } catch (err) {
+      alert('Falha ao salvar: ' + err.message);
+    }
+  }
+
+  async openSaveDialog() {
+    const modal = document.getElementById('saveDialogModal');
+    const unitInput = document.getElementById('saveUnitNameInput');
+    const folderInput = document.getElementById('saveFolderPathInput');
+    const statusEl = document.getElementById('saveDialogStatus');
+
+    if (!modal) return;
+    if (statusEl) statusEl.innerText = '';
+
+    // Nome atual do form / unit
+    const curName = (this.designer && this.designer.form && this.designer.form.name) || 'Unit1';
+    if (unitInput) unitInput.value = curName;
+
+    // Pasta padrão (forms) ou a última utilizada
+    const curFolder = this.lastSavedFolder || 'forms';
+    if (folderInput) folderInput.value = curFolder;
+    this.highlightFolderButton(curFolder);
+
+    // Carregar informações do projeto
+    try {
+      const res = await fetch('/api/project/folders');
+      const data = await res.json();
+      if (data && data.workspace) {
+        const rootEl = document.getElementById('saveDialogProjectRoot');
+        if (rootEl) rootEl.innerText = data.workspace;
+      }
+    } catch (e) {
+      console.warn('Erro ao obter pastas do projeto:', e);
+    }
+
+    this.updateSavePreview();
+    modal.style.display = 'flex';
+
+    setTimeout(() => {
+      if (unitInput) {
+        unitInput.focus();
+        unitInput.select();
+      }
+    }, 50);
+  }
+
+  closeSaveDialog() {
+    const modal = document.getElementById('saveDialogModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  selectSaveFolder(folder) {
+    const folderInput = document.getElementById('saveFolderPathInput');
+    if (folderInput) folderInput.value = folder;
+    this.highlightFolderButton(folder);
+    this.updateSavePreview();
+  }
+
+  highlightFolderButton(folder) {
+    document.querySelectorAll('#saveFolderOptions .save-folder-btn').forEach(btn => {
+      if (btn.dataset.folder === folder) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  updateSavePreview() {
+    const unitInput = document.getElementById('saveUnitNameInput');
+    const folderInput = document.getElementById('saveFolderPathInput');
+    const previewVxf = document.getElementById('savePreviewVxf');
+    const previewVox = document.getElementById('savePreviewVox');
+
+    let folder = (folderInput && folderInput.value.trim()) || 'forms';
+    let name = (unitInput && unitInput.value.trim()) || 'Unit1';
+    name = name.replace(/[^a-zA-Z0-9_]/g, '') || 'Unit1';
+
+    const cleanFolder = (folder === '.' || folder === './') ? '' : (folder.endsWith('/') ? folder : folder + '/');
+
+    if (previewVxf) previewVxf.innerText = `${cleanFolder}${name}.vxf`;
+    if (previewVox) previewVox.innerText = `${cleanFolder}${name}.vox`;
+  }
+
+  async confirmSaveForm() {
+    const unitInput = document.getElementById('saveUnitNameInput');
+    const folderInput = document.getElementById('saveFolderPathInput');
+    const statusEl = document.getElementById('saveDialogStatus');
+
+    let folder = (folderInput && folderInput.value.trim()) || 'forms';
+    let rawName = (unitInput && unitInput.value.trim()) || 'Unit1';
+    const safeName = rawName.replace(/[^a-zA-Z0-9_]/g, '');
+
+    if (!safeName) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Nome da Unit inválido!</span>';
+      return;
+    }
+
+    if (statusEl) statusEl.innerHTML = '<span style="color:#4cc2ff;">Salvando no projeto...</span>';
+
+    try {
+      const vxfContent = this.designer.form;
+      const voxContent = this.editor.getCode() || window.VoxCodeGen.generateVoxCode(this.designer.form);
+
+      const res = await fetch('/api/form/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formName: safeName,
+          folder: folder,
+          vxfContent: vxfContent,
+          voxContent: voxContent
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        this.isDirty = false;
+        this.lastSavedFolder = data.folder;
+
+        // Atualizar formulário
+        this.designer.form.name = data.formName;
+        this.designer.form.title = data.formName;
+        const titleEl = document.getElementById('formTitleText');
+        if (titleEl) titleEl.innerText = data.formName;
+
+        // Atualizar aba no gerenciador de abas
+        const curTab = this.getActiveTab();
+        if (curTab) {
+          curTab.name = `${data.formName}.vxf`;
+          curTab.path = data.vxfRel || `${data.folder}/${data.formName}.vxf`;
+          curTab.isDirty = false;
+        } else {
+          this.openTab({
+            name: `${data.formName}.vxf`,
+            path: data.vxfRel || `${data.folder}/${data.formName}.vxf`,
+            type: 'vxf',
+            isForm: true,
+            isDirty: false
+          });
+        }
+        this.renderTabs();
+
+        // Atualizar título da aba superior
+        const docTab = document.getElementById('docTabTitle');
+        if (docTab) docTab.innerText = `${data.formName}.vox`;
+
+        // Atualizar árvore de projetos
+        const projUnit = document.getElementById('projTreeUnitName');
+        if (projUnit) projUnit.innerText = `${data.formName}.vox`;
+        const projVxf = document.getElementById('projTreeVxfName');
+        if (projVxf) projVxf.innerText = `${data.formName}.vxf`;
+
+        // Atualizar barra de status
+        const sbStatus = document.getElementById('sbFormStatus');
+        if (sbStatus) {
+          sbStatus.innerText = `${data.formName} [${this.designer.form.width} x ${this.designer.form.height}]`;
+        }
+
+        // Atualizar Object Inspector se estiver inspecionando o form
+        if (this.inspector) {
+          this.inspector.update(this.designer.selectedComponent);
+        }
+        this.updateStructureTree();
+
+        // Fechar diálogo
+        this.closeSaveDialog();
+
+        // Feedback visual na status bar
+        const sbServer = document.getElementById('sbServerStatus');
+        if (sbServer) {
+          const original = sbServer.innerText;
+          sbServer.innerText = `💾 Salvo com sucesso em: ${data.voxRel}`;
+          sbServer.style.color = '#38bdf8';
+          setTimeout(() => {
+            sbServer.innerText = original;
+            sbServer.style.color = '#22c55e';
+          }, 4000);
+        }
+      } else {
+        if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">${data.error || 'Falha ao salvar'}</span>`;
+      }
+    } catch (e) {
+      if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">${e.message}</span>`;
+    }
+  }
+
+  async buildWebApp() {
+    try {
+      this.onFormChanged();
+      const formName = (this.designer && this.designer.form && this.designer.form.name) || 'Form1';
+
+      // Auto-salvamento Delphi: Gravar arquivos .vxf e .vox no disco antes de compilar
+      try {
+        const vxfContent = JSON.stringify(this.designer.form, null, 2);
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${formName}.vxf`, content: vxfContent })
+        });
+        const voxGen = this.editor ? this.editor.getCode() : window.VoxCodeGen.generateVoxCode(this.designer.form);
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${formName}.vox`, content: voxGen })
+        });
+      } catch (errSave) {
+        console.warn('Auto-save antes de compilar:', errSave);
+      }
+
+      const voxCode = this.editor.getCode() || window.VoxCodeGen.generateVoxCode(this.designer.form);
+      const webPkg = window.VoxCodeGen.generateWebSystem(this.designer.form, voxCode);
+
+      const res = await fetch('/api/vox/build-web', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formState: this.designer.form,
+          ...webPkg
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        const modal = document.getElementById('webBuildModal');
+        const iframe = document.getElementById('webAppIframe');
+        const stats = document.getElementById('webBuildStats');
+
+        if (stats) {
+          stats.innerText = `Compilado com sucesso em: dist/web-app/ • Servidor rodando em: ${data.url}`;
+        }
+
+        if (iframe) {
+          iframe.src = data.internalUrl + '?t=' + Date.now();
+        }
+
+        if (modal) modal.style.display = 'flex';
+      } else {
+        alert('Erro ao compilar aplicação web: ' + data.error);
+      }
+    } catch (e) {
+      alert('Falha ao compilar para web: ' + e.message);
+    }
+  }
+
+  openExternalBrowser() {
+    fetch('/api/web-app/open', { method: 'POST' });
+    window.open('http://localhost:5000', '_blank');
+  }
+
+  closeWebBuildModal() {
+    const modal = document.getElementById('webBuildModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  runApp() {
+    // Compila e executa o sistema Web diretamente no browser!
+    this.buildWebApp();
+  }
+
+  // --------------------------------------------------------------------------
+  // Pré-visualização de Relatório Delphi-Like
+  // --------------------------------------------------------------------------
+  previewSelectedReport() {
+    let comp = (this.designer && this.designer.selectedComponent) || null;
+    if (!comp || (!comp.type.includes('Report') && !comp.type.includes('QR'))) {
+      comp = this.designer.form.components.find(c =>
+        c.type === 'vox_Report' || c.type === 'TVoxReport' || c.type === 'TQuickRep'
+      );
+    }
+    if (!comp) {
+      this.showToast('⚠️ Nenhum componente vox_Report encontrado no formulário.');
+      return;
+    }
+    if (window.voxReportEngine) {
+      window.voxReportEngine.showPreview(comp, this.designer.form);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Métodos de Controle do Depurador Delphi (Run, Step Over, Step Into, BP, Watches)
+  // --------------------------------------------------------------------------
+  startDebug() {
+    if (this.debugger) this.debugger.startDebug();
+  }
+
+  stepOver() {
+    if (this.debugger) this.debugger.stepOver();
+  }
+
+  stepInto() {
+    if (this.debugger) this.debugger.stepInto();
+  }
+
+  stepOut() {
+    if (this.debugger) this.debugger.stepOut();
+  }
+
+  runToCursor() {
+    if (this.debugger) this.debugger.runToCursor();
+  }
+
+  continueDebug() {
+    if (this.debugger) this.debugger.continueExecution();
+  }
+
+  pauseDebug() {
+    if (this.debugger) {
+      this.debugger.state = 'PAUSED';
+      this.debugger.logConsole('⏸ Depuração pausada pelo usuário.', 'warn');
+      this.debugger.updateToolbarState();
+    }
+  }
+
+  stopDebug() {
+    if (this.debugger) this.debugger.stop();
+  }
+
+  toggleBreakpointCurrentLine() {
+    if (this.debugger) this.debugger.toggleBreakpointCurrentLine();
+  }
+
+  clearAllBreakpoints() {
+    if (this.debugger) this.debugger.clearAllBreakpoints();
+  }
+
+  toggleDebugPanel() {
+    if (this.debugger) this.debugger.toggleDebugDock();
+  }
+
+  openAddWatchModal() {
+    if (this.debugger) {
+      this.debugger.showDebugDock();
+      this.debugger.switchDebugTab('watches');
+      setTimeout(() => {
+        const inp = document.getElementById('inputNewWatch');
+        if (inp) {
+          inp.focus();
+          inp.select();
+        }
+      }, 50);
+    }
+  }
+
+  async runBackend() {
+    try {
+      const code = this.editor.getCode() || window.VoxCodeGen.generateVoxCode(this.designer.form);
+      const res = await fetch('/api/vox/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formName: this.designer.form.name,
+          code: code
+        })
+      });
+
+      const data = await res.json();
+      alert(`[Vox CLI]\nStatus: ${data.success ? 'Compilado com Sucesso!' : 'Aviso/Erro'}\n${data.stdout || data.stderr || ''}`);
+    } catch (e) {
+      alert(`Erro ao executar CLI: ${e.message}`);
+    }
+  }
+
+  async checkServerStatus() {
+    try {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      const statusEl = document.getElementById('sbServerStatus');
+      if (statusEl) {
+        statusEl.innerText = `● Servidor Vox Online (v${data.version})`;
+      }
+    } catch (e) {
+      const statusEl = document.getElementById('sbServerStatus');
+      if (statusEl) statusEl.innerText = '○ Servidor Desconectado';
+    }
+  }
+
+  // ==========================================================================
+  // CONNECTION EDITOR (FIREDAC CONNECTION DIALOG)
+  // ==========================================================================
+  openConnectionEditor(compId) {
+    let comp = null;
+    if (compId) {
+      comp = this.designer.form.components.find(c => c.id === compId);
+    }
+    if (!comp) {
+      comp = this.designer.form.components.find(c => c.type === 'vox_Connection');
+    }
+    if (!comp) {
+      // Se não existir componente de conexão no formulário, adiciona um automaticamente
+      comp = this.designer.addComponent('vox_Connection', 30, 80);
+    }
+
+    this.activeConnectionCompId = comp.id;
+
+    const modal = document.getElementById('connectionEditorModal');
+    const titleEl = document.getElementById('connEditorTitle');
+    const nameEl = document.getElementById('connCompNameInput');
+    const driverEl = document.getElementById('connDriverSelect');
+    const serverEl = document.getElementById('connServerInput');
+    const portEl = document.getElementById('connPortInput');
+    const dbEl = document.getElementById('connDatabaseInput');
+    const userEl = document.getElementById('connUserInput');
+    const passEl = document.getElementById('connPasswordInput');
+    const vendorEl = document.getElementById('connVendorLibInput');
+    const statusEl = document.getElementById('connTestStatus');
+
+    comp.props = comp.props || comp.properties || {};
+    const driver = comp.props.DriverName || comp.props.Driver || 'MySQL';
+    const server = comp.props.Server || comp.props.IP || '127.0.0.1';
+    const port = comp.props.Port !== undefined ? comp.props.Port : (comp.props.Porta !== undefined ? comp.props.Porta : 3306);
+    const db = comp.props.Database || 'loja_vox';
+    const userName = comp.props.UserName || comp.props.Login || 'root';
+    const password = comp.props.Password || comp.props.Senha || '';
+    const vendorLib = comp.props.VendorLib || 'libmysql.dll';
+
+    if (titleEl) titleEl.innerText = `FireDAC Connection Editor — [${comp.name || comp.id}]`;
+    if (nameEl) nameEl.value = comp.name || comp.id;
+    if (driverEl) driverEl.value = driver;
+    if (serverEl) serverEl.value = server;
+    if (portEl) portEl.value = port;
+    if (dbEl) dbEl.value = db;
+    if (userEl) userEl.value = userName;
+    if (passEl) passEl.value = password;
+    if (vendorEl) vendorEl.value = vendorLib;
+    if (statusEl) {
+      statusEl.innerHTML = '<span style="color:#9aa7b8;">Aguardando teste...</span>';
+    }
+
+    if (modal) modal.style.display = 'flex';
+  }
+
+  closeConnectionEditor() {
+    const modal = document.getElementById('connectionEditorModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  onConnectionDriverChange(driver) {
+    const portEl = document.getElementById('connPortInput');
+    const userEl = document.getElementById('connUserInput');
+    const passEl = document.getElementById('connPasswordInput');
+    const vendorEl = document.getElementById('connVendorLibInput');
+    const dbEl = document.getElementById('connDatabaseInput');
+
+    if (driver === 'MySQL') {
+      if (portEl) portEl.value = 3306;
+      if (userEl) userEl.value = 'root';
+      if (passEl) passEl.value = '';
+      if (vendorEl) vendorEl.value = 'libmysql.dll';
+      if (dbEl) dbEl.value = 'loja_vox';
+    } else if (driver === 'MSSQL' || driver === 'SQLServer') {
+      if (portEl) portEl.value = 1433;
+      if (userEl) userEl.value = 'sa';
+      if (passEl) passEl.value = '';
+      if (vendorEl) vendorEl.value = 'sqlncli11.dll';
+      if (dbEl) dbEl.value = 'master';
+    } else if (driver === 'Firebird') {
+      if (portEl) portEl.value = 3050;
+      if (userEl) userEl.value = 'SYSDBA';
+      if (passEl) passEl.value = 'masterkey';
+      if (vendorEl) vendorEl.value = 'fbclient.dll';
+      if (dbEl) dbEl.value = 'C:\\dados\\banco.fdb';
+    } else if (driver === 'PostgreSQL') {
+      if (portEl) portEl.value = 5432;
+      if (userEl) userEl.value = 'postgres';
+      if (passEl) passEl.value = '';
+      if (vendorEl) vendorEl.value = 'libpq.dll';
+      if (dbEl) dbEl.value = 'postgres';
+    } else if (driver === 'SQLite') {
+      if (portEl) portEl.value = 0;
+      if (userEl) userEl.value = '';
+      if (passEl) passEl.value = '';
+      if (vendorEl) vendorEl.value = 'sqlite3.dll';
+      if (dbEl) dbEl.value = 'clientes.db';
+    } else if (driver === 'Oracle') {
+      if (portEl) portEl.value = 1521;
+      if (userEl) userEl.value = 'system';
+      if (passEl) passEl.value = '';
+      if (vendorEl) vendorEl.value = 'oci.dll';
+      if (dbEl) dbEl.value = 'XE';
+    }
+  }
+
+  browseDatabaseFile() {
+    const driver = document.getElementById('connDriverSelect')?.value || 'MySQL';
+    const dbEl = document.getElementById('connDatabaseInput');
+    if (!dbEl) return;
+    
+    let sample = '';
+    if (driver === 'Firebird') sample = 'C:\\Projetos\\Banco\\dados.fdb';
+    else if (driver === 'SQLite') sample = 'banco.db';
+    else if (driver === 'MySQL') sample = 'loja_vox';
+    else if (driver === 'MSSQL' || driver === 'SQLServer') sample = 'master';
+    else sample = 'database_vox';
+
+    const chosen = prompt(`Informe o caminho ou nome da base de dados (${driver}):`, dbEl.value || sample);
+    if (chosen !== null) {
+      dbEl.value = chosen;
+    }
+  }
+
+  selectCommonVendorLib() {
+    const vendorEl = document.getElementById('connVendorLibInput');
+    const driver = document.getElementById('connDriverSelect')?.value || 'MySQL';
+    if (!vendorEl) return;
+
+    let options = [];
+    if (driver === 'MySQL') {
+      options = [
+        'libmysql.dll (MySQL Client Oficial)',
+        'C:\\Program Files\\MySQL\\MySQL Server 8.0\\lib\\libmysql.dll',
+        'libmariadb.dll (MariaDB Connector C)',
+        'libmysqlclient.so (Linux)'
+      ];
+    } else if (driver === 'MSSQL' || driver === 'SQLServer') {
+      options = [
+        'sqlncli11.dll (SQL Server Native Client 11.0)',
+        'msodbcsql17.dll (ODBC Driver 17 for SQL Server)',
+        'msodbcsql18.dll (ODBC Driver 18 for SQL Server)'
+      ];
+    } else if (driver === 'Firebird') {
+      options = [
+        'fbclient.dll (Firebird 2.5 / 3.0 / 4.0 / 5.0)',
+        'C:\\Program Files\\Firebird\\Firebird_3_0\\fbclient.dll',
+        'gds32.dll (Compatibilidade legada InterBase/Firebird)',
+        'libfbclient.so (Linux)',
+        'libfbclient.dylib (macOS)'
+      ];
+    } else if (driver === 'PostgreSQL') {
+      options = [
+        'libpq.dll (PostgreSQL Client)',
+        'C:\\Program Files\\PostgreSQL\\16\\bin\\libpq.dll',
+        'libpq.so (Linux)'
+      ];
+    } else {
+      options = [
+        'sqlite3.dll (SQLite3 C Engine)',
+        'oci.dll (Oracle Call Interface)'
+      ];
+    }
+
+    const msg = `Selecione ou copie a DLL para o driver ${driver}:\n\n` + options.map((o, i) => `${i + 1}) ${o}`).join('\n') + `\n\nDigite o número (1-${options.length}) ou o caminho:`;
+    const ans = prompt(msg, options[0].split(' ')[0]);
+    if (ans) {
+      const idx = parseInt(ans) - 1;
+      if (!isNaN(idx) && options[idx]) {
+        vendorEl.value = options[idx].split(' ')[0];
+      } else {
+        vendorEl.value = ans;
+      }
+    }
+  }
+
+  togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+  }
+
+  async testDatabaseConnection() {
+    const statusEl = document.getElementById('connTestStatus');
+    if (statusEl) {
+      statusEl.innerHTML = '<span style="color:#38bdf8;">⏳ Testando conexão com o banco de dados...</span>';
+    }
+
+    const driver = document.getElementById('connDriverSelect')?.value || 'MySQL';
+    const ip = document.getElementById('connServerInput')?.value || '127.0.0.1';
+    const porta = parseInt(document.getElementById('connPortInput')?.value || '3306', 10);
+    const database = document.getElementById('connDatabaseInput')?.value || '';
+    const login = document.getElementById('connUserInput')?.value || 'root';
+    const senha = document.getElementById('connPasswordInput')?.value || '';
+    const vendorLib = document.getElementById('connVendorLibInput')?.value || '';
+
+    const payload = {
+      driver,
+      ip,
+      server: ip,
+      porta,
+      port: porta,
+      database,
+      login,
+      userName: login,
+      user: login,
+      senha,
+      password: senha,
+      vendorLib
+    };
+
+    try {
+      const res = await fetch('/api/db/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success || data.connected) {
+        let dllInfo = data.details?.vendorLib && data.details.vendorLib !== 'N/A' ? `<br><small style="color:#38bdf8;">📦 ${data.details.vendorLib}</small>` : '';
+        statusEl.innerHTML = `<span style="color:#22c55e; font-weight:bold;">${data.message || '✅ Conexão estabelecida com sucesso!'} (${data.pingMs || 1}ms)</span>${dllInfo}`;
+      } else {
+        let dllInfo = data.details?.vendorLib && data.details.vendorLib !== 'N/A' ? `<br><small style="color:#f59e0b;">📦 ${data.details.vendorLib}</small>` : '';
+        statusEl.innerHTML = `<span style="color:#ef4444; font-weight:bold;">${data.message || data.error || '❌ Falha na conexão: host inacessível'}</span>${dllInfo}`;
+      }
+    } catch (e) {
+      if (statusEl) {
+        statusEl.innerHTML = `<span style="color:#ef4444;">❌ Erro ao testar: ${e.message}</span>`;
+      }
+    }
+  }
+
+  applyConnectionEditor() {
+    if (!this.activeConnectionCompId) return;
+    const comp = this.designer.form.components.find(c => c.id === this.activeConnectionCompId);
+    if (!comp) return;
+
+    comp.props = comp.props || comp.properties || {};
+    const driver = document.getElementById('connDriverSelect')?.value || 'MySQL';
+    const server = document.getElementById('connServerInput')?.value || '127.0.0.1';
+    const port = parseInt(document.getElementById('connPortInput')?.value || '3306', 10);
+    const database = document.getElementById('connDatabaseInput')?.value || '';
+    const userName = document.getElementById('connUserInput')?.value || 'root';
+    const password = document.getElementById('connPasswordInput')?.value || '';
+    const vendorLib = document.getElementById('connVendorLibInput')?.value || '';
+
+    // Save properties using English-only names
+    comp.props.DriverName = driver;
+    comp.props.Server = server;
+    comp.props.Port = port;
+    comp.props.UserName = userName;
+    comp.props.Password = password;
+    comp.props.Database = database;
+    comp.props.VendorLib = vendorLib;
+    comp.props.Connected = true;
+
+    // Remove legacy Portuguese-named duplicates
+    delete comp.props.IP;
+    delete comp.props.Porta;
+    delete comp.props.Login;
+    delete comp.props.Senha;
+    delete comp.props.Driver;
+    delete comp.props.Host;
+
+    // Sincronizar comp.properties caso exista
+    if (comp.properties) {
+      comp.properties = Object.assign(comp.properties, comp.props);
+    }
+
+    this.isDirty = true;
+    this.designer.render();
+    if (this.inspector && this.designer.selectedComponent?.id === comp.id) {
+      this.inspector.update(comp);
+    }
+
+    this.closeConnectionEditor();
+
+    // Notificação na barra de status
+    const sb = document.getElementById('sbServerStatus');
+    if (sb) {
+      const orig = sb.innerText;
+      sb.innerText = `⚡ vox_Connection (${driver} -> ${server}:${port} | User: ${userName}) configurado e salvo com sucesso!`;
+      sb.style.color = '#38bdf8';
+      setTimeout(() => {
+        sb.innerText = orig;
+        sb.style.color = '#22c55e';
+      }, 4000);
+    }
+  }
+
+  // ==========================================================================
+  // INSTALADOR DE PACOTES DE COMPONENTES (.vdpk)
+  // ==========================================================================
+  openInstallPackageModal() {
+    const modal = document.getElementById('installPackageModal');
+    const input = document.getElementById('packageCodeInput');
+    const status = document.getElementById('pkgInstallStatus');
+
+    if (input && !input.value.trim()) {
+      this.loadDefaultPackageTemplate();
+    }
+    if (status) status.innerText = '';
+    if (modal) modal.style.display = 'flex';
+  }
+
+  closeInstallPackageModal() {
+    const modal = document.getElementById('installPackageModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async loadDefaultPackageTemplate() {
+    const input = document.getElementById('packageCodeInput');
+    if (!input) return;
+    try {
+      const res = await fetch('/templates/component_template.vdpk');
+      if (res.ok) {
+        input.value = await res.text();
+      } else {
+        throw new Error('Template não encontrado via HTTP');
+      }
+    } catch (e) {
+      // Fallback embutido
+      input.value = `package VoxCustomControls;\n\nrequires\n    vox_rtl,\n    vox_vcl;\n\ncontains\n    vox_RatingStars in 'vox_RatingStars.vox';\n\nclasse vox_RatingStars herda vox_Panel {\n    pub let mut StarsCount: i32;\n    pub let mut Rating: f32;\n    pub let mut ActiveColor: string;\n\n    procedimento Inicializar() {\n        this.width = 140;\n        this.height = 32;\n        this.StarsCount = 5;\n        this.Rating = 4.0;\n        this.ActiveColor = "#ffca28";\n    }\n}\n\nprocedimento Register() {\n    RegisterComponents("Custom", [\n        vox_RatingStars\n    ]);\n}\n`;
+    }
+  }
+
+  async installPackageFromVdpk() {
+    const input = document.getElementById('packageCodeInput');
+    const status = document.getElementById('pkgInstallStatus');
+    const code = input ? input.value.trim() : '';
+
+    if (!code) {
+      if (status) status.innerHTML = '<span style="color:#ef4444;">O código do pacote não pode estar vazio!</span>';
+      return;
+    }
+
+    if (status) status.innerHTML = '<span style="color:#38bdf8;">Compilando pacote .vdpk...</span>';
+
+    try {
+      // Extrair nome do pacote: package Nome;
+      const pkgMatch = code.match(/package\s+([a-zA-Z0-9_]+)/);
+      const pkgName = pkgMatch ? pkgMatch[1] : 'VoxCustomPackage';
+
+      // Extrair componentes registrados: RegisterComponents("Categoria", [Comp1, Comp2])
+      const regMatch = code.match(/RegisterComponents\s*\(\s*["']([^"']+)["']\s*,\s*\[([^\]]+)\]/);
+      const category = regMatch ? regMatch[1] : 'Custom';
+      let compNames = [];
+      if (regMatch) {
+        compNames = regMatch[2].split(',').map(s => s.trim()).filter(Boolean);
+      } else {
+        const classMatch = code.match(/classe\s+([a-zA-Z0-9_]+)/);
+        if (classMatch) compNames.push(classMatch[1]);
+      }
+
+      // Salvar no backend
+      const res = await fetch('/api/components/install-package', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          packageName: pkgName,
+          packageCode: code,
+          components: compNames
+        })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Registrar dinamicamente cada componente na IDE
+        compNames.forEach(name => {
+          if (window.registerCustomComponent) {
+            window.registerCustomComponent(name, category, '⭐');
+          }
+        });
+
+        // Atualizar a Tool Palette
+        if (this.palette) {
+          this.palette.render();
+        }
+
+        if (status) {
+          status.innerHTML = `<span style="color:#22c55e; font-weight:bold;">✅ Pacote "${pkgName}" instalado com sucesso! [${compNames.join(', ')}] na categoria "${category}"</span>`;
+        }
+
+        setTimeout(() => {
+          this.closeInstallPackageModal();
+        }, 1800);
+      } else {
+        if (status) status.innerHTML = `<span style="color:#ef4444;">Falha ao compilar pacote: ${data.error}</span>`;
+      }
+    } catch (e) {
+      if (status) status.innerHTML = `<span style="color:#ef4444;">Erro na instalação: ${e.message}</span>`;
+    }
+  }
+
+  // ==========================================================================
+  // LIVRO DE CONSTRUÇÃO DE COMPONENTES VOX (.vdpk)
+  // ==========================================================================
+  openComponentBook() {
+    const modal = document.getElementById('componentBookModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      this.loadBookChapter(1);
+    }
+  }
+
+  closeComponentBook() {
+    const modal = document.getElementById('componentBookModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  openBookInNewTab() {
+    window.open('/livro', '_blank');
+  }
+
+  exportBookPdf() {
+    // Abre a versão completa em HTML com o gatilho automático de impressão/salvar em PDF
+    window.open('/livro?print=1', '_blank');
+  }
+
+  async loadBookChapter(chapNum) {
+    document.querySelectorAll('.book-chapter-item').forEach(item => {
+      if (parseInt(item.dataset.chapter) === chapNum) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+
+    const pane = document.getElementById('bookContentPane');
+    if (!pane) return;
+
+    pane.innerHTML = '<div style="color:#38bdf8; padding: 20px;">Carregando capítulo do livro...</div>';
+
+    try {
+      const res = await fetch('/docs/LIVRO_CONSTRUCAO_COMPONENTES_VOX.md');
+      if (res.ok) {
+        const fullMd = await res.text();
+        // Separar capítulos por ## Capítulo \d+:
+        const chapters = fullMd.split(/(?=## Capítulo \d+:)/g);
+        let content = '';
+        if (chapNum === 1 && chapters.length > 0) {
+          // O capítulo 1 vem com a introdução do livro
+          content = chapters[0] + (chapters[1] ? '\n\n' + chapters[1] : '');
+        } else if (chapters[chapNum]) {
+          content = chapters[chapNum];
+        } else {
+          content = chapters[chapNum - 1] || 'Capítulo não encontrado.';
+        }
+
+        // Renderizador simples de Markdown para HTML
+        pane.innerHTML = this.renderMarkdown(content);
+      } else {
+        throw new Error('Falha ao carregar documento');
+      }
+    } catch (e) {
+      pane.innerHTML = `<div style="color:#ef4444;">Erro ao carregar livro: ${e.message}</div>`;
+    }
+  }
+
+  renderMarkdown(md) {
+    if (!md) return '';
+    let html = md
+      // Escapar tags HTML literais
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Headers
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      // Blocos de código ```vox ... ```
+      .replace(/```([a-z]*)\n([\s\S]*?)```/gim, (m, lang, code) => {
+        return `<pre><code class="lang-${lang}">${code.trim()}</code></pre>`;
+      })
+      // Inline code `...`
+      .replace(/`([^`]+)`/gim, '<code>$1</code>')
+      // Bold
+      .replace(/\*\*([^*]+)\*\*/gim, '<strong>$1</strong>')
+      // Blockquotes
+      .replace(/^\> (.*$)/gim, '<div class="book-callout">$1</div>')
+      // Tabela simples
+      .replace(/\|(.+)\|/gim, (match) => {
+        const cols = match.split('|').filter(c => c.trim().length > 0);
+        if (cols.some(c => c.includes('---'))) return '';
+        const cells = cols.map(c => `<td>${c.trim()}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+      })
+      // Quebras de parágrafo
+      .replace(/\n\n/gim, '<br><br>');
+
+    // Envolver tabelas
+    html = html.replace(/(<tr>[\s\S]+?<\/tr>)+/gim, '<div style="overflow-x: auto;"><table class="book-table">$&</table></div>');
+
+    return html;
+  }
+
+  // --------------------------------------------------------------------------
+  // 15. Assistente de Criação de Classes Vox (Class Wizard & MVC)
+  // --------------------------------------------------------------------------
+  openNewClassModal() {
+    const modal = document.getElementById('newClassModal');
+    if (!modal) return;
+    this.updateNewClassPreview();
+    modal.style.display = 'flex';
+  }
+
+  closeNewClassModal() {
+    const modal = document.getElementById('newClassModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  onNewClassPatternChange() {
+    const pattern = document.getElementById('ncPatternType').value;
+    const nameInput = document.getElementById('ncClassName');
+    const fileInput = document.getElementById('ncFileName');
+    const superInput = document.getElementById('ncSuperClass');
+
+    if (pattern === 'Model') {
+      nameInput.value = 'TClienteModel';
+      fileInput.value = 'cliente_model.vox';
+      superInput.value = 'TObject';
+    } else if (pattern === 'Controller') {
+      nameInput.value = 'TClienteController';
+      fileInput.value = 'cliente_controller.vox';
+      superInput.value = 'TObject';
+    } else if (pattern === 'Interface') {
+      nameInput.value = 'IClienteService';
+      fileInput.value = 'icliente_service.vox';
+      superInput.value = '';
+    } else {
+      nameInput.value = 'TMinhaClasse';
+      fileInput.value = 'minha_classe.vox';
+      superInput.value = 'TObject';
+    }
+    this.updateNewClassPreview();
+  }
+
+  generateNewClassCode() {
+    const className = document.getElementById('ncClassName')?.value.trim() || 'TMinhaClasse';
+    const pattern = document.getElementById('ncPatternType')?.value || 'Model';
+    const superClass = document.getElementById('ncSuperClass')?.value.trim();
+    const hasPrivate = document.getElementById('ncSecPrivate')?.checked;
+    const hasPublished = document.getElementById('ncSecPublished')?.checked;
+    const hasPublic = document.getElementById('ncSecPublic')?.checked;
+
+    let code = `// ==============================================================================\n`;
+    code += `// ${className}.vox — Unidade da Arquitetura MVC gerada pelo Vox Studio\n`;
+    code += `// ==============================================================================\n\n`;
+    code += `import Vox_UI, Vox_Database, Vox_SysUtils;\n\n`;
+
+    const heranca = superClass ? ` herda ${superClass}` : '';
+
+    if (pattern === 'Interface') {
+      code += `interface ${className} {\n`;
+      code += `    fn Validar(dados: any) -> bool;\n`;
+      code += `    fn Salvar(dados: any) -> bool;\n`;
+      code += `    fn Excluir(id: int) -> bool;\n`;
+      code += `    fn BuscarPorId(id: int) -> any;\n`;
+      code += `}\n`;
+      return code;
+    }
+
+    code += `classe ${className}${heranca} {\n`;
+
+    if (hasPrivate) {
+      code += `private:\n`;
+      if (pattern === 'Model') {
+        code += `    var _id: int;\n`;
+        code += `    var _ativo: bool;\n`;
+      } else if (pattern === 'Controller') {
+        code += `    var _model: any;\n`;
+      } else {
+        code += `    var _internalState: int;\n`;
+      }
+      code += `\n`;
+    }
+
+    if (hasPublished) {
+      code += `published:\n`;
+      if (pattern === 'Model') {
+        code += `    var Codigo: str;\n`;
+        code += `    var Nome: str;\n`;
+        code += `    var Valor: float;\n`;
+      } else if (pattern === 'Controller') {
+        code += `    var UltimaMensagem: str;\n`;
+        code += `    var TotalRegistros: int;\n`;
+      } else {
+        code += `    var Nome: str;\n`;
+      }
+      code += `\n`;
+    }
+
+    if (hasPublic) {
+      code += `public:\n`;
+      code += `    new() {\n`;
+      if (pattern === 'Model') {
+        code += `        this._id = 0;\n`;
+        code += `        this._ativo = true;\n`;
+        code += `        this.Codigo = "";\n`;
+        code += `        this.Nome = "";\n`;
+        code += `        this.Valor = 0.0;\n`;
+      } else if (pattern === 'Controller') {
+        code += `        this.UltimaMensagem = "Pronto";\n`;
+        code += `        this.TotalRegistros = 0;\n`;
+      }
+      code += `        println("${className} inicializado com sucesso.");\n`;
+      code += `    }\n\n`;
+
+      if (pattern === 'Model') {
+        code += `    public fn Validar() -> bool {\n`;
+        code += `        return len(this.Nome) > 0;\n`;
+        code += `    }\n\n`;
+        code += `    public procedure Salvar() {\n`;
+        code += `        println("Gravando ${className} no banco de dados...");\n`;
+        code += `    }\n`;
+      } else if (pattern === 'Controller') {
+        code += `    public procedure ProcessarAcao(acao: str) {\n`;
+        code += `        println("[CONTROLLER] Executando: " + acao);\n`;
+        code += `    }\n`;
+      } else {
+        code += `    public procedure Executar() {\n`;
+        code += `        println("${className}.Executar() executado.");\n`;
+        code += `    }\n`;
+      }
+    }
+
+    code += `}\n`;
+    return code;
+  }
+
+  updateNewClassPreview() {
+    const previewEl = document.getElementById('ncCodePreview');
+    if (!previewEl) return;
+    previewEl.textContent = this.generateNewClassCode();
+  }
+
+  async confirmCreateNewClass() {
+    const className = document.getElementById('ncClassName')?.value.trim();
+    const fileName = document.getElementById('ncFileName')?.value.trim();
+    const autoInject = document.getElementById('ncAutoInjectImport')?.checked;
+    const openInEditor = document.getElementById('ncOpenInEditor')?.checked;
+
+    if (!className || !fileName) {
+      alert('Por favor, informe o nome da classe e do arquivo.');
+      return;
+    }
+
+    const code = this.generateNewClassCode();
+
+    try {
+      const res = await fetch('/api/project/create-class', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          className,
+          fileName,
+          folder: 'src',
+          code
+        })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao criar classe');
+      }
+
+      this.closeNewClassModal();
+      this.showToast(`🏛️ Classe ${className} criada em ${data.relPath}!`);
+
+      // 1. Injetar import na unit do formulário ativo se selecionado
+      if (autoInject) {
+        const unitName = fileName.replace(/\.vox$/i, '');
+        this.injectImportIntoCurrentForm(unitName);
+      }
+
+      // 2. Abrir no editor se selecionado
+      if (openInEditor) {
+        this.switchView('code');
+        this.editor.setCode(code);
+      }
+
+      // 3. Atualizar Project Manager
+      this.addUnitToProjectManager(data.relPath || fileName);
+    } catch (err) {
+      alert('Falha ao criar classe: ' + err.message);
+    }
+  }
+
+  injectImportIntoCurrentForm(unitName) {
+    let currentCode = this.editor.getCode();
+    if (!currentCode) {
+      currentCode = window.VoxCodeGen.generateVoxCode(this.designer.form);
+    }
+
+    // Se já contém a unit, não duplica
+    const importRegex = new RegExp(`\\b${unitName}\\b`);
+    if (importRegex.test(currentCode)) return;
+
+    // Se já tem linha import ..., injeta na lista
+    if (/^[ \t]*import[ \t]+([^;]+);/m.test(currentCode)) {
+      currentCode = currentCode.replace(/^[ \t]*import[ \t]+([^;]+);/m, (match, units) => {
+        return `import ${units.trim()}, ${unitName};`;
+      });
+    } else {
+      currentCode = `import ${unitName};\n` + currentCode;
+    }
+
+    this.editor.setCode(currentCode);
+    this.showToast(`🔗 Unidade '${unitName}' adicionada ao import da tela atual!`);
+  }
+
+  addUnitToProjectManager(filePath) {
+    const list = document.querySelector('.project-tree ul');
+    if (!list) return;
+    const baseName = filePath.split(/[/\\]/).pop();
+    const li = document.createElement('li');
+    li.style.cursor = 'pointer';
+    li.style.display = 'flex';
+    li.style.alignItems = 'center';
+    li.style.gap = '6px';
+    li.innerHTML = `<span>📄</span><span>${baseName}</span>`;
+    li.onclick = () => {
+      this.switchView('code');
+    };
+    list.appendChild(li);
+  }
+
+  // --------------------------------------------------------------------------
+  // 16. Criar Projeto a partir de Exemplo com Escolha de Pasta
+  // --------------------------------------------------------------------------
+  openCreateFromExampleModal(templateKey = 'erpCompleto') {
+    const modal = document.getElementById('createFromExampleModal');
+    if (!modal) return;
+
+    const select = document.getElementById('cfeTemplateSelect');
+    if (select) select.value = templateKey;
+    this.onCfeTemplateChange();
+    modal.style.display = 'flex';
+  }
+
+  closeCreateFromExampleModal() {
+    const modal = document.getElementById('createFromExampleModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  onCfeTemplateChange() {
+    const templateKey = document.getElementById('cfeTemplateSelect')?.value || 'erpCompleto';
+    const nameInput = document.getElementById('cfeProjectName');
+    const titleEl = document.getElementById('cfeDescriptionTitle');
+    const textEl = document.getElementById('cfeDescriptionText');
+
+    if (templateKey === 'erpCompleto') {
+      nameInput.value = 'VoxERP_Comercial';
+      titleEl.innerHTML = '🌟 ERP Completo MVC (Clientes NF-e, Produtos, Estoque, PDV):';
+      textEl.innerHTML = '• <strong>Models:</strong> Clientes NF-e com 17 campos fiscais (Razão Social, CNPJ/CPF, IE, Município IBGE, CRT), Produtos com tributos (NCM, CEST, CFOP) e Estoque.<br>• <strong>Controllers:</strong> Validações de CNPJ/CPF, regras de negócio e cálculo de troco.<br>• <strong>Views:</strong> Formulários visuais RAD sincronizados (.vxf e .vox) prontos para compilar para web.';
+    } else if (templateKey === 'crudClientes') {
+      nameInput.value = 'Projeto_Clientes';
+      titleEl.innerHTML = '📋 Cadastro de Clientes (SQLite CRUD):';
+      textEl.innerHTML = 'Formulário tradicional de clientes com menu no topo, navegação por vox_DBNavigator, vox_Connection e vox_Query SQLite.';
+    } else if (templateKey === 'sistemaSidebar') {
+      nameInput.value = 'Sistema_Sidebar';
+      titleEl.innerHTML = '📑 Sistema Comercial com Menu Lateral (Sidebar):';
+      textEl.innerHTML = 'Interface moderna com menu vertical fixo à esquerda e área dinâmica de trabalho à direita.';
+    } else if (templateKey === 'pdv') {
+      nameInput.value = 'PDV_FrenteDeCaixa';
+      titleEl.innerHTML = '🛒 PDV Frente de Caixa:';
+      textEl.innerHTML = 'Frente de caixa rápida com leitor de código de barras, subtotal dinâmico e painel de formas de pagamento.';
+    } else if (templateKey === 'lacosBancoDados') {
+      nameInput.value = 'Lacos_Banco_Dados';
+      titleEl.innerHTML = '🔄 Laços no Banco de Dados (While, For..in, Break, Cursor):';
+      textEl.innerHTML = 'Demonstração prática de laços <code>while !Query.eof()</code> com avanço por cursor, <code>for registro in array</code>, acumuladores de totais, contadores e controle de fluxo com <code>break</code> e <code>continue</code>.';
+    } else if (templateKey === 'relatorioVendas') {
+      nameInput.value = 'Relatorio_Vendas_Delphi';
+      titleEl.innerHTML = '📑 Relatório de Vendas (Delphi QuickReport HTML/PDF):';
+      textEl.innerHTML = 'Relatório orientado a faixas (Title, PageHeader, Detail, Summary, PageFooter) com geração semântica de HTML e exportação direta para PDF.';
+    } else {
+      nameInput.value = 'Calculadora_RAD';
+      titleEl.innerHTML = '🔢 Calculadora RAD:';
+      textEl.innerHTML = 'Calculadora visual com grid de botões e display LCD.';
+    }
+
+    this.setCfeFolder('projetos');
+  }
+
+  setCfeFolder(baseFolder) {
+    const projName = document.getElementById('cfeProjectName')?.value.trim() || 'NovoProjeto';
+    const folderInput = document.getElementById('cfeTargetFolder');
+    if (folderInput) {
+      folderInput.value = `${baseFolder}/${projName}`;
+      this.updateCfePreview();
+    }
+  }
+
+  updateCfePreview() {
+    const folderInput = document.getElementById('cfeTargetFolder');
+    const previewEl = document.getElementById('cfeFolderPreview');
+    if (folderInput && previewEl) {
+      previewEl.textContent = `Destino: D:/Projetos AntiGravity/linguagem/${folderInput.value}`;
+    }
+  }
+
+  loadTemplateFromModal() {
+    const templateKey = document.getElementById('cfeTemplateSelect')?.value || 'erpCompleto';
+    this.closeCreateFromExampleModal();
+    this.loadExampleTemplate(templateKey);
+  }
+
+  async confirmCreateProjectFromExample() {
+    const templateKey = document.getElementById('cfeTemplateSelect')?.value || 'erpCompleto';
+    const projectName = document.getElementById('cfeProjectName')?.value.trim() || 'NovoProjeto';
+    const targetFolder = document.getElementById('cfeTargetFolder')?.value.trim() || `projetos/${projectName}`;
+
+    try {
+      this.showToast('🚀 Gerando projeto na pasta escolhida...');
+      const res = await fetch('/api/project/create-from-example', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exampleKey: templateKey,
+          projectName,
+          targetFolder
+        })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao criar projeto');
+      }
+
+      this.closeCreateFromExampleModal();
+      this.showToast(`🎉 Projeto ${projectName} criado com sucesso em ${targetFolder}/!`);
+
+      // Carregar o modelo correspondente no designer da IDE
+      this.loadTemplate(templateKey);
+
+      // Atualizar o nome do projeto no título e cabeçalho
+      const projTitle = document.querySelector('.project-header span');
+      if (projTitle) projTitle.textContent = `${projectName}.dproj - Projects`;
+    } catch (err) {
+      alert('Falha ao criar projeto: ' + err.message);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Integração com o GitHub & Controle de Versão Git (Delphi 12 Style)
+  // --------------------------------------------------------------------------
+  async openGitDialog(initialTab = 'commit') {
+    const modal = document.getElementById('gitModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    this.switchGitTab(initialTab);
+    await this.refreshGitStatus();
+  }
+
+  closeGitModal() {
+    const modal = document.getElementById('gitModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  switchGitTab(tabName) {
+    const tabs = ['commit', 'settings', 'log'];
+    tabs.forEach(t => {
+      const btn = document.getElementById(`gitTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+      const content = document.getElementById(`gitTabContent${t.charAt(0).toUpperCase() + t.slice(1)}`);
+      if (btn) btn.classList.toggle('active', t === tabName);
+      if (content) content.style.display = (t === tabName) ? 'flex' : 'none';
+    });
+  }
+
+  appendGitLog(msg) {
+    const terminal = document.getElementById('gitLogTerminal');
+    if (!terminal) return;
+    const time = new Date().toLocaleTimeString();
+    terminal.textContent += `[${time}] ${msg}\n`;
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  async refreshGitStatus() {
+    const badgeBranch = document.getElementById('gitBadgeBranch');
+    const badgeRemote = document.getElementById('gitBadgeRemote');
+    const badgePending = document.getElementById('gitBadgePending');
+    const filesList = document.getElementById('gitFilesListContainer');
+    const filesCount = document.getElementById('gitFilesCount');
+
+    const cfgUser = document.getElementById('gitCfgUserName');
+    const cfgEmail = document.getElementById('gitCfgUserEmail');
+    const cfgRemote = document.getElementById('gitCfgRemoteUrl');
+
+    if (badgePending) badgePending.innerHTML = '⏳ Verificando...';
+
+    try {
+      const res = await fetch('/api/git/status');
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao consultar status');
+      }
+
+      // Atualizar badges
+      if (badgeBranch) badgeBranch.innerText = data.branch || 'main';
+      if (badgeRemote) {
+        const shortRemote = (data.remoteUrl || 'origin').replace('git@github.com:', '').replace('https://github.com/', '');
+        badgeRemote.innerText = `🔗 ${shortRemote}`;
+        badgeRemote.title = data.remoteUrl || 'origin';
+      }
+
+      // Preencher campos de configuração
+      if (cfgUser && data.userName) cfgUser.value = data.userName;
+      if (cfgEmail && data.userEmail) cfgEmail.value = data.userEmail;
+      if (cfgRemote && data.remoteUrl) cfgRemote.value = data.remoteUrl;
+
+      // Status de arquivos
+      if (data.clean) {
+        if (badgePending) {
+          badgePending.style.background = '#064e3b';
+          badgePending.style.color = '#34d399';
+          badgePending.innerHTML = '🟢 Sincronizado (Tudo limpo)';
+        }
+        if (filesCount) filesCount.innerText = '0 alterados';
+        if (filesList) {
+          filesList.innerHTML = '<div style="color: #64748b; padding: 12px; text-align: center;">✓ Nenhum arquivo alterado. Repositório limpo.</div>';
+        }
+      } else {
+        const count = data.files.length;
+        if (badgePending) {
+          badgePending.style.background = '#451a03';
+          badgePending.style.color = '#fbbf24';
+          badgePending.innerHTML = `🟡 ${count} pendente${count > 1 ? 's' : ''}`;
+        }
+        if (filesCount) filesCount.innerText = `${count} arquivo${count > 1 ? 's' : ''} alterado${count > 1 ? 's' : ''}`;
+
+        if (filesList) {
+          filesList.innerHTML = '';
+          data.files.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'git-file-item';
+            let badgeClass = 'git-badge-m';
+            let badgeText = f.code || 'M';
+            if (f.code.includes('A')) { badgeClass = 'git-badge-a'; badgeText = 'A'; }
+            else if (f.code.includes('D')) { badgeClass = 'git-badge-d'; badgeText = 'D'; }
+            else if (f.code.includes('?')) { badgeClass = 'git-badge-u'; badgeText = '??'; }
+
+            row.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <span class="${badgeClass}">${badgeText}</span>
+                <span style="color: #cbd5e1; font-family: monospace;">${f.path}</span>
+              </div>
+            `;
+            filesList.appendChild(row);
+          });
+        }
+      }
+
+      this.appendGitLog(`Status atualizado: branch '${data.branch}', ${data.files.length} arquivos alterados.`);
+    } catch (err) {
+      if (badgePending) {
+        badgePending.style.background = '#3b1922';
+        badgePending.style.color = '#f87171';
+        badgePending.innerHTML = '🔴 Erro no Git';
+      }
+      this.appendGitLog('Erro ao obter status do Git: ' + err.message);
+    }
+  }
+
+  async gitCommitAndPush() {
+    const commitMsgEl = document.getElementById('gitCommitMessage');
+    const msg = commitMsgEl?.value.trim();
+    if (!msg) {
+      alert('Por favor, digite uma mensagem de commit antes de enviar.');
+      if (commitMsgEl) commitMsgEl.focus();
+      return;
+    }
+
+    const btn = document.getElementById('btnGitCommitAndPush');
+    const token = document.getElementById('gitCfgToken')?.value.trim();
+    const origText = btn ? btn.innerText : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = '⏳ Enviando para GitHub...';
+    }
+
+    this.appendGitLog(`Iniciando Commit & Push: "${msg}"...`);
+    this.showToast('🚀 Enviando alterações para o GitHub...');
+
+    try {
+      const res = await fetch('/api/git/commit-and-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, token })
+      });
+      const data = await res.json();
+
+      if (data.logs && Array.isArray(data.logs)) {
+        data.logs.forEach(l => this.appendGitLog(l));
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Falha ao enviar alterações');
+      }
+
+      this.showToast('🎉 Commit e Push enviados com sucesso para o GitHub!');
+      if (commitMsgEl) commitMsgEl.value = '';
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      this.switchGitTab('log');
+      alert('Erro ao enviar para o GitHub:\n' + err.message);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }
+    }
+  }
+
+  async gitCommitOnly() {
+    const commitMsgEl = document.getElementById('gitCommitMessage');
+    const msg = commitMsgEl?.value.trim();
+    if (!msg) {
+      alert('Por favor, digite uma mensagem de commit.');
+      if (commitMsgEl) commitMsgEl.focus();
+      return;
+    }
+
+    this.appendGitLog(`Executando commit local: "${msg}"...`);
+    try {
+      const res = await fetch('/api/git/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+      if (data.logs) data.logs.forEach(l => this.appendGitLog(l));
+      if (!data.success) throw new Error(data.error);
+
+      this.showToast('💾 Commit local realizado com sucesso!');
+      if (commitMsgEl) commitMsgEl.value = '';
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Erro ao realizar commit: ' + err.message);
+    }
+  }
+
+  async gitPull() {
+    this.openGitDialog('log');
+    this.appendGitLog('Executando git pull...');
+    this.showToast('📥 Atualizando do repositório remoto...');
+    try {
+      const res = await fetch('/api/git/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.logs) data.logs.forEach(l => this.appendGitLog(l));
+      if (!data.success) throw new Error(data.error);
+
+      this.showToast('✅ Repositório atualizado com sucesso!');
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Erro ao atualizar (git pull): ' + err.message);
+    }
+  }
+
+  async gitSaveConfig() {
+    const userName = document.getElementById('gitCfgUserName')?.value.trim();
+    const userEmail = document.getElementById('gitCfgUserEmail')?.value.trim();
+    const remoteUrl = document.getElementById('gitCfgRemoteUrl')?.value.trim();
+    const token = document.getElementById('gitCfgToken')?.value.trim();
+
+    this.appendGitLog('Salvando configurações do Git...');
+    try {
+      const res = await fetch('/api/git/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userName, userEmail, remoteUrl, token })
+      });
+      const data = await res.json();
+      if (data.logs) data.logs.forEach(l => this.appendGitLog(l));
+      if (!data.success) throw new Error(data.error);
+
+      this.showToast('💾 Configurações do Git salvas com sucesso!');
+      this.switchGitTab('commit');
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Erro ao salvar configurações do Git: ' + err.message);
+    }
+  }
+
+  async gitTestRemote() {
+    const remoteUrl = document.getElementById('gitCfgRemoteUrl')?.value.trim();
+    this.appendGitLog(`Testando conexão remota com: ${remoteUrl || 'origin'}...`);
+    try {
+      const res = await fetch('/api/git/test-remote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remote: remoteUrl || 'origin' })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      this.appendGitLog('✓ Conexão remota bem-sucedida!');
+      alert('✓ Conexão com o repositório remoto bem-sucedida!\n\n' + (data.raw || 'OK'));
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Falha ao conectar com o repositório remoto:\n' + err.message);
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  window.app = new VoxStudioApp();
+  window.app.init();
+});

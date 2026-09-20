@@ -1,7 +1,7 @@
 {
   "ProjectGroup": "TestAutoGroup",
   "Projects": [
-    "TestAutoProj.dproj"
+    "TestAutoProj.voxProj"
   ],
   "Created": "2026-09-20T13:41:38.891Z"
 }

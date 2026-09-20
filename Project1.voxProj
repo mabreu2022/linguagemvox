@@ -1,0 +1,12 @@
+{
+  "ProjectName": "Project1",
+  "Version": "1.0.0",
+  "TargetPlatform": "Web Browser (HTML5 + REST)",
+  "OutputType": "Executable",
+  "MainForm": "Form1",
+  "Units": [
+    "Form1.vox",
+    "Form1.vxf"
+  ],
+  "Created": "2026-09-20T21:04:53.653Z"
+}

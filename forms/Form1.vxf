@@ -86,8 +86,8 @@
       "width": 318,
       "height": 160,
       "props": {
-        "DataSource": "vox_DataSource1",
-        "Columns": "id, nome, email, cidade, saldo",
+        "DataSource": "",
+        "Columns": "",
         "ReadOnly": false,
         "Align": "alBottom"
       },

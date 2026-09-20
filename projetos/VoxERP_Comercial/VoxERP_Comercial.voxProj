@@ -1,0 +1,12 @@
+{
+  "ProjectName": "VoxERP_Comercial",
+  "Version": "1.0.0",
+  "TargetPlatform": "Web Browser (HTML5 + REST)",
+  "OutputType": "Executable",
+  "MainForm": "FormERP",
+  "Units": [
+    "FormERP.vox",
+    "FormERP.vxf"
+  ],
+  "Created": "2026-09-20T21:04:03.250Z"
+}

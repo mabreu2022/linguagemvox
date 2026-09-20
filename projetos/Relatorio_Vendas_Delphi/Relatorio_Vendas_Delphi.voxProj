@@ -1,0 +1,12 @@
+{
+  "ProjectName": "Relatorio_Vendas_Delphi",
+  "Version": "1.0.0",
+  "TargetPlatform": "Web Browser (HTML5 + REST)",
+  "OutputType": "Executable",
+  "MainForm": "FormRelatorioVendas",
+  "Units": [
+    "FormRelatorioVendas.vox",
+    "FormRelatorioVendas.vxf"
+  ],
+  "Created": "2026-09-20T21:04:03.260Z"
+}

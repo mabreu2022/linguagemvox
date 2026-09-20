@@ -152,6 +152,56 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
+  // API: Exportação de Relatório para PDF via Chrome Headless
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/report/export-pdf' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const htmlContent = body.html || '<!DOCTYPE html><html><body><h1>Relatório Vox</h1></body></html>';
+      const filename = body.filename || 'relatorio.pdf';
+
+      const tempDir = path.resolve(WORKSPACE_DIR, 'scratch');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+      const tempId = 'report_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+      const tempHtml = path.resolve(tempDir, `${tempId}.html`);
+      const tempPdf = path.resolve(tempDir, `${tempId}.pdf`);
+
+      fs.writeFileSync(tempHtml, htmlContent, 'utf8');
+
+      const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+      if (!fs.existsSync(chromePath)) {
+        return sendJson(res, 500, { error: 'Navegador Chrome não localizado para exportação em PDF' });
+      }
+
+      const { exec } = require('child_process');
+      const cmd = `"${chromePath}" --headless=new --disable-gpu --no-pdf-header-footer "--print-to-pdf=${tempPdf}" "${tempHtml}"`;
+
+      exec(cmd, (err, stdout, stderr) => {
+        try { if (fs.existsSync(tempHtml)) fs.unlinkSync(tempHtml); } catch (e) {}
+
+        if (err || !fs.existsSync(tempPdf)) {
+          return sendJson(res, 500, { error: 'Falha ao gerar arquivo PDF: ' + (err ? err.message : stderr) });
+        }
+
+        const pdfBuffer = fs.readFileSync(tempPdf);
+        try { if (fs.existsSync(tempPdf)) fs.unlinkSync(tempPdf); } catch (e) {}
+
+        res.writeHead(200, {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+          'Content-Length': pdfBuffer.length,
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(pdfBuffer);
+      });
+      return;
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // API: Testar Conexão com Banco de Dados (Estilo FireDAC)
   // --------------------------------------------------------------------------
   if (pathname === '/api/db/test-connection' && req.method === 'POST') {
@@ -296,18 +346,19 @@ const server = http.createServer(async (req, res) => {
             projects.push({
               name: ent.name,
               folder: relPath,
-              file: `${relPath}/${ent.name}.dproj`,
-              type: 'dproj',
+              file: `${relPath}/${ent.name}.voxProj`,
+              type: 'voxProj',
               description: `Projeto ${ent.name}`
             });
           }
           walk(fullPath);
         } else if (ent.isFile()) {
-          const ext = path.extname(ent.name).toLowerCase();
-          const base = path.basename(ent.name, ext);
+          const rawExt = path.extname(ent.name);
+          const ext = rawExt.toLowerCase();
+          const base = rawExt ? ent.name.slice(0, -rawExt.length) : ent.name;
 
           const codeExtensions = new Set(['.vox', '.vxf', '.pas', '.dfm', '.js', '.ts', '.json', '.sql', '.txt', '.html', '.css']);
-          const projectExtensions = new Set(['.dproj', '.vproj', '.dpr', '.vpr']);
+          const projectExtensions = new Set(['.voxproj', '.vproj', '.dproj', '.dpr', '.vpr']);
           const groupExtensions = new Set(['.groupproj', '.vpg', '.vgroup']);
 
           if (codeExtensions.has(ext)) {
@@ -335,13 +386,19 @@ const server = http.createServer(async (req, res) => {
               size
             });
           } else if (projectExtensions.has(ext) || (ext === '.json' && (base.toLowerCase().includes('project') || base.toLowerCase().includes('proj')))) {
-            projects.push({
+            const existingIdx = projects.findIndex(p => p.name === base);
+            const projItem = {
               name: base,
               folder: path.dirname(relPath),
               file: relPath,
-              type: ext.slice(1),
+              type: ext === '.voxproj' ? 'voxProj' : ext.slice(1),
               description: `Projeto ${base}`
-            });
+            };
+            if (existingIdx >= 0) {
+              if (ext === '.voxproj') projects[existingIdx] = projItem;
+            } else {
+              projects.push(projItem);
+            }
           } else if (groupExtensions.has(ext)) {
             groups.push({
               name: base,
@@ -361,8 +418,8 @@ const server = http.createServer(async (req, res) => {
       projects.unshift({
         name: 'VoxERP_Comercial',
         folder: 'projetos/VoxERP_Comercial',
-        file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
-        type: 'dproj',
+        file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.voxProj',
+        type: 'voxProj',
         description: '🌟 ERP Comercial MVC Completo (NF-e, Produtos, PDV)',
         units: ['FormERP.vox', 'FormERP.vxf']
       });
@@ -371,8 +428,8 @@ const server = http.createServer(async (req, res) => {
       projects.push({
         name: 'Projeto_Clientes',
         folder: 'clientes',
-        file: 'clientes/Projeto_Clientes.dproj',
-        type: 'dproj',
+        file: 'clientes/Projeto_Clientes.voxProj',
+        type: 'voxProj',
         description: '📋 Cadastro de Clientes (SQLite CRUD)',
         units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox']
       });
@@ -381,8 +438,8 @@ const server = http.createServer(async (req, res) => {
       projects.push({
         name: 'Sistema_Sidebar',
         folder: 'projetos/Sistema_Sidebar',
-        file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
-        type: 'dproj',
+        file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.voxProj',
+        type: 'voxProj',
         description: '📑 Sistema Comercial (Menu Lateral)',
         units: ['Form1.vox', 'Form1.vxf']
       });
@@ -391,8 +448,8 @@ const server = http.createServer(async (req, res) => {
       projects.push({
         name: 'PDV_FrenteDeCaixa',
         folder: 'projetos/PDV_FrenteDeCaixa',
-        file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
-        type: 'dproj',
+        file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.voxProj',
+        type: 'voxProj',
         description: '🛒 Frente de Caixa (PDV Comercial)',
         units: ['pdv_controller.vox', 'pdv_model.vox', 'pdv_view.vox']
       });
@@ -401,8 +458,8 @@ const server = http.createServer(async (req, res) => {
       projects.push({
         name: 'Calculadora_RAD',
         folder: 'projetos/Calculadora_RAD',
-        file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
-        type: 'dproj',
+        file: 'projetos/Calculadora_RAD/Calculadora_RAD.voxProj',
+        type: 'voxProj',
         description: '🔢 Calculadora RAD',
         units: ['Form1.vox', 'Form1.vxf']
       });
@@ -414,14 +471,14 @@ const server = http.createServer(async (req, res) => {
         file: 'ProjectGroup1.groupproj',
         type: 'groupproj',
         description: 'Grupo Corporativo Principal (ERP + Clientes + PDV)',
-        projects: ['VoxERP_Comercial.dproj', 'Projeto_Clientes.dproj', 'PDV_FrenteDeCaixa.dproj']
+        projects: ['VoxERP_Comercial.voxProj', 'Projeto_Clientes.voxProj', 'PDV_FrenteDeCaixa.voxProj']
       });
       groups.push({
         name: 'EnterpriseSuite',
         file: 'EnterpriseSuite.groupproj',
         type: 'groupproj',
         description: 'Suite Corporativa Multi-Módulos',
-        projects: ['VoxERP_Comercial.dproj', 'Sistema_Sidebar.dproj']
+        projects: ['VoxERP_Comercial.voxProj', 'Sistema_Sidebar.voxProj']
       });
     }
 
@@ -527,7 +584,7 @@ const server = http.createServer(async (req, res) => {
         projFolder = path.dirname(targetPath);
       } else if (fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()) {
         projFolder = targetPath;
-        const potentialProjs = fs.readdirSync(projFolder).filter(f => /\.(dproj|vproj|dpr|vpr)$/i.test(f));
+        const potentialProjs = fs.readdirSync(projFolder).filter(f => /\.(voxproj|dproj|vproj|dpr|vpr)$/i.test(f));
         if (potentialProjs.length > 0) projFile = path.join(projFolder, potentialProjs[0]);
       }
 
@@ -605,8 +662,9 @@ const server = http.createServer(async (req, res) => {
           
           let typeDesc = isDir ? 'Pasta de arquivos' : 'Arquivo';
           if (!isDir) {
-            if (ext === '.dproj') typeDesc = 'Delphi Project';
-            else if (ext === '.vproj' || ext === '.vpr') typeDesc = 'Vox Project';
+            if (ext === '.voxproj') typeDesc = 'Projeto Vox (*.voxProj)';
+            else if (ext === '.dproj') typeDesc = 'Projeto Delphi (*.dproj)';
+            else if (ext === '.vproj' || ext === '.vpr') typeDesc = 'Projeto Vox (*.vproj)';
             else if (ext === '.vox') typeDesc = 'Código Fonte Vox';
             else if (ext === '.vxf') typeDesc = 'Formulário Delphi/Vox';
             else if (ext === '.pas') typeDesc = 'Delphi unit';
@@ -682,13 +740,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
-  // API: Salvar Projeto (.dproj)
+  // API: Salvar Projeto (.voxProj)
   // --------------------------------------------------------------------------
   if (pathname === '/api/project/save-as' && req.method === 'POST') {
     try {
-      const { projectName, folder, content } = await parseBody(req);
+      const { projectName, folder, content, extension } = await parseBody(req);
       let baseName = (projectName || '').trim();
-      if (baseName.toLowerCase().endsWith('.dproj')) baseName = baseName.slice(0, -6);
+      if (baseName.toLowerCase().endsWith('.voxproj')) baseName = baseName.slice(0, -8);
+      else if (baseName.toLowerCase().endsWith('.dproj')) baseName = baseName.slice(0, -6);
       else if (baseName.toLowerCase().endsWith('.vproj')) baseName = baseName.slice(0, -6);
       else if (baseName.toLowerCase().endsWith('.vpr')) baseName = baseName.slice(0, -4);
       const safeName = baseName.replace(/[^a-zA-Z0-9_]/g, '') || 'Project1';
@@ -699,8 +758,9 @@ const server = http.createServer(async (req, res) => {
       }
       fs.mkdirSync(targetDir, { recursive: true });
 
-      const dprojPath = path.join(targetDir, `${safeName}.dproj`);
-      const dprojData = content || JSON.stringify({
+      const chosenExt = (extension && (extension === '.dproj' || extension === '.vproj')) ? extension : '.voxProj';
+      const projFilePath = path.join(targetDir, `${safeName}${chosenExt}`);
+      const projData = content || JSON.stringify({
         ProjectName: safeName,
         Version: '1.0.0',
         TargetPlatform: 'Web Browser (HTML5 + REST)',
@@ -708,14 +768,14 @@ const server = http.createServer(async (req, res) => {
         MainForm: 'Form1',
         Created: new Date().toISOString()
       }, null, 2);
-      fs.writeFileSync(dprojPath, dprojData, 'utf-8');
+      fs.writeFileSync(projFilePath, projData, 'utf-8');
 
       return sendJson(res, 200, {
         success: true,
         projectName: safeName,
         folder: path.relative(WORKSPACE_DIR, targetDir).replace(/\\/g, '/'),
-        filePath: path.relative(WORKSPACE_DIR, dprojPath).replace(/\\/g, '/'),
-        message: `Projeto ${safeName} salvo com sucesso!`
+        filePath: path.relative(WORKSPACE_DIR, projFilePath).replace(/\\/g, '/'),
+        message: `Projeto ${safeName}${chosenExt} salvo com sucesso!`
       });
     } catch (err) {
       return sendJson(res, 500, { success: false, error: err.message });

@@ -1,0 +1,417 @@
+{
+  "name": "vox_form1",
+  "title": "vox_form1",
+  "width": 1128,
+  "height": 656,
+  "components": [
+    {
+      "id": "comp_6",
+      "name": "vox_pagecontrol1",
+      "type": "vox_PageControl",
+      "parent": null,
+      "left": 0,
+      "top": 0,
+      "width": 1126,
+      "height": 626,
+      "props": {
+        "ActivePageIndex": 0,
+        "TabPosition": "tpTop",
+        "Align": "alClient"
+      },
+      "events": {},
+      "_origWidth": 360,
+      "_origHeight": 220,
+      "_origLeft": 32,
+      "_origTop": 16
+    },
+    {
+      "id": "comp_7",
+      "name": "vox_tabsheet1",
+      "type": "vox_TabSheet",
+      "parent": "vox_pagecontrol1",
+      "left": 0,
+      "top": 26,
+      "width": 1126,
+      "height": 600,
+      "props": {
+        "Caption": "Geral",
+        "PageIndex": 0,
+        "ImageIndex": -1,
+        "Align": "alClient"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_8",
+      "name": "vox_tabsheet2",
+      "type": "vox_TabSheet",
+      "parent": "vox_pagecontrol1",
+      "left": 0,
+      "top": 26,
+      "width": 1126,
+      "height": 600,
+      "props": {
+        "Caption": "Detalhes",
+        "PageIndex": 1,
+        "ImageIndex": -1,
+        "Align": "alClient"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_9",
+      "name": "vox_panel1",
+      "type": "vox_Panel",
+      "parent": "vox_tabsheet1",
+      "left": 0,
+      "top": 0,
+      "width": 1126,
+      "height": 600,
+      "props": {
+        "Caption": "",
+        "BevelOuter": "bvRaised",
+        "Color": "#e9ecef",
+        "Align": "alClient",
+        "Alignment": "taCenter"
+      },
+      "events": {},
+      "_origWidth": 200,
+      "_origHeight": 120,
+      "_origLeft": 168,
+      "_origTop": 144
+    },
+    {
+      "id": "comp_10",
+      "name": "vox_panel2",
+      "type": "vox_Panel",
+      "parent": "vox_panel1",
+      "left": 0,
+      "top": 40,
+      "width": 128,
+      "height": 512,
+      "props": {
+        "Caption": "vox_panel2",
+        "BevelOuter": "bvRaised",
+        "Color": "#e9ecef",
+        "Align": "alLeft",
+        "Alignment": "taCenter"
+      },
+      "events": {},
+      "_origWidth": 200,
+      "_origHeight": 120,
+      "_origLeft": 200,
+      "_origTop": 120
+    },
+    {
+      "id": "comp_11",
+      "name": "vox_panel3",
+      "type": "vox_Panel",
+      "parent": "vox_panel1",
+      "left": 0,
+      "top": 552,
+      "width": 1126,
+      "height": 48,
+      "props": {
+        "Caption": "vox_panel3",
+        "BevelOuter": "bvRaised",
+        "Color": "#e9ecef",
+        "Align": "alBottom",
+        "Alignment": "taCenter"
+      },
+      "events": {},
+      "_origWidth": 200,
+      "_origHeight": 120,
+      "_origLeft": 344,
+      "_origTop": 392
+    },
+    {
+      "id": "comp_12",
+      "name": "vox_tabsheet3",
+      "type": "vox_TabSheet",
+      "parent": "vox_pagecontrol1",
+      "left": 0,
+      "top": 26,
+      "width": 1126,
+      "height": 600,
+      "props": {
+        "Caption": "Relatórios",
+        "PageIndex": 2,
+        "ImageIndex": -1,
+        "Align": "alClient"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_13",
+      "name": "vox_dbgrid1",
+      "type": "vox_DBGrid",
+      "parent": "vox_tabsheet2",
+      "left": 0,
+      "top": 0,
+      "width": 1126,
+      "height": 360,
+      "props": {
+        "DataSource": "vox_DataSource1",
+        "Columns": "id, nome, email, cidade, saldo",
+        "ReadOnly": false,
+        "Align": "alTop"
+      },
+      "events": {},
+      "_origWidth": 620,
+      "_origHeight": 180,
+      "_origLeft": 24,
+      "_origTop": 24
+    },
+    {
+      "id": "comp_14",
+      "name": "vox_panel4",
+      "type": "vox_Panel",
+      "parent": "vox_tabsheet2",
+      "left": 0,
+      "top": 568,
+      "width": 1126,
+      "height": 32,
+      "props": {
+        "Caption": "vox_panel4",
+        "BevelOuter": "bvRaised",
+        "Color": "#e9ecef",
+        "Align": "alBottom",
+        "Alignment": "taCenter"
+      },
+      "events": {},
+      "_origWidth": 200,
+      "_origHeight": 120,
+      "_origLeft": 88,
+      "_origTop": 344
+    },
+    {
+      "id": "comp_16",
+      "name": "vox_dbnavigator1",
+      "type": "vox_DBNavigator",
+      "parent": "vox_panel3",
+      "left": 0,
+      "top": 0,
+      "width": 1126,
+      "height": 48,
+      "props": {
+        "DataSource": "vox_DataSource1",
+        "VisibleButtons": "First,Prior,Next,Last,Insert,Delete,Edit,Post,Cancel,Refresh",
+        "Align": "alClient"
+      },
+      "events": {},
+      "_origWidth": 280,
+      "_origHeight": 28,
+      "_origLeft": 328,
+      "_origTop": 24
+    },
+    {
+      "id": "comp_18",
+      "name": "vox_popupmenu1",
+      "type": "vox_PopupMenu",
+      "parent": "vox_tabsheet2",
+      "left": 568,
+      "top": 200,
+      "width": 38,
+      "height": 38,
+      "props": {
+        "Items": "Copiar, Colar, Excluir, Propriedades",
+        "Align": "alNone"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_19",
+      "name": "vox_actionlist1",
+      "type": "vox_ActionList",
+      "parent": "vox_tabsheet2",
+      "left": 680,
+      "top": 200,
+      "width": 38,
+      "height": 38,
+      "props": {
+        "Actions": "actSalvar, actExcluir, actImprimir, actFechar",
+        "Align": "alNone"
+      },
+      "events": {
+        "OnExecute": "vox_actionlist1Execute"
+      }
+    },
+    {
+      "id": "comp_20",
+      "name": "vox_scrollbox1",
+      "type": "vox_ScrollBox",
+      "parent": "vox_tabsheet2",
+      "left": 0,
+      "top": 360,
+      "width": 260,
+      "height": 208,
+      "props": {
+        "Align": "alLeft",
+        "AutoScroll": true,
+        "BorderStyle": "bsSingle",
+        "Color": "#ffffff"
+      },
+      "events": {},
+      "_origWidth": 260,
+      "_origHeight": 96,
+      "_origLeft": 24,
+      "_origTop": 368
+    },
+    {
+      "id": "comp_21",
+      "name": "vox_card1",
+      "type": "vox_Card",
+      "parent": "vox_scrollbox1",
+      "left": 0,
+      "top": 0,
+      "width": 260,
+      "height": 160,
+      "props": {
+        "Title": "Notebook",
+        "Subtitle": "Notebook Acer Nitro V15 ANV15‑52‑51E4",
+        "Elevation": 2,
+        "Align": "alTop"
+      },
+      "events": {},
+      "_origWidth": 200,
+      "_origHeight": 80,
+      "_origLeft": 24,
+      "_origTop": 8
+    },
+    {
+      "id": "comp_22",
+      "name": "vox_dbnavigator2",
+      "type": "vox_DBNavigator",
+      "parent": "vox_panel4",
+      "left": 0,
+      "top": 0,
+      "width": 1126,
+      "height": 32,
+      "props": {
+        "DataSource": "vox_DataSource1",
+        "VisibleButtons": "First,Prior,Next,Last,Insert,Delete,Edit,Post,Cancel,Refresh",
+        "Align": "alClient"
+      },
+      "events": {},
+      "_origWidth": 280,
+      "_origHeight": 28,
+      "_origLeft": 208,
+      "_origTop": 24
+    },
+    {
+      "id": "comp_23",
+      "name": "vox_scrollbox2",
+      "type": "vox_ScrollBox",
+      "parent": "vox_tabsheet2",
+      "left": 260,
+      "top": 360,
+      "width": 260,
+      "height": 208,
+      "props": {
+        "Align": "alLeft",
+        "AutoScroll": true,
+        "BorderStyle": "bsSingle",
+        "Color": "#ffffff"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_24",
+      "name": "vox_card2",
+      "type": "vox_Card",
+      "parent": "vox_scrollbox2",
+      "left": 0,
+      "top": 0,
+      "width": 260,
+      "height": 80,
+      "props": {
+        "Title": "Card Moderno",
+        "Subtitle": "Descrição resumida",
+        "Elevation": 2,
+        "Align": "alTop"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_25",
+      "name": "vox_scrollbox3",
+      "type": "vox_ScrollBox",
+      "parent": "vox_tabsheet2",
+      "left": 520,
+      "top": 360,
+      "width": 260,
+      "height": 208,
+      "props": {
+        "Align": "alLeft",
+        "AutoScroll": true,
+        "BorderStyle": "bsSingle",
+        "Color": "#ffffff"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_26",
+      "name": "vox_card3",
+      "type": "vox_Card",
+      "parent": "vox_scrollbox3",
+      "left": 0,
+      "top": 0,
+      "width": 260,
+      "height": 80,
+      "props": {
+        "Title": "Card Moderno",
+        "Subtitle": "Descrição resumida",
+        "Elevation": 2,
+        "Align": "alTop"
+      },
+      "events": {}
+    },
+    {
+      "id": "comp_27",
+      "name": "vox_image1",
+      "type": "vox_Image",
+      "parent": "vox_card1",
+      "left": 0,
+      "top": 60,
+      "width": 260,
+      "height": 100,
+      "props": {
+        "PictureUrl": "https://http2.mlstatic.com/D_NQ_NP_2X_933021-MLA99446594058_112025-F.webp",
+        "Stretch": true,
+        "Center": true,
+        "Align": "alBottom"
+      },
+      "events": {},
+      "_origWidth": 120,
+      "_origHeight": 100,
+      "_origLeft": 48,
+      "_origTop": 72
+    },
+    {
+      "id": "comp_28",
+      "name": "vox_mainmenu1",
+      "type": "vox_MainMenu",
+      "parent": "vox_panel1",
+      "left": 0,
+      "top": 0,
+      "width": 1126,
+      "height": 40,
+      "props": {
+        "Layout": "Top",
+        "Title": "Meu Sistema",
+        "Items": "Cadastros, Vendas, Relatórios, Configurações",
+        "BackgroundColor": "#01f43e",
+        "TextColor": "#29291e",
+        "ActiveIndex": 0,
+        "Responsive": true,
+        "Collapsed": false,
+        "Align": "alTop"
+      },
+      "events": {},
+      "_origWidth": 700,
+      "_origHeight": 40,
+      "_origLeft": 216,
+      "_origTop": 48
+    }
+  ]
+}

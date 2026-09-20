@@ -1,0 +1,12 @@
+{
+  "ProjectName": "Lacos_Banco_Dados",
+  "Version": "1.0.0",
+  "TargetPlatform": "Web Browser (HTML5 + REST)",
+  "OutputType": "Executable",
+  "MainForm": "FormLacosBanco",
+  "Units": [
+    "FormLacosBanco.vox",
+    "FormLacosBanco.vxf"
+  ],
+  "Created": "2026-09-20T21:04:03.259Z"
+}

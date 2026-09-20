@@ -1,0 +1,15 @@
+{
+  "ProjectName": "Projeto_Clientes",
+  "Version": "1.0.0",
+  "TargetPlatform": "Web Browser (HTML5 + REST)",
+  "OutputType": "Executable",
+  "MainForm": "Form1",
+  "Units": [
+    "cliente_controller.vox",
+    "cliente_model.vox",
+    "cliente_view.vox",
+    "Form1.vox",
+    "Form1.vxf"
+  ],
+  "Created": "2026-09-20T21:04:03.256Z"
+}
