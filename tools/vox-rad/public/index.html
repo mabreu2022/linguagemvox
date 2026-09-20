@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/rad.css?v=3.4">
+  <link rel="stylesheet" href="css/rad.css?v=3.7">
 </head>
 <body>
 
@@ -143,11 +143,30 @@
       </div>
     </div>
 
+    <!-- Git Menu -->
+    <div class="delphi-menu-item">
+      <span>Git</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" style="color:#c084fc; font-weight:700;" onclick="window.app.openGitDialog('commit')"><span>🐙 Enviar para o GitHub (Commit & Push)...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.gitPull()"><span>📥 Atualizar do GitHub (Pull)</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openGitDialog('settings')"><span>⚙️ Configurar Repositório e Token GitHub...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openGitDialog('log')"><span>📋 Ver Status e Terminal Git...</span></div>
+      </div>
+    </div>
+
     <!-- Help Menu -->
     <div class="delphi-menu-item">
       <span>Help</span>
       <div class="delphi-menu-dropdown">
-        <div class="delphi-menu-dropdown-item" style="color:#38bdf8;" onclick="window.app.openComponentBook()"><span>📖 Manual de Construção de Componentes Vox</span></div>
+        <div class="delphi-menu-dropdown-item" style="color:#38bdf8;" onclick="window.app.openHelpDoc('language_spec')"><span>📘 Manual da Linguagem Vox (Language Spec)</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openHelpDoc('tutorial')"><span>📗 Tutorial / Livro para Iniciantes</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openHelpDoc('manual_clientes')"><span>📙 Manual do Sistema de Clientes</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openComponentBook()"><span>📖 Manual de Construção de Componentes Vox</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openHelpDoc('livro_componentes')"><span>📕 Livro de Componentes (HTML)</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openHelpDoc('livro_vox')"><span>📓 Livro Vox Completo (HTML)</span></div>
+        <div class="menu-sep"></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.showAbout()"><span>ℹ️ Sobre o Vox Studio RAD</span></div>
       </div>
     </div>
@@ -205,6 +224,14 @@
       </button>
       <button class="tool-btn" onclick="window.app.buildWebApp()" title="Compilar Sistema Web (dist/web-app/)">
         ⚙️ Build Web
+      </button>
+
+      <div class="tool-sep"></div>
+
+      <!-- Botão GitHub Delphi -->
+      <button class="tool-btn" onclick="window.app.openGitDialog('commit')" title="GitHub: Commit & Push (Ctrl+Shift+G)" style="border: 1px solid #7c3aed; color: #c084fc; background: rgba(124, 58, 237, 0.15); font-weight: 700; padding: 2px 10px; gap: 5px; display: inline-flex; align-items: center;">
+        <span>🐙</span>
+        <span>GitHub</span>
       </button>
 
       <div class="tool-sep"></div>
@@ -358,6 +385,7 @@
           <button class="code-search-btn" onclick="window.app.closeSearch()" title="Fechar (Esc)">✕</button>
         </div>
 
+
         <div style="flex: 1; display: flex; height: 100%; position: relative;">
           <div class="line-numbers" id="lineNumbers"></div>
           <div style="flex: 1; position: relative; height: 100%; overflow: hidden;">
@@ -367,11 +395,32 @@
         </div>
       </div>
 
-      <!-- Abas Inferiores Direitas: [ Code ] [ Design ] [ History ] -->
+      <!-- Abas Inferiores Direitas: [ Code ] [ Design ] [ History ] + Controles de Fonte -->
       <div class="delphi-bottom-tabs">
         <div class="view-mode-tab" id="btnTabCode">Code</div>
         <div class="view-mode-tab active" id="btnTabDesign">Design</div>
         <div class="view-mode-tab" id="btnTabHistory">History</div>
+
+        <div class="tabs-toolbar-separator" style="width: 1px; height: 16px; background: #313947; margin: 0 8px; flex-shrink: 0;"></div>
+
+        <!-- Controles de Fonte do Editor (Delphi-style, ao lado das abas) -->
+        <div class="editor-font-toolbar" id="editorFontToolbar">
+          <span style="font-size: 10px; color: #6c7889; margin-right: 2px;">Fonte:</span>
+          <select class="editor-font-select" id="editorFontFamilySelect" onchange="window.app.editor.setFontFamily(this.value)" title="Família da Fonte">
+            <option value="'JetBrains Mono', Consolas, monospace" selected>JetBrains Mono</option>
+            <option value="Consolas, monospace">Consolas</option>
+            <option value="'Courier New', monospace">Courier New</option>
+            <option value="'Fira Code', monospace">Fira Code</option>
+            <option value="'Source Code Pro', monospace">Source Code Pro</option>
+            <option value="monospace">Monospace (Sistema)</option>
+          </select>
+          <div class="editor-font-size-group">
+            <button class="editor-font-btn" onclick="window.app.editor.decreaseFontSize()" title="Diminuir tamanho da fonte (−)">−</button>
+            <span class="editor-font-size-label" id="editorFontSizeLabel">13px</span>
+            <button class="editor-font-btn" onclick="window.app.editor.increaseFontSize()" title="Aumentar tamanho da fonte (+)">+</button>
+          </div>
+          <button class="editor-font-btn" onclick="window.app.editor.setFontSize(13); window.app.editor.setFontFamily(&quot;'JetBrains Mono', Consolas, monospace&quot;);" title="Resetar para padrão" style="margin-left: 2px; font-size: 10px;">⟳</button>
+        </div>
       </div>
 
       <!-- ========================================================================
@@ -471,10 +520,12 @@
           </div>
         </div>
 
-        <!-- Caixa de Busca da Paleta com Proteção Anti-Autofill e Botão Limpar -->
-        <div class="palette-search-container" style="position: relative; display: flex; align-items: center;">
-          <input type="text" class="palette-search-input" id="paletteSearchInput" placeholder="🔍 Filtrar Paleta..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" name="vox_palette_search_field">
-          <button id="paletteSearchClear" onclick="window.app.clearPaletteSearch()" title="Limpar busca" style="display: none; position: absolute; right: 6px; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 11px; padding: 2px 4px;">✕</button>
+        <!-- Caixa de Busca da Paleta com Proteção Radical Anti-Autofill e Botão Limpar -->
+        <div class="palette-search-container" style="position: relative; display: flex; align-items: center; width: 100%;">
+          <form autocomplete="off" onsubmit="return false;" role="search" style="display: flex; flex: 1; position: relative; margin: 0; padding: 0;">
+            <input type="search" class="palette-search-input" id="paletteSearchInput" placeholder="🔍 Filtrar Paleta..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly onfocus="this.removeAttribute('readonly');" style="flex: 1;">
+            <button type="button" id="paletteSearchClear" onclick="window.app.clearPaletteSearch()" title="Limpar busca" style="display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 11px; padding: 2px 4px;">✕</button>
+          </form>
         </div>
 
         <!-- Categorias Accordion da Paleta -->
@@ -839,6 +890,7 @@ classe vox_CardDestaque herda vox_Panel {
         </div>
         <button class="tool-btn" onclick="window.app.closeConnectionEditor()" style="height: 22px; padding: 0 8px;">✕</button>
       </div>
+      <form autocomplete="off" onsubmit="return false;" method="dialog" style="margin: 0; padding: 0;">
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
         <div class="save-path-banner">
           <span>⚙️ Configure os parâmetros de conexão com o banco de dados (Host, Porta, Login, Senha e DLL Cliente).</span>
@@ -892,14 +944,14 @@ classe vox_CardDestaque herda vox_Panel {
           <!-- Login -->
           <div class="cf-row">
             <label style="font-size:11px; color:#38bdf8; font-weight:700;">Login (Usuário de Acesso):</label>
-            <input type="text" id="connUserInput" class="cf-input" value="root" placeholder="Ex: root (MySQL), sa (MSSQL), SYSDBA (Firebird)">
+            <input type="text" id="connUserInput" class="cf-input" value="root" autocomplete="username" placeholder="Ex: root (MySQL), sa (MSSQL), SYSDBA (Firebird)">
           </div>
 
           <!-- Senha -->
           <div class="cf-row">
             <label style="font-size:11px; color:#38bdf8; font-weight:700;">Senha (Password):</label>
             <div style="display: flex; gap: 6px;">
-              <input type="password" id="connPasswordInput" class="cf-input" value="" placeholder="Senha de acesso" style="flex: 1;">
+              <input type="password" id="connPasswordInput" class="cf-input" value="" autocomplete="new-password" placeholder="Senha de acesso" style="flex: 1;">
               <button class="tool-btn" onclick="window.app.togglePasswordVisibility('connPasswordInput')" title="Exibir/Ocultar Senha">👁️</button>
             </div>
           </div>
@@ -933,6 +985,7 @@ classe vox_CardDestaque herda vox_Panel {
           <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.applyConnectionEditor()">💾 Salvar Conexão</button>
         </div>
       </div>
+      </form>
     </div>
   </div>
 
@@ -1166,15 +1219,158 @@ classe vox_CardDestaque herda vox_Panel {
     </div>
   </div>
 
-  <!-- Scripts da Aplicação (Com Cache Buster v=3.6) -->
-  <script src="js/components.js?v=3.6"></script>
-  <script src="js/codegen.js?v=3.6"></script>
-  <script src="js/templates.js?v=3.6"></script>
-  <script src="js/designer.js?v=3.6"></script>
-  <script src="js/inspector.js?v=3.6"></script>
-  <script src="js/editor.js?v=3.6"></script>
-  <script src="js/debugger.js?v=3.6"></script>
-  <script src="js/runner.js?v=3.6"></script>
-  <script src="js/app.js?v=3.6"></script>
+  <!-- ========================================================================
+       MODAL DE INTEGRAÇÃO COM O GITHUB / GIT (DELPHI 12 STYLE)
+       ======================================================================== -->
+  <div class="modal-overlay" id="gitModal" style="display: none;">
+    <div class="modal-content" style="width: 720px; max-width: 95vw;">
+      <div class="modal-header" style="background: linear-gradient(90deg, #1e1b4b, #11141a); border-bottom: 1px solid #7c3aed;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">🐙</span>
+          <span style="font-weight: 700; color: #c084fc;">GitHub & Controle de Versão Git — Vox Studio RAD</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeGitModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+
+      <!-- Barra de Resumo de Status / Badges -->
+      <div style="background: #161922; border-bottom: 1px solid #282f3a; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 11.5px;">
+          <span style="display: inline-flex; align-items: center; gap: 4px; background: #2e1065; color: #d8b4fe; padding: 2px 8px; border-radius: 3px; font-weight: 600; border: 1px solid #7c3aed;">
+            🌿 Branch: <strong id="gitBadgeBranch">main</strong>
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 4px; background: #1e293b; color: #94a3b8; padding: 2px 8px; border-radius: 3px; border: 1px solid #334155;" id="gitBadgeRemote" title="Repositório Remoto">
+            🔗 origin
+          </span>
+          <span id="gitBadgePending" style="display: inline-flex; align-items: center; gap: 4px; background: #3b1922; color: #f87171; padding: 2px 8px; border-radius: 3px; font-weight: 600;">
+            ⏳ Verificando...
+          </span>
+        </div>
+        <div>
+          <button class="tool-btn" onclick="window.app.refreshGitStatus()" title="Atualizar Status" style="height: 22px; padding: 0 8px; font-size: 11px;">
+            🔄 Atualizar
+          </button>
+        </div>
+      </div>
+
+      <!-- Abas Internas do Modal -->
+      <div style="display: flex; background: #131720; border-bottom: 1px solid #282f3a; padding: 0 16px;">
+        <button class="git-tab-btn active" id="gitTabBtnCommit" onclick="window.app.switchGitTab('commit')">🚀 Commit & Push</button>
+        <button class="git-tab-btn" id="gitTabBtnSettings" onclick="window.app.switchGitTab('settings')">⚙️ Configurações e Token</button>
+        <button class="git-tab-btn" id="gitTabBtnLog" onclick="window.app.switchGitTab('log')">📜 Terminal / Log</button>
+      </div>
+
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+        
+        <!-- ABA 1: COMMIT & PUSH -->
+        <div id="gitTabContentCommit" style="display: flex; flex-direction: column; gap: 12px;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Arquivos Alterados no Workspace:</label>
+              <span style="font-size: 10.5px; color: #64748b;" id="gitFilesCount">0 alterados</span>
+            </div>
+            <div id="gitFilesListContainer" style="max-height: 180px; overflow-y: auto; background: #0f1218; border: 1px solid #282f3a; border-radius: 4px; padding: 6px; font-family: monospace; font-size: 11px;">
+              <div style="color: #64748b; padding: 8px; text-align: center;">Nenhum arquivo alterado. Repositório limpo.</div>
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 4px;">
+              Mensagem do Commit (Commit Message): <span style="color: #ef4444;">*</span>
+            </label>
+            <textarea id="gitCommitMessage" class="delphi-prop-input" rows="3" placeholder="Descreva o que foi alterado ou implementado (Ex: Ajustes nos componentes e novas funcionalidades)" style="width: 100%; resize: vertical; padding: 8px; font-size: 12px; font-family: var(--font-ui); line-height: 1.4;"></textarea>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #282f3a; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
+              <button class="tool-btn" onclick="window.app.gitPull()" title="Baixar alterações mais recentes do GitHub (git pull)">
+                📥 Pull (Atualizar)
+              </button>
+              <button class="tool-btn" onclick="window.app.gitCommitOnly()" title="Apenas gravar o commit localmente (sem enviar)">
+                💾 Commit Local
+              </button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 6px 16px;" onclick="window.app.closeGitModal()">Fechar</button>
+              <button class="tool-btn btn-run-delphi" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); border: 1px solid #8b5cf6; color: #ffffff; padding: 6px 20px; font-weight: 700; box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);" onclick="window.app.gitCommitAndPush()" id="btnGitCommitAndPush">
+                🚀 Enviar para o GitHub (Commit & Push)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ABA 2: CONFIGURAÇÕES E TOKEN -->
+        <div id="gitTabContentSettings" style="display: none; flex-direction: column; gap: 12px;">
+          <div class="save-path-banner" style="background: rgba(124, 58, 237, 0.1); border-color: #7c3aed; color: #d8b4fe;">
+            <span>⚙️ Configure o repositório remoto, dados do autor e Token de Acesso Pessoal (PAT) para envio direto ao GitHub.</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 4px;">Nome do Autor (user.name):</label>
+              <input type="text" id="gitCfgUserName" class="delphi-prop-input" placeholder="Ex: mabreu22" style="width: 100%; height: 26px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 4px;">E-mail do Autor (user.email):</label>
+              <input type="email" id="gitCfgUserEmail" class="delphi-prop-input" placeholder="Ex: usuario@email.com" style="width: 100%; height: 26px;">
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 4px;">URL do Repositório Remoto (origin):</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="gitCfgRemoteUrl" class="delphi-prop-input" placeholder="Ex: git@github.com:usuario/repo.git ou https://github.com/usuario/repo.git" style="flex: 1; height: 26px; font-family: monospace;">
+              <button class="tool-btn" onclick="window.app.gitTestRemote()" title="Testar Conexão com o Repositório">⚡ Testar</button>
+            </div>
+            <div style="font-size: 10.5px; color: #64748b; margin-top: 3px;">
+              Suporta SSH (ex: <code>git@github.com:...</code>) ou HTTPS (ex: <code>https://github.com/...</code>).
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 4px;">GitHub Personal Access Token (PAT — Opcional para HTTPS):</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="password" id="gitCfgToken" class="delphi-prop-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="new-password" style="flex: 1; height: 26px; font-family: monospace;">
+              <button class="tool-btn" onclick="window.app.togglePasswordVisibility('gitCfgToken')" title="Exibir/Ocultar Token">👁️</button>
+            </div>
+            <div style="font-size: 10.5px; color: #64748b; margin-top: 3px;">
+              💡 Caso use HTTPS, gere um token em <em>GitHub ➔ Settings ➔ Developer settings ➔ Personal access tokens</em> com escopo <strong>repo</strong>.
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; border-top: 1px solid #282f3a; padding-top: 10px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 6px 16px;" onclick="window.app.closeGitModal()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 6px 20px; font-weight: 600;" onclick="window.app.gitSaveConfig()">
+              💾 Salvar Configurações
+            </button>
+          </div>
+        </div>
+
+        <!-- ABA 3: TERMINAL / LOG -->
+        <div id="gitTabContentLog" style="display: none; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="font-size: 11px; font-weight: 700; color: #cbd5e1;">Histórico e Saída dos Comandos Git:</label>
+            <button class="tool-btn" style="height: 20px; padding: 0 6px; font-size: 10px;" onclick="document.getElementById('gitLogTerminal').innerHTML = '// Log limpo.\n'">Limpar Log</button>
+          </div>
+          <pre id="gitLogTerminal" style="background: #090c10; color: #38bdf8; border: 1px solid #282f3a; border-radius: 4px; padding: 10px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 11px; height: 220px; overflow-y: auto; white-space: pre-wrap; line-height: 1.4; margin: 0;">// Console Git pronto.
+</pre>
+          <div style="display: flex; justify-content: flex-end;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeGitModal()">Fechar</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts da Aplicação (Com Cache Buster v=3.7) -->
+  <script src="js/components.js?v=3.7"></script>
+  <script src="js/codegen.js?v=3.7"></script>
+  <script src="js/templates.js?v=3.7"></script>
+  <script src="js/designer.js?v=3.7"></script>
+  <script src="js/inspector.js?v=3.7"></script>
+  <script src="js/editor.js?v=3.7"></script>
+  <script src="js/debugger.js?v=3.7"></script>
+  <script src="js/runner.js?v=3.7"></script>
+  <script src="js/app.js?v=3.7"></script>
 </body>
 </html>

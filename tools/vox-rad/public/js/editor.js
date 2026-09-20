@@ -11,7 +11,14 @@ class VoxCodeEditor {
     this.currentCode = '';
     this.hoverTooltip = null;
 
+    // Font size control (Delphi-style)
+    this.fontSize = parseInt(localStorage.getItem('vox_editor_font_size')) || 13;
+    this.fontFamily = localStorage.getItem('vox_editor_font_family') || "'JetBrains Mono', Consolas, monospace";
+    this.minFontSize = 8;
+    this.maxFontSize = 28;
+
     this.init();
+    this.applyFontSettings();
   }
 
   init() {
@@ -260,6 +267,82 @@ class VoxCodeEditor {
     this.textarea.addEventListener('mouseleave', () => {
       if (this.hoverTooltip) this.hoverTooltip.style.display = 'none';
     });
+  }
+
+  // --------------------------------------------------------------------------
+  // Controles de Fonte do Editor (Delphi-style +/- Font Size)
+  // --------------------------------------------------------------------------
+  applyFontSettings() {
+    const lineHeight = Math.round(this.fontSize * 1.7);
+    const style = `font-family: ${this.fontFamily}; font-size: ${this.fontSize}px; line-height: ${lineHeight}px;`;
+
+    if (this.textarea) {
+      this.textarea.style.fontFamily = this.fontFamily;
+      this.textarea.style.fontSize = this.fontSize + 'px';
+      this.textarea.style.lineHeight = lineHeight + 'px';
+    }
+    if (this.lineNumbers) {
+      this.lineNumbers.style.fontSize = this.fontSize + 'px';
+      this.lineNumbers.style.lineHeight = lineHeight + 'px';
+    }
+    if (this.highlightLayer) {
+      this.highlightLayer.style.lineHeight = lineHeight + 'px';
+    }
+
+    // Update the gutter line height for breakpoints
+    const gutterLines = this.lineNumbers ? this.lineNumbers.querySelectorAll('.gutter-line') : [];
+    gutterLines.forEach(gl => {
+      gl.style.height = lineHeight + 'px';
+    });
+
+    // Update highlight layer lines
+    const hlLines = this.highlightLayer ? this.highlightLayer.querySelectorAll('.code-hl-line') : [];
+    hlLines.forEach(hl => {
+      hl.style.height = lineHeight + 'px';
+    });
+
+    // Persist
+    try {
+      localStorage.setItem('vox_editor_font_size', this.fontSize);
+      localStorage.setItem('vox_editor_font_family', this.fontFamily);
+    } catch(e) {}
+
+    // Update font size indicator in toolbar
+    const indicator = document.getElementById('editorFontSizeLabel');
+    if (indicator) indicator.innerText = this.fontSize + 'px';
+    const famSelect = document.getElementById('editorFontFamilySelect');
+    if (famSelect && famSelect.value !== this.fontFamily) {
+      famSelect.value = this.fontFamily;
+    }
+  }
+
+  increaseFontSize() {
+    if (this.fontSize < this.maxFontSize) {
+      this.fontSize++;
+      this.applyFontSettings();
+      this.renderGutterAndHighlights();
+    }
+  }
+
+  decreaseFontSize() {
+    if (this.fontSize > this.minFontSize) {
+      this.fontSize--;
+      this.applyFontSettings();
+      this.renderGutterAndHighlights();
+    }
+  }
+
+  setFontSize(size) {
+    size = parseInt(size, 10);
+    if (isNaN(size)) return;
+    this.fontSize = Math.max(this.minFontSize, Math.min(this.maxFontSize, size));
+    this.applyFontSettings();
+    this.renderGutterAndHighlights();
+  }
+
+  setFontFamily(family) {
+    this.fontFamily = family || "'JetBrains Mono', Consolas, monospace";
+    this.applyFontSettings();
   }
 }
 

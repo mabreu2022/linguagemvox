@@ -72,6 +72,22 @@ function parseBody(req) {
   });
 }
 
+function execGit(args, cwd = WORKSPACE_DIR) {
+  return new Promise((resolve) => {
+    const p = spawn('git', args, { cwd, shell: false, windowsHide: true });
+    let stdout = '';
+    let stderr = '';
+    p.stdout.on('data', d => { stdout += d.toString(); });
+    p.stderr.on('data', d => { stderr += d.toString(); });
+    p.on('close', code => {
+      resolve({ code, stdout: stdout.trim(), stderr: stderr.trim() });
+    });
+    p.on('error', err => {
+      resolve({ code: -1, stdout: '', stderr: err.message });
+    });
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -509,6 +525,240 @@ const server = http.createServer(async (req, res) => {
           'dist/web-app/package.json'
         ]
       });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Git Integration (Status, Config, Commit, Push, Pull)
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/git/status' && req.method === 'GET') {
+    try {
+      const [stRes, nameRes, emailRes, remoteRes, logRes] = await Promise.all([
+        execGit(['status', '--porcelain=v1', '-b']),
+        execGit(['config', 'user.name']),
+        execGit(['config', 'user.email']),
+        execGit(['remote', 'get-url', 'origin']),
+        execGit(['log', '-1', '--pretty=format:%h - %s (%cr)'])
+      ]);
+
+      const lines = stRes.stdout ? stRes.stdout.split('\n') : [];
+      let branch = 'main';
+      let ahead = 0;
+      let behind = 0;
+      const files = [];
+
+      if (lines.length > 0 && lines[0].startsWith('##')) {
+        const header = lines[0].slice(2).trim();
+        const branchMatch = header.match(/^([^\s\.\/]+)/);
+        if (branchMatch) branch = branchMatch[1];
+        const aheadMatch = header.match(/ahead\s+(\d+)/);
+        if (aheadMatch) ahead = parseInt(aheadMatch[1], 10);
+        const behindMatch = header.match(/behind\s+(\d+)/);
+        if (behindMatch) behind = parseInt(behindMatch[1], 10);
+      }
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        const code = line.slice(0, 2).trim();
+        const filePath = line.slice(3).trim();
+        files.push({ code, path: filePath });
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        branch,
+        ahead,
+        behind,
+        files,
+        clean: files.length === 0,
+        userName: nameRes.stdout || '',
+        userEmail: emailRes.stdout || '',
+        remoteUrl: remoteRes.stdout || '',
+        lastCommit: logRes.stdout || '',
+        rawStatus: stRes.stdout
+      });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  if (pathname === '/api/git/config' && req.method === 'POST') {
+    try {
+      const { userName, userEmail, remoteUrl, token } = await parseBody(req);
+      const logs = [];
+
+      if (userName && userName.trim()) {
+        await execGit(['config', 'user.name', userName.trim()]);
+        logs.push(`user.name configurado para: ${userName.trim()}`);
+      }
+      if (userEmail && userEmail.trim()) {
+        await execGit(['config', 'user.email', userEmail.trim()]);
+        logs.push(`user.email configurado para: ${userEmail.trim()}`);
+      }
+      if (remoteUrl && remoteUrl.trim()) {
+        let finalUrl = remoteUrl.trim();
+        if (token && finalUrl.startsWith('https://')) {
+          const cleanUrl = finalUrl.replace(/^https:\/\/[^@]+@/, 'https://');
+          finalUrl = cleanUrl.replace('https://', `https://${token.trim()}@`);
+        }
+        const checkOrigin = await execGit(['remote', 'get-url', 'origin']);
+        if (checkOrigin.code === 0) {
+          await execGit(['remote', 'set-url', 'origin', finalUrl]);
+          logs.push(`remote 'origin' atualizado para: ${remoteUrl.trim()}`);
+        } else {
+          await execGit(['remote', 'add', 'origin', finalUrl]);
+          logs.push(`remote 'origin' adicionado como: ${remoteUrl.trim()}`);
+        }
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        message: 'Configurações do Git salvas com sucesso!',
+        logs
+      });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  if (pathname === '/api/git/commit' && req.method === 'POST') {
+    try {
+      const { message, files } = await parseBody(req);
+      if (!message || !message.trim()) {
+        return sendJson(res, 400, { error: 'Mensagem de commit é obrigatória.' });
+      }
+
+      const logs = [];
+      if (files && Array.isArray(files) && files.length > 0) {
+        const addRes = await execGit(['add', ...files]);
+        logs.push(addRes.stdout || addRes.stderr || `${files.length} arquivos preparados.`);
+      } else {
+        const addRes = await execGit(['add', '-A']);
+        logs.push(addRes.stdout || addRes.stderr || 'Todos os arquivos preparados (git add -A).');
+      }
+
+      const commitRes = await execGit(['commit', '-m', message.trim()]);
+      logs.push(commitRes.stdout || commitRes.stderr);
+
+      if (commitRes.code !== 0 && !commitRes.stdout.includes('nothing to commit')) {
+        return sendJson(res, 500, { success: false, error: commitRes.stderr || commitRes.stdout, logs });
+      }
+
+      return sendJson(res, 200, { success: true, message: 'Commit realizado com sucesso!', logs });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  if (pathname === '/api/git/push' && req.method === 'POST') {
+    try {
+      const { remote = 'origin', branch = 'main', token } = await parseBody(req);
+      const logs = [];
+
+      if (token) {
+        const remRes = await execGit(['remote', 'get-url', remote]);
+        if (remRes.stdout && remRes.stdout.startsWith('https://')) {
+          const cleanUrl = remRes.stdout.replace(/^https:\/\/[^@]+@/, 'https://');
+          const authedUrl = cleanUrl.replace('https://', `https://${token.trim()}@`);
+          await execGit(['remote', 'set-url', remote, authedUrl]);
+        }
+      }
+
+      const pushRes = await execGit(['push', remote, branch]);
+      logs.push(pushRes.stdout || pushRes.stderr);
+
+      if (pushRes.code !== 0) {
+        return sendJson(res, 500, { success: false, error: pushRes.stderr || pushRes.stdout, logs });
+      }
+
+      return sendJson(res, 200, { success: true, message: 'Alterações enviadas para o GitHub com sucesso!', logs });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  if (pathname === '/api/git/pull' && req.method === 'POST') {
+    try {
+      const { remote = 'origin', branch = 'main' } = await parseBody(req);
+      const pullRes = await execGit(['pull', remote, branch]);
+      const logs = [pullRes.stdout || pullRes.stderr];
+
+      if (pullRes.code !== 0) {
+        return sendJson(res, 500, { success: false, error: pullRes.stderr || pullRes.stdout, logs });
+      }
+
+      return sendJson(res, 200, { success: true, message: 'Repositório atualizado com sucesso do GitHub!', logs });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  if (pathname === '/api/git/commit-and-push' && req.method === 'POST') {
+    try {
+      const { message, files, remote = 'origin', branch = 'main', token } = await parseBody(req);
+      if (!message || !message.trim()) {
+        return sendJson(res, 400, { error: 'Mensagem de commit é obrigatória.' });
+      }
+
+      const logs = [];
+
+      // 1. Git add
+      if (files && Array.isArray(files) && files.length > 0) {
+        const addRes = await execGit(['add', ...files]);
+        logs.push(`[git add] ` + (addRes.stdout || addRes.stderr || `${files.length} arquivos preparados.`));
+      } else {
+        const addRes = await execGit(['add', '-A']);
+        logs.push(`[git add -A] Todos os arquivos preparados.`);
+      }
+
+      // 2. Git commit
+      const commitRes = await execGit(['commit', '-m', message.trim()]);
+      logs.push(`[git commit] ` + (commitRes.stdout || commitRes.stderr));
+
+      // 3. Suporte a token HTTPS
+      if (token) {
+        const remRes = await execGit(['remote', 'get-url', remote]);
+        if (remRes.stdout && remRes.stdout.startsWith('https://')) {
+          const cleanUrl = remRes.stdout.replace(/^https:\/\/[^@]+@/, 'https://');
+          const authedUrl = cleanUrl.replace('https://', `https://${token.trim()}@`);
+          await execGit(['remote', 'set-url', remote, authedUrl]);
+        }
+      }
+
+      // 4. Git push
+      const pushRes = await execGit(['push', remote, branch]);
+      logs.push(`[git push] ` + (pushRes.stdout || pushRes.stderr));
+
+      if (pushRes.code !== 0) {
+        return sendJson(res, 500, {
+          success: false,
+          error: pushRes.stderr || pushRes.stdout || 'Erro ao enviar alterações para o GitHub.',
+          logs
+        });
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        message: 'Commit e Push para o GitHub realizados com sucesso!',
+        logs
+      });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  if (pathname === '/api/git/test-remote' && req.method === 'POST') {
+    try {
+      const { remote = 'origin' } = await parseBody(req);
+      const testRes = await execGit(['ls-remote', remote, 'HEAD']);
+      if (testRes.code === 0) {
+        return sendJson(res, 200, { success: true, message: 'Conexão com repositório remoto bem-sucedida!', raw: testRes.stdout });
+      } else {
+        return sendJson(res, 500, { success: false, error: testRes.stderr || 'Falha ao conectar com o repositório remoto.' });
+      }
     } catch (err) {
       return sendJson(res, 500, { error: err.message });
     }

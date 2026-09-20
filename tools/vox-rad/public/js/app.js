@@ -79,7 +79,13 @@ class VoxStudioApp {
 
     const renderPalette = (filter = '') => {
       accordion.innerHTML = '';
-      const filterTrim = (filter || '').trim().toLowerCase();
+      let filterTrim = (filter || '').trim().toLowerCase();
+
+      // Proteção radical anti-autofill: anula qualquer busca que contenha @ ou padrão de e-mail
+      if (filterTrim.includes('@') || filterTrim.includes('admin@') || filterTrim.includes('.com')) {
+        filterTrim = '';
+        if (searchInput) searchInput.value = '';
+      }
 
       if (clearBtn) {
         clearBtn.style.display = filterTrim ? 'block' : 'none';
@@ -159,19 +165,32 @@ class VoxStudioApp {
     renderPalette();
 
     if (searchInput) {
+      const purgeAutofill = () => {
+        if (searchInput.value && (searchInput.value.includes('@') || searchInput.value.includes('admin') || searchInput.value.includes('.com'))) {
+          searchInput.value = '';
+          renderPalette('');
+        }
+      };
+
+      searchInput.onfocus = () => {
+        searchInput.removeAttribute('readonly');
+        purgeAutofill();
+      };
+
       searchInput.oninput = (e) => {
+        if (e.target.value.includes('@') || e.target.value.includes('admin@')) {
+          e.target.value = '';
+          renderPalette('');
+          return;
+        }
         renderPalette(e.target.value);
       };
 
-      // Forçar limpeza caso o navegador tente preencher credenciais após carregar
-      setTimeout(() => {
-        if (searchInput.value && !window.VOX_COMPONENTS[searchInput.value]) {
-          if (searchInput.value.includes('@')) {
-            searchInput.value = '';
-            renderPalette('');
-          }
-        }
-      }, 600);
+      searchInput.onchange = purgeAutofill;
+      searchInput.onpaste = () => setTimeout(purgeAutofill, 20);
+
+      // Limpezas periódicas de segurança anti-autofill do navegador
+      [50, 150, 300, 600, 1200, 2500].forEach(ms => setTimeout(purgeAutofill, ms));
     }
   }
 
@@ -319,9 +338,18 @@ class VoxStudioApp {
         e.preventDefault();
         if (e.shiftKey) this.findPrev();
         else this.findNext();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        this.openGitDialog('commit');
       } else if (e.ctrlKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         this.gotoLine();
+      } else if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        if (this.editor) this.editor.increaseFontSize();
+      } else if (e.ctrlKey && e.key === '-') {
+        e.preventDefault();
+        if (this.editor) this.editor.decreaseFontSize();
       }
     });
   }
@@ -876,6 +904,59 @@ class VoxStudioApp {
 
   showAbout() {
     alert(`[Vox Studio RAD — Web Edition]\n\nAmbiente de Desenvolvimento Rápido de Aplicações para a Linguagem Vox.\n\n• Padrão de Componentes: vox_* (vox_Connection, vox_DataSource, vox_Query, vox_Button, etc.)\n• Designer Visual com Redimensionamento e Esticamento ao Vivo\n• Eventos Oficiais do Form Delphi (OnCreate, OnShow, OnClose, etc.)\n• Editor com Busca (Ctrl+F) e Refatoração de Código\n• Fábrica de Componentes Extensível\n• Compilação Web Standalone com Janela Delphi e Botão Fechar [✕]`);
+  }
+
+  // --------------------------------------------------------------------------
+  // Help / Documentação
+  // --------------------------------------------------------------------------
+  openHelpDoc(docKey) {
+    const docMap = {
+      'language_spec': '/docs/LANGUAGE_SPEC.md',
+      'tutorial': '/docs/TUTORIAL.md',
+      'manual_clientes': '/docs/manual_clientes.html',
+      'livro_componentes': '/docs/livro_componentes.html',
+      'livro_vox': '/docs/livro_vox.html',
+      'index': '/docs/index.html'
+    };
+
+    const url = docMap[docKey];
+    if (!url) {
+      alert('Documento não encontrado: ' + docKey);
+      return;
+    }
+
+    // Para arquivos .html, abrir em nova aba diretamente
+    if (url.endsWith('.html')) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    // Para arquivos .md, carregar no modal do livro
+    this.openMarkdownDocModal(url, docKey);
+  }
+
+  async openMarkdownDocModal(url, docKey) {
+    const modal = document.getElementById('componentBookModal');
+    const pane = document.getElementById('bookContentPane');
+    if (!modal || !pane) {
+      window.open(url, '_blank');
+      return;
+    }
+
+    modal.style.display = 'flex';
+    pane.innerHTML = '<div style="color:#38bdf8; padding: 20px;">Carregando documento...</div>';
+
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const mdContent = await res.text();
+        pane.innerHTML = this.renderMarkdown(mdContent);
+      } else {
+        pane.innerHTML = `<div style="color:#ef4444;">Erro ao carregar: ${url} (${res.status})</div>`;
+      }
+    } catch(e) {
+      pane.innerHTML = `<div style="color:#ef4444;">Erro ao carregar documento: ${e.message}</div>`;
+    }
   }
 
   showToast(msg) {
@@ -1558,21 +1639,21 @@ class VoxStudioApp {
 
     comp.props = comp.props || comp.properties || {};
     const driver = comp.props.DriverName || comp.props.Driver || 'MySQL';
-    const ip = comp.props.IP || comp.props.Server || '127.0.0.1';
-    const porta = comp.props.Porta !== undefined ? comp.props.Porta : (comp.props.Port !== undefined ? comp.props.Port : 3306);
+    const server = comp.props.Server || comp.props.IP || '127.0.0.1';
+    const port = comp.props.Port !== undefined ? comp.props.Port : (comp.props.Porta !== undefined ? comp.props.Porta : 3306);
     const db = comp.props.Database || 'loja_vox';
-    const login = comp.props.Login || comp.props.UserName || 'root';
-    const senha = comp.props.Senha || comp.props.Password || '';
+    const userName = comp.props.UserName || comp.props.Login || 'root';
+    const password = comp.props.Password || comp.props.Senha || '';
     const vendorLib = comp.props.VendorLib || 'libmysql.dll';
 
     if (titleEl) titleEl.innerText = `FireDAC Connection Editor — [${comp.name || comp.id}]`;
     if (nameEl) nameEl.value = comp.name || comp.id;
     if (driverEl) driverEl.value = driver;
-    if (serverEl) serverEl.value = ip;
-    if (portEl) portEl.value = porta;
+    if (serverEl) serverEl.value = server;
+    if (portEl) portEl.value = port;
     if (dbEl) dbEl.value = db;
-    if (userEl) userEl.value = login;
-    if (passEl) passEl.value = senha;
+    if (userEl) userEl.value = userName;
+    if (passEl) passEl.value = password;
     if (vendorEl) vendorEl.value = vendorLib;
     if (statusEl) {
       statusEl.innerHTML = '<span style="color:#9aa7b8;">Aguardando teste...</span>';
@@ -1767,28 +1848,30 @@ class VoxStudioApp {
 
     comp.props = comp.props || comp.properties || {};
     const driver = document.getElementById('connDriverSelect')?.value || 'MySQL';
-    const ip = document.getElementById('connServerInput')?.value || '127.0.0.1';
-    const porta = parseInt(document.getElementById('connPortInput')?.value || '3306', 10);
+    const server = document.getElementById('connServerInput')?.value || '127.0.0.1';
+    const port = parseInt(document.getElementById('connPortInput')?.value || '3306', 10);
     const database = document.getElementById('connDatabaseInput')?.value || '';
-    const login = document.getElementById('connUserInput')?.value || 'root';
-    const senha = document.getElementById('connPasswordInput')?.value || '';
+    const userName = document.getElementById('connUserInput')?.value || 'root';
+    const password = document.getElementById('connPasswordInput')?.value || '';
     const vendorLib = document.getElementById('connVendorLibInput')?.value || '';
 
-    // Salvar propriedades principais no padrão solicitado: IP, Porta, Login, Senha
+    // Save properties using English-only names
     comp.props.DriverName = driver;
-    comp.props.IP = ip;
-    comp.props.Porta = porta;
-    comp.props.Login = login;
-    comp.props.Senha = senha;
+    comp.props.Server = server;
+    comp.props.Port = port;
+    comp.props.UserName = userName;
+    comp.props.Password = password;
     comp.props.Database = database;
     comp.props.VendorLib = vendorLib;
     comp.props.Connected = true;
 
-    // Manter propriedades espelho compatíveis
-    comp.props.Server = ip;
-    comp.props.Port = porta;
-    comp.props.UserName = login;
-    comp.props.Password = senha;
+    // Remove legacy Portuguese-named duplicates
+    delete comp.props.IP;
+    delete comp.props.Porta;
+    delete comp.props.Login;
+    delete comp.props.Senha;
+    delete comp.props.Driver;
+    delete comp.props.Host;
 
     // Sincronizar comp.properties caso exista
     if (comp.properties) {
@@ -1807,7 +1890,7 @@ class VoxStudioApp {
     const sb = document.getElementById('sbServerStatus');
     if (sb) {
       const orig = sb.innerText;
-      sb.innerText = `⚡ vox_Connection (${driver} -> ${ip}:${porta} | Login: ${login}) configurado e salvo com sucesso!`;
+      sb.innerText = `⚡ vox_Connection (${driver} -> ${server}:${port} | User: ${userName}) configurado e salvo com sucesso!`;
       sb.style.color = '#38bdf8';
       setTimeout(() => {
         sb.innerText = orig;
@@ -2350,6 +2433,272 @@ class VoxStudioApp {
       if (projTitle) projTitle.textContent = `${projectName}.dproj - Projects`;
     } catch (err) {
       alert('Falha ao criar projeto: ' + err.message);
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Integração com o GitHub & Controle de Versão Git (Delphi 12 Style)
+  // --------------------------------------------------------------------------
+  async openGitDialog(initialTab = 'commit') {
+    const modal = document.getElementById('gitModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    this.switchGitTab(initialTab);
+    await this.refreshGitStatus();
+  }
+
+  closeGitModal() {
+    const modal = document.getElementById('gitModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  switchGitTab(tabName) {
+    const tabs = ['commit', 'settings', 'log'];
+    tabs.forEach(t => {
+      const btn = document.getElementById(`gitTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+      const content = document.getElementById(`gitTabContent${t.charAt(0).toUpperCase() + t.slice(1)}`);
+      if (btn) btn.classList.toggle('active', t === tabName);
+      if (content) content.style.display = (t === tabName) ? 'flex' : 'none';
+    });
+  }
+
+  appendGitLog(msg) {
+    const terminal = document.getElementById('gitLogTerminal');
+    if (!terminal) return;
+    const time = new Date().toLocaleTimeString();
+    terminal.textContent += `[${time}] ${msg}\n`;
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  async refreshGitStatus() {
+    const badgeBranch = document.getElementById('gitBadgeBranch');
+    const badgeRemote = document.getElementById('gitBadgeRemote');
+    const badgePending = document.getElementById('gitBadgePending');
+    const filesList = document.getElementById('gitFilesListContainer');
+    const filesCount = document.getElementById('gitFilesCount');
+
+    const cfgUser = document.getElementById('gitCfgUserName');
+    const cfgEmail = document.getElementById('gitCfgUserEmail');
+    const cfgRemote = document.getElementById('gitCfgRemoteUrl');
+
+    if (badgePending) badgePending.innerHTML = '⏳ Verificando...';
+
+    try {
+      const res = await fetch('/api/git/status');
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao consultar status');
+      }
+
+      // Atualizar badges
+      if (badgeBranch) badgeBranch.innerText = data.branch || 'main';
+      if (badgeRemote) {
+        const shortRemote = (data.remoteUrl || 'origin').replace('git@github.com:', '').replace('https://github.com/', '');
+        badgeRemote.innerText = `🔗 ${shortRemote}`;
+        badgeRemote.title = data.remoteUrl || 'origin';
+      }
+
+      // Preencher campos de configuração
+      if (cfgUser && data.userName) cfgUser.value = data.userName;
+      if (cfgEmail && data.userEmail) cfgEmail.value = data.userEmail;
+      if (cfgRemote && data.remoteUrl) cfgRemote.value = data.remoteUrl;
+
+      // Status de arquivos
+      if (data.clean) {
+        if (badgePending) {
+          badgePending.style.background = '#064e3b';
+          badgePending.style.color = '#34d399';
+          badgePending.innerHTML = '🟢 Sincronizado (Tudo limpo)';
+        }
+        if (filesCount) filesCount.innerText = '0 alterados';
+        if (filesList) {
+          filesList.innerHTML = '<div style="color: #64748b; padding: 12px; text-align: center;">✓ Nenhum arquivo alterado. Repositório limpo.</div>';
+        }
+      } else {
+        const count = data.files.length;
+        if (badgePending) {
+          badgePending.style.background = '#451a03';
+          badgePending.style.color = '#fbbf24';
+          badgePending.innerHTML = `🟡 ${count} pendente${count > 1 ? 's' : ''}`;
+        }
+        if (filesCount) filesCount.innerText = `${count} arquivo${count > 1 ? 's' : ''} alterado${count > 1 ? 's' : ''}`;
+
+        if (filesList) {
+          filesList.innerHTML = '';
+          data.files.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'git-file-item';
+            let badgeClass = 'git-badge-m';
+            let badgeText = f.code || 'M';
+            if (f.code.includes('A')) { badgeClass = 'git-badge-a'; badgeText = 'A'; }
+            else if (f.code.includes('D')) { badgeClass = 'git-badge-d'; badgeText = 'D'; }
+            else if (f.code.includes('?')) { badgeClass = 'git-badge-u'; badgeText = '??'; }
+
+            row.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <span class="${badgeClass}">${badgeText}</span>
+                <span style="color: #cbd5e1; font-family: monospace;">${f.path}</span>
+              </div>
+            `;
+            filesList.appendChild(row);
+          });
+        }
+      }
+
+      this.appendGitLog(`Status atualizado: branch '${data.branch}', ${data.files.length} arquivos alterados.`);
+    } catch (err) {
+      if (badgePending) {
+        badgePending.style.background = '#3b1922';
+        badgePending.style.color = '#f87171';
+        badgePending.innerHTML = '🔴 Erro no Git';
+      }
+      this.appendGitLog('Erro ao obter status do Git: ' + err.message);
+    }
+  }
+
+  async gitCommitAndPush() {
+    const commitMsgEl = document.getElementById('gitCommitMessage');
+    const msg = commitMsgEl?.value.trim();
+    if (!msg) {
+      alert('Por favor, digite uma mensagem de commit antes de enviar.');
+      if (commitMsgEl) commitMsgEl.focus();
+      return;
+    }
+
+    const btn = document.getElementById('btnGitCommitAndPush');
+    const token = document.getElementById('gitCfgToken')?.value.trim();
+    const origText = btn ? btn.innerText : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = '⏳ Enviando para GitHub...';
+    }
+
+    this.appendGitLog(`Iniciando Commit & Push: "${msg}"...`);
+    this.showToast('🚀 Enviando alterações para o GitHub...');
+
+    try {
+      const res = await fetch('/api/git/commit-and-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, token })
+      });
+      const data = await res.json();
+
+      if (data.logs && Array.isArray(data.logs)) {
+        data.logs.forEach(l => this.appendGitLog(l));
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Falha ao enviar alterações');
+      }
+
+      this.showToast('🎉 Commit e Push enviados com sucesso para o GitHub!');
+      if (commitMsgEl) commitMsgEl.value = '';
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      this.switchGitTab('log');
+      alert('Erro ao enviar para o GitHub:\n' + err.message);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }
+    }
+  }
+
+  async gitCommitOnly() {
+    const commitMsgEl = document.getElementById('gitCommitMessage');
+    const msg = commitMsgEl?.value.trim();
+    if (!msg) {
+      alert('Por favor, digite uma mensagem de commit.');
+      if (commitMsgEl) commitMsgEl.focus();
+      return;
+    }
+
+    this.appendGitLog(`Executando commit local: "${msg}"...`);
+    try {
+      const res = await fetch('/api/git/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+      if (data.logs) data.logs.forEach(l => this.appendGitLog(l));
+      if (!data.success) throw new Error(data.error);
+
+      this.showToast('💾 Commit local realizado com sucesso!');
+      if (commitMsgEl) commitMsgEl.value = '';
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Erro ao realizar commit: ' + err.message);
+    }
+  }
+
+  async gitPull() {
+    this.appendGitLog('Executando git pull...');
+    this.showToast('📥 Atualizando do repositório remoto...');
+    try {
+      const res = await fetch('/api/git/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.logs) data.logs.forEach(l => this.appendGitLog(l));
+      if (!data.success) throw new Error(data.error);
+
+      this.showToast('✅ Repositório atualizado com sucesso!');
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Erro ao atualizar (git pull): ' + err.message);
+    }
+  }
+
+  async gitSaveConfig() {
+    const userName = document.getElementById('gitCfgUserName')?.value.trim();
+    const userEmail = document.getElementById('gitCfgUserEmail')?.value.trim();
+    const remoteUrl = document.getElementById('gitCfgRemoteUrl')?.value.trim();
+    const token = document.getElementById('gitCfgToken')?.value.trim();
+
+    this.appendGitLog('Salvando configurações do Git...');
+    try {
+      const res = await fetch('/api/git/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userName, userEmail, remoteUrl, token })
+      });
+      const data = await res.json();
+      if (data.logs) data.logs.forEach(l => this.appendGitLog(l));
+      if (!data.success) throw new Error(data.error);
+
+      this.showToast('💾 Configurações do Git salvas com sucesso!');
+      this.switchGitTab('commit');
+      await this.refreshGitStatus();
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Erro ao salvar configurações do Git: ' + err.message);
+    }
+  }
+
+  async gitTestRemote() {
+    const remoteUrl = document.getElementById('gitCfgRemoteUrl')?.value.trim();
+    this.appendGitLog(`Testando conexão remota com: ${remoteUrl || 'origin'}...`);
+    try {
+      const res = await fetch('/api/git/test-remote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remote: remoteUrl || 'origin' })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      this.appendGitLog('✓ Conexão remota bem-sucedida!');
+      alert('✓ Conexão com o repositório remoto bem-sucedida!\n\n' + (data.raw || 'OK'));
+    } catch (err) {
+      this.appendGitLog('ERRO: ' + err.message);
+      alert('Falha ao conectar com o repositório remoto:\n' + err.message);
     }
   }
 }

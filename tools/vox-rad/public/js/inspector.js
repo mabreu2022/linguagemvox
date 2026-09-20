@@ -124,6 +124,19 @@ class VoxObjectInspector {
 
       Object.entries(comp.props).forEach(([key, val]) => {
         if (key === 'Align') return;
+
+        // Skip duplicate/mirror properties — keep only the English-named ones
+        // Portuguese mirrors: IP -> Server, Porta -> Port, Login -> UserName, Senha -> Password
+        const skipDuplicates = {
+          'IP': 'Server',
+          'Porta': 'Port',
+          'Login': 'UserName',
+          'Senha': 'Password',
+          'Driver': 'DriverName',
+          'Host': 'Server'
+        };
+        if (skipDuplicates[key] && comp.props[skipDuplicates[key]] !== undefined) return;
+
         let type = 'text';
         let options = [];
 
@@ -213,7 +226,7 @@ class VoxObjectInspector {
         `;
       } else if (p.type === 'password') {
         inputHtml = `
-          <input type="password" class="delphi-prop-input" value="${p.value || ''}" placeholder="(senha)"
+          <input type="password" class="delphi-prop-input" value="${p.value || ''}" placeholder="(senha)" autocomplete="new-password" data-lpignore="true"
             onchange="window.app.inspector.onPropChange('${p.targetType}', '${p.propKey || p.name}', this.value)">
         `;
       } else {
@@ -389,68 +402,53 @@ class VoxObjectInspector {
         } else if (this.target.type === 'vox_Connection' || this.target.type === 'TFDConnection') {
           if (key === 'DriverName' || key === 'Driver') {
             if (value === 'MySQL') {
-              this.target.props.Porta = 3306;
               this.target.props.Port = 3306;
-              this.target.props.Login = 'root';
               this.target.props.UserName = 'root';
-              this.target.props.Senha = '';
               this.target.props.Password = '';
               this.target.props.VendorLib = 'libmysql.dll';
               if (!this.target.props.Database || this.target.props.Database.includes('.fdb') || this.target.props.Database.includes('.db')) {
                 this.target.props.Database = 'loja_vox';
               }
             } else if (value === 'MSSQL' || value === 'SQLServer') {
-              this.target.props.Porta = 1433;
               this.target.props.Port = 1433;
-              this.target.props.Login = 'sa';
               this.target.props.UserName = 'sa';
-              this.target.props.Senha = '';
               this.target.props.Password = '';
               this.target.props.VendorLib = 'sqlncli11.dll';
               if (!this.target.props.Database || this.target.props.Database.includes('.fdb') || this.target.props.Database.includes('.db')) {
                 this.target.props.Database = 'master';
               }
             } else if (value === 'Firebird') {
-              this.target.props.Porta = 3050;
               this.target.props.Port = 3050;
-              this.target.props.Login = 'SYSDBA';
               this.target.props.UserName = 'SYSDBA';
-              this.target.props.Senha = 'masterkey';
               this.target.props.Password = 'masterkey';
               this.target.props.VendorLib = 'fbclient.dll';
               if (!this.target.props.Database || !this.target.props.Database.includes('.fdb')) {
                 this.target.props.Database = 'C:\\dados\\banco.fdb';
               }
             } else if (value === 'PostgreSQL') {
-              this.target.props.Porta = 5432;
               this.target.props.Port = 5432;
-              this.target.props.Login = 'postgres';
               this.target.props.UserName = 'postgres';
-              this.target.props.Senha = '';
               this.target.props.Password = '';
               this.target.props.VendorLib = 'libpq.dll';
               this.target.props.Database = 'postgres';
             } else if (value === 'SQLite') {
-              this.target.props.Porta = 0;
               this.target.props.Port = 0;
-              this.target.props.Login = '';
               this.target.props.UserName = '';
-              this.target.props.Senha = '';
               this.target.props.Password = '';
               this.target.props.VendorLib = 'sqlite3.dll';
               this.target.props.Database = 'clientes.db';
             }
+
+            // Remove any legacy Portuguese-named duplicates
+            delete this.target.props.IP;
+            delete this.target.props.Porta;
+            delete this.target.props.Login;
+            delete this.target.props.Senha;
+            delete this.target.props.Driver;
+            delete this.target.props.Host;
+
             this.render();
           }
-          // Sincronização de propriedades espelho (IP <-> Server, Porta <-> Port, Login <-> UserName, Senha <-> Password)
-          if (key === 'IP') this.target.props.Server = value;
-          if (key === 'Server') this.target.props.IP = value;
-          if (key === 'Porta') this.target.props.Port = parseInt(value, 10) || 0;
-          if (key === 'Port') this.target.props.Porta = parseInt(value, 10) || 0;
-          if (key === 'Login') this.target.props.UserName = value;
-          if (key === 'UserName') this.target.props.Login = value;
-          if (key === 'Senha') this.target.props.Password = value;
-          if (key === 'Password') this.target.props.Senha = value;
 
           window.app.designer.updateComponentElement(this.target);
         } else {

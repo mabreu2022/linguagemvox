@@ -638,11 +638,11 @@ window.VOX_COMPONENTS = {
     defaultHeight: 38,
     defaultProps: {
       DriverName: 'MySQL', // MySQL, MSSQL, Firebird, SQLite, PostgreSQL
-      IP: '127.0.0.1',
-      Porta: 3306,
+      Server: '127.0.0.1',
+      Port: 3306,
       Database: 'loja_vox',
-      Login: 'root',
-      Senha: '',
+      UserName: 'root',
+      Password: '',
       VendorLib: 'libmysql.dll',
       Connected: true,
       LoginPrompt: false,
@@ -658,12 +658,12 @@ window.VOX_COMPONENTS = {
       else if (driver === 'PostgreSQL') badgeColor = '#3b82f6';
       else if (driver === 'SQLite') badgeColor = '#10b981';
 
-      const ip = comp.props.IP || comp.props.Server || '127.0.0.1';
-      const porta = comp.props.Porta !== undefined ? comp.props.Porta : (comp.props.Port || 3306);
-      const login = comp.props.Login || comp.props.UserName || 'root';
+      const server = comp.props.Server || comp.props.IP || '127.0.0.1';
+      const port = comp.props.Port !== undefined ? comp.props.Port : (comp.props.Porta || 3306);
+      const user = comp.props.UserName || comp.props.Login || 'root';
 
       return `
-        <div class="vcl-non-visual" title="vox_Connection: ${comp.name} [${driver} -> ${ip}:${porta} | Login: ${login}] (Duplo-clique para Configurar Conexão)" ondblclick="window.app.openConnectionEditor('${comp.id}')">
+        <div class="vcl-non-visual" title="vox_Connection: ${comp.name} [${driver} -> ${server}:${port} | User: ${user}] (Duplo-clique para Configurar Conexão)" ondblclick="window.app.openConnectionEditor('${comp.id}')">
           <span style="font-size: 18px;">🔌</span>
           <span class="vcl-nv-tag" style="background:${badgeColor}; font-size:9px;">${driver}</span>
         </div>
