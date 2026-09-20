@@ -179,9 +179,9 @@ class VoxDesigner {
 
         if (targetContainer) {
           // Se o alvo for um PageControl, colocar o novo componente dentro da TabSheet ativa
-          if (targetContainer.type === 'vox_PageControl' || targetContainer.type === 'TPageControl') {
+          if (this.isPageControlComponent(targetContainer.type)) {
             const pages = this.form.components.filter(c =>
-              (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === targetContainer.name
+              this.isTabSheetComponent(c.type) && c.parent === targetContainer.name
             );
             const activeIdx = Math.min(pages.length - 1, Math.max(0, parseInt(targetContainer.props.ActivePageIndex, 10) || 0));
             if (pages[activeIdx]) {
@@ -344,15 +344,31 @@ class VoxDesigner {
     const meta = window.VOX_COMPONENTS[type];
     if (meta && meta.isContainer) return true;
     const containers = [
-      'vox_Panel', 'TPanel',
-      'vox_GroupBox', 'TGroupBox',
-      'vox_Card', 'TCard',
-      'vox_RadioGroup', 'TRadioGroup',
-      'vox_CheckListGroupBox', 'TCheckListBox',
-      'vox_PageControl', 'TPageControl',
-      'vox_TabSheet', 'TTabSheet'
+      'vox_Panel', 'TPanel', 'TVoxPanel',
+      'vox_GroupBox', 'TGroupBox', 'TVoxGroupBox',
+      'vox_Card', 'TCard', 'TVoxCard',
+      'vox_RadioGroup', 'TRadioGroup', 'TVoxRadioGroup',
+      'vox_CheckListGroupBox', 'TCheckListBox', 'TVoxCheckListBox',
+      'vox_PageControl', 'TPageControl', 'TVoxPageControl',
+      'vox_TabSheet', 'TTabSheet', 'TVoxTabSheet',
+      'vox_ScrollBox', 'TScrollBox', 'TVoxScrollBox',
+      'vox_ToolBar', 'TToolBar', 'TVoxToolBar',
+      'vox_StatusBar', 'TStatusBar', 'TVoxStatusBar',
+      'vox_FlowPanel', 'TFlowPanel', 'TVoxFlowPanel',
+      'vox_GridPanel', 'TGridPanel', 'TVoxGridPanel',
+      'vox_SplitView', 'TSplitView', 'TVoxSplitView'
     ];
     return containers.includes(type);
+  }
+
+  isPageControlComponent(type) {
+    if (!type) return false;
+    return type === 'vox_PageControl' || type === 'TVoxPageControl' || type === 'TPageControl' || type.endsWith('PageControl');
+  }
+
+  isTabSheetComponent(type) {
+    if (!type) return false;
+    return type === 'vox_TabSheet' || type === 'TVoxTabSheet' || type === 'TTabSheet' || type.endsWith('TabSheet');
   }
 
   getComponentByName(name) {
@@ -423,8 +439,9 @@ class VoxDesigner {
 
   generateUniqueComponentName(type) {
     let seq = 1;
-    let baseName = type.startsWith('vox_') ? type.substring(4) : (type.startsWith('T') ? type.substring(1) : type);
-    while (this.form.components.some(c => c.name === `${baseName}${seq}`)) {
+    let raw = type.startsWith('vox_') ? type.substring(4) : (type.startsWith('TVox') ? type.substring(4) : (type.startsWith('T') ? type.substring(1) : type));
+    let baseName = 'vox_' + raw.toLowerCase();
+    while (this.form.components.some(c => (c.name || '').toLowerCase() === `${baseName}${seq}`.toLowerCase())) {
       seq++;
     }
     return `${baseName}${seq}`;
@@ -436,15 +453,17 @@ class VoxDesigner {
 
     const name = this.generateUniqueComponentName(type);
 
-    // Se nenhum parentName foi passado mas há um contêiner selecionado (e o componente a ser adicionado NÃO é outro contêiner)
-    if (!parentName && this.selectedComponent && this.isContainerComponent(this.selectedComponent.type) && !this.isContainerComponent(type)) {
-      if (this.selectedComponent.type === 'vox_PageControl' || this.selectedComponent.type === 'TPageControl') {
+    // Se nenhum parentName foi passado mas há um contêiner selecionado
+    if (!parentName && this.selectedComponent) {
+      if (this.isTabSheetComponent(this.selectedComponent.type)) {
+        parentName = this.selectedComponent.name;
+      } else if (this.isPageControlComponent(this.selectedComponent.type)) {
         const pages = this.form.components.filter(c =>
-          (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === this.selectedComponent.name
+          this.isTabSheetComponent(c.type) && c.parent === this.selectedComponent.name
         );
         const activeIdx = Math.min(pages.length - 1, Math.max(0, parseInt(this.selectedComponent.props.ActivePageIndex, 10) || 0));
         parentName = pages[activeIdx] ? pages[activeIdx].name : this.selectedComponent.name;
-      } else {
+      } else if (this.isContainerComponent(this.selectedComponent.type) && type !== this.selectedComponent.type) {
         parentName = this.selectedComponent.name;
       }
     }
@@ -470,7 +489,7 @@ class VoxDesigner {
     }
     newComp.props.Align = newComp.props.Align || 'alNone';
 
-    if (type === 'vox_PageControl' || type === 'TPageControl') {
+    if (this.isPageControlComponent(type)) {
       newComp.props.ActivePageIndex = 0;
       newComp.props.TabPosition = newComp.props.TabPosition || 'tpTop';
       this.form.components.push(newComp);
@@ -482,10 +501,10 @@ class VoxDesigner {
         type: 'vox_TabSheet',
         parent: newComp.name,
         left: 0,
-        top: 0,
+        top: 26,
         width: newComp.width,
-        height: Math.max(100, newComp.height - 28),
-        props: { Caption: 'Geral', PageIndex: 0, ImageIndex: -1, Align: 'alNone' },
+        height: Math.max(20, newComp.height - 26),
+        props: { Caption: 'Geral', PageIndex: 0, ImageIndex: -1, Align: 'alClient' },
         events: {}
       };
       this.form.components.push(tab1);
@@ -497,10 +516,10 @@ class VoxDesigner {
         type: 'vox_TabSheet',
         parent: newComp.name,
         left: 0,
-        top: 0,
+        top: 26,
         width: newComp.width,
-        height: Math.max(100, newComp.height - 28),
-        props: { Caption: 'Detalhes', PageIndex: 1, ImageIndex: -1, Align: 'alNone' },
+        height: Math.max(20, newComp.height - 26),
+        props: { Caption: 'Detalhes', PageIndex: 1, ImageIndex: -1, Align: 'alClient' },
         events: {}
       };
       this.form.components.push(tab2);
@@ -811,8 +830,8 @@ class VoxDesigner {
   getPageControlTarget(target = null) {
     let comp = target || this.selectedComponent;
     if (!comp) return null;
-    if (comp.type === 'vox_PageControl' || comp.type === 'TPageControl') return comp;
-    if ((comp.type === 'vox_TabSheet' || comp.type === 'TTabSheet') && comp.parent) {
+    if (this.isPageControlComponent(comp.type)) return comp;
+    if (this.isTabSheetComponent(comp.type) && comp.parent) {
       return this.getComponentByName(comp.parent);
     }
     return null;
@@ -823,7 +842,7 @@ class VoxDesigner {
     if (!pc) return null;
 
     const existingPages = this.form.components.filter(c =>
-      (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === pc.name
+      this.isTabSheetComponent(c.type) && c.parent === pc.name
     );
     const newIdx = existingPages.length;
     const newName = this.generateUniqueComponentName('vox_TabSheet');
@@ -833,14 +852,14 @@ class VoxDesigner {
       type: 'vox_TabSheet',
       parent: pc.name,
       left: 0,
-      top: 0,
+      top: 26,
       width: pc.width,
-      height: Math.max(100, pc.height - 28),
+      height: Math.max(20, pc.height - 26),
       props: {
         Caption: `Aba ${newIdx + 1}`,
         PageIndex: newIdx,
         ImageIndex: -1,
-        Align: 'alNone'
+        Align: 'alClient'
       },
       events: {}
     };
@@ -934,11 +953,11 @@ class VoxDesigner {
     this.selectedComponent = comp;
     if (comp) {
       // Se for uma TabSheet, sincronizar a aba ativa do PageControl pai
-      if ((comp.type === 'vox_TabSheet' || comp.type === 'TTabSheet') && comp.parent) {
+      if (this.isTabSheetComponent(comp.type) && comp.parent) {
         const pc = this.getComponentByName(comp.parent);
         if (pc) {
           const pages = this.form.components.filter(c =>
-            (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === pc.name
+            this.isTabSheetComponent(c.type) && c.parent === pc.name
           );
           const tabIdx = pages.findIndex(p => p.id === comp.id);
           if (tabIdx !== -1 && pc.props.ActivePageIndex !== tabIdx) {
@@ -966,10 +985,18 @@ class VoxDesigner {
 
     const nonVisual = [
       'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
-      'TDataSource', 'TFDConnection', 'TFDQuery'
+      'vox_MemTable', 'vox_Transaction', 'vox_StoredProc', 'vox_SQLScript', 'vox_Table',
+      'vox_ActionList', 'vox_PopupMenu', 'vox_RESTClient', 'vox_RESTRequest', 'vox_RESTAdapter',
+      'TVoxDataSource', 'TVoxConnection', 'TVoxQuery', 'TVoxTimer', 'TVoxOpenDialog', 'TVoxSaveDialog',
+      'TVoxMemTable', 'TVoxTransaction', 'TVoxStoredProc', 'TVoxSQLScript', 'TVoxTable',
+      'TVoxActionList', 'TVoxPopupMenu', 'TVoxRESTClient', 'TVoxRESTRequest', 'TVoxRESTAdapter',
+      'TDataSource', 'TFDConnection', 'TFDQuery', 'TTimer', 'TOpenDialog', 'TSaveDialog'
     ];
 
-    const visualComps = this.form.components.filter(c => !nonVisual.includes(c.type));
+    const visualComps = this.form.components.filter(c => {
+      const meta = window.VOX_COMPONENTS[c.type];
+      return !(meta && meta.isNonVisual) && !nonVisual.includes(c.type);
+    });
     const formName = this.form.name;
 
     const alignGroup = (controls, areaW, areaH, isRoot = false) => {
@@ -1066,17 +1093,41 @@ class VoxDesigner {
 
     containers.forEach(cont => {
       const childComps = visualComps.filter(c => c.parent === cont.name);
-      alignGroup(childComps, parseInt(cont.width, 10) || 100, parseInt(cont.height, 10) || 100, false);
+      if (this.isPageControlComponent(cont.type)) {
+        const tabBarH = 26;
+        const clientW = Math.max(20, parseInt(cont.width, 10) || 100);
+        const clientH = Math.max(20, (parseInt(cont.height, 10) || 100) - tabBarH);
+        const tabTop = (cont.props && cont.props.TabPosition === 'tpBottom') ? 0 : tabBarH;
+        childComps.forEach(tab => {
+          if (this.isTabSheetComponent(tab.type)) {
+            tab.left = 0;
+            tab.top = tabTop;
+            tab.width = clientW;
+            tab.height = clientH;
+            if (!tab.props) tab.props = {};
+            tab.props.Align = 'alClient';
+          }
+        });
+      } else {
+        alignGroup(childComps, parseInt(cont.width, 10) || 100, parseInt(cont.height, 10) || 100, false);
+      }
     });
 
     // Atualizar no DOM os elementos visuais
     visualComps.forEach(c => {
       const el = document.getElementById(c.id);
       if (el) {
-        el.style.left = `${c.left}px`;
-        el.style.top = `${c.top}px`;
-        el.style.width = `${c.width}px`;
-        el.style.height = `${c.height}px`;
+        if (this.isTabSheetComponent(c.type)) {
+          el.style.left = '0px';
+          el.style.top = '0px';
+          el.style.width = '100%';
+          el.style.height = '100%';
+        } else {
+          el.style.left = `${c.left}px`;
+          el.style.top = `${c.top}px`;
+          el.style.width = `${c.width}px`;
+          el.style.height = `${c.height}px`;
+        }
 
         const alignClass = c.props && c.props.Align ? c.props.Align.toLowerCase() : 'alnone';
         ['alnone', 'altop', 'albottom', 'alleft', 'alright', 'alclient'].forEach(a => {
@@ -1155,8 +1206,8 @@ class VoxDesigner {
 
     const alignClass = comp.props && comp.props.Align ? ` delphi-comp-${comp.props.Align.toLowerCase()}` : ' delphi-comp-alnone';
     const isContainer = this.isContainerComponent(comp.type);
-    const isPageControl = (comp.type === 'vox_PageControl' || comp.type === 'TPageControl');
-    const isTabSheet = (comp.type === 'vox_TabSheet' || comp.type === 'TTabSheet');
+    const isPageControl = this.isPageControlComponent(comp.type);
+    const isTabSheet = this.isTabSheetComponent(comp.type);
 
     const extraClass = (isPageControl ? ' delphi-pagecontrol-comp' : '') +
                        (isTabSheet ? ' delphi-tabsheet-comp' : '');
@@ -1176,7 +1227,7 @@ class VoxDesigner {
       const pc = this.getComponentByName(comp.parent);
       if (pc) {
         const pages = this.form.components.filter(c =>
-          (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === pc.name
+          this.isTabSheetComponent(c.type) && c.parent === pc.name
         );
         const activeIdx = Math.min(pages.length - 1, Math.max(0, parseInt(pc.props.ActivePageIndex, 10) || 0));
         const myIdx = pages.findIndex(p => p.id === comp.id);
@@ -1215,20 +1266,39 @@ class VoxDesigner {
         const tabSheetName = tabItem.dataset.tabsheet;
         const pc = this.getComponentByName(pcName) || comp;
         if (pc) {
+          const wasActive = pc.props.ActivePageIndex === tabIdx;
+          const wasSelected = this.selectedComponent && (this.selectedComponent.name === tabSheetName);
+
           pc.props.ActivePageIndex = tabIdx;
           this.renderForm();
-          const tabSheet = this.getComponentByName(tabSheetName);
-          if (tabSheet) {
-            this.selectComponent(tabSheet);
-          } else {
+
+          // Padrão Delphi: Se clicou na aba que já estava ativa e selecionada, seleciona o PageControl pai!
+          if (wasActive && wasSelected) {
             this.selectComponent(pc);
+          } else {
+            const tabSheet = this.getComponentByName(tabSheetName);
+            if (tabSheet) {
+              this.selectComponent(tabSheet);
+            } else {
+              this.selectComponent(pc);
+            }
           }
+
           if (window.app) {
             window.app.onFormChanged();
             window.app.updateStructureTree();
           }
         }
         return;
+      }
+
+      // 3. Clique na barra de abas vazia (.vcl-tab-bar) fora das abas ou na borda do PageControl -> seleciona o PageControl!
+      if (e.target.closest('.vcl-tab-bar') || (this.isPageControlComponent(comp.type) && !e.target.closest('.delphi-tabsheet-comp'))) {
+        const pc = this.isPageControlComponent(comp.type) ? comp : (comp.parent ? this.getComponentByName(comp.parent) : comp);
+        if (pc && this.isPageControlComponent(pc.type)) {
+          this.selectComponent(pc);
+          return;
+        }
       }
 
       this.selectComponent(comp);
@@ -1278,10 +1348,17 @@ class VoxDesigner {
     const el = document.getElementById(comp.id);
     if (!el) return;
 
-    el.style.left = `${comp.left}px`;
-    el.style.top = `${comp.top}px`;
-    el.style.width = `${comp.width}px`;
-    el.style.height = `${comp.height}px`;
+    if (this.isTabSheetComponent(comp.type)) {
+      el.style.left = '0px';
+      el.style.top = '0px';
+      el.style.width = '100%';
+      el.style.height = '100%';
+    } else {
+      el.style.left = `${comp.left}px`;
+      el.style.top = `${comp.top}px`;
+      el.style.width = `${comp.width}px`;
+      el.style.height = `${comp.height}px`;
+    }
 
     const alignClass = comp.props && comp.props.Align ? comp.props.Align.toLowerCase() : 'alnone';
     ['alnone', 'altop', 'albottom', 'alleft', 'alright', 'alclient'].forEach(a => {
@@ -1297,9 +1374,16 @@ class VoxDesigner {
       }
     }
 
-    if ((comp.type === 'vox_TabSheet' || comp.type === 'TTabSheet') && comp.parent) {
+    if (this.isTabSheetComponent(comp.type) && comp.parent) {
       const pc = this.getComponentByName(comp.parent);
       if (pc) this.updateComponentElement(pc);
+    }
+    if (this.isPageControlComponent(comp.type)) {
+      const tabs = this.form.components.filter(c => this.isTabSheetComponent(c.type) && c.parent === comp.name);
+      tabs.forEach(t => {
+        t.width = comp.width;
+        t.height = Math.max(20, comp.height - 26);
+      });
     }
   }
 

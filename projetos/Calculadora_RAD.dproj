@@ -1,0 +1,8 @@
+{
+  "ProjectName": "Calculadora_RAD",
+  "Version": "1.0.0",
+  "TargetPlatform": "Web Browser (HTML5 + REST)",
+  "OutputType": "Executable",
+  "MainForm": "Form1",
+  "Created": "2026-09-20T19:02:53.763Z"
+}

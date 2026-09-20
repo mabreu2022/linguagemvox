@@ -48,10 +48,29 @@ class VoxFormRunner {
   computeAlignments(components, width, height) {
     const nonVisual = [
       'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
-      'TDataSource', 'TFDConnection', 'TFDQuery'
+      'vox_MemTable', 'vox_Transaction', 'vox_StoredProc', 'vox_SQLScript', 'vox_Table',
+      'vox_ActionList', 'vox_PopupMenu', 'vox_RESTClient', 'vox_RESTRequest', 'vox_RESTAdapter',
+      'TVoxDataSource', 'TVoxConnection', 'TVoxQuery', 'TVoxTimer', 'TVoxOpenDialog', 'TVoxSaveDialog',
+      'TVoxMemTable', 'TVoxTransaction', 'TVoxStoredProc', 'TVoxSQLScript', 'TVoxTable',
+      'TVoxActionList', 'TVoxPopupMenu', 'TVoxRESTClient', 'TVoxRESTRequest', 'TVoxRESTAdapter',
+      'TDataSource', 'TFDConnection', 'TFDQuery', 'TTimer', 'TOpenDialog', 'TSaveDialog'
     ];
     const isContainer = (type) => {
-      return ['vox_Panel', 'TPanel', 'vox_GroupBox', 'TGroupBox', 'vox_Card', 'TCard', 'vox_RadioGroup', 'TRadioGroup', 'vox_CheckListGroupBox', 'TCheckListBox', 'vox_PageControl', 'TPageControl', 'vox_TabSheet', 'TTabSheet'].includes(type);
+      return [
+        'vox_Panel', 'TPanel', 'TVoxPanel',
+        'vox_GroupBox', 'TGroupBox', 'TVoxGroupBox',
+        'vox_Card', 'TCard', 'TVoxCard',
+        'vox_RadioGroup', 'TRadioGroup', 'TVoxRadioGroup',
+        'vox_CheckListGroupBox', 'TCheckListBox', 'TVoxCheckListBox',
+        'vox_PageControl', 'TPageControl', 'TVoxPageControl',
+        'vox_TabSheet', 'TTabSheet', 'TVoxTabSheet',
+        'vox_ScrollBox', 'TScrollBox', 'TVoxScrollBox',
+        'vox_ToolBar', 'TToolBar', 'TVoxToolBar',
+        'vox_StatusBar', 'TStatusBar', 'TVoxStatusBar',
+        'vox_FlowPanel', 'TFlowPanel', 'TVoxFlowPanel',
+        'vox_GridPanel', 'TGridPanel', 'TVoxGridPanel',
+        'vox_SplitView', 'TSplitView', 'TVoxSplitView'
+      ].includes(type);
     };
 
     const alignGroup = (controls, areaW, areaH) => {
@@ -126,11 +145,30 @@ class VoxFormRunner {
 
     const nonVisual = [
       'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
-      'TDataSource', 'TFDConnection', 'TFDQuery'
+      'vox_MemTable', 'vox_Transaction', 'vox_StoredProc', 'vox_SQLScript', 'vox_Table',
+      'vox_ActionList', 'vox_PopupMenu', 'vox_RESTClient', 'vox_RESTRequest', 'vox_RESTAdapter',
+      'TVoxDataSource', 'TVoxConnection', 'TVoxQuery', 'TVoxTimer', 'TVoxOpenDialog', 'TVoxSaveDialog',
+      'TVoxMemTable', 'TVoxTransaction', 'TVoxStoredProc', 'TVoxSQLScript', 'TVoxTable',
+      'TVoxActionList', 'TVoxPopupMenu', 'TVoxRESTClient', 'TVoxRESTRequest', 'TVoxRESTAdapter',
+      'TDataSource', 'TFDConnection', 'TFDQuery', 'TTimer', 'TOpenDialog', 'TSaveDialog'
     ];
 
     const isContainer = (type) => {
-      return ['vox_Panel', 'TPanel', 'vox_GroupBox', 'TGroupBox', 'vox_Card', 'TCard', 'vox_RadioGroup', 'TRadioGroup', 'vox_CheckListGroupBox', 'TCheckListBox', 'vox_PageControl', 'TPageControl', 'vox_TabSheet', 'TTabSheet'].includes(type);
+      return [
+        'vox_Panel', 'TPanel', 'TVoxPanel',
+        'vox_GroupBox', 'TGroupBox', 'TVoxGroupBox',
+        'vox_Card', 'TCard', 'TVoxCard',
+        'vox_RadioGroup', 'TRadioGroup', 'TVoxRadioGroup',
+        'vox_CheckListGroupBox', 'TCheckListBox', 'TVoxCheckListBox',
+        'vox_PageControl', 'TPageControl', 'TVoxPageControl',
+        'vox_TabSheet', 'TTabSheet', 'TVoxTabSheet',
+        'vox_ScrollBox', 'TScrollBox', 'TVoxScrollBox',
+        'vox_ToolBar', 'TToolBar', 'TVoxToolBar',
+        'vox_StatusBar', 'TStatusBar', 'TVoxStatusBar',
+        'vox_FlowPanel', 'TFlowPanel', 'TVoxFlowPanel',
+        'vox_GridPanel', 'TGridPanel', 'TVoxGridPanel',
+        'vox_SplitView', 'TSplitView', 'TVoxSplitView'
+      ].includes(type);
     };
 
     this.currentFormState = formState;
@@ -280,9 +318,11 @@ class VoxFormRunner {
       `;
     }
 
-    if (comp.type === 'vox_Label' || comp.type === 'TLabel') {
+    if (comp.type === 'vox_Label' || comp.type === 'TLabel' || comp.type === 'TVoxLabel') {
+      const isCustomColor = comp.props.Color && comp.props.Color !== 'inherit' && comp.props.Color !== 'default' && comp.props.Color !== '#1a1a1a';
+      const labelColor = isCustomColor ? comp.props.Color : '#1a1a1a';
       return `
-        <div class="vcl-label" style="color: ${comp.props.Color || '#1a1a1a'};">
+        <div class="vcl-label" style="color: ${labelColor}; font-weight: 500;">
           ${comp.props.Caption || 'Label1'}
         </div>
       `;
@@ -350,7 +390,7 @@ class VoxFormRunner {
     if (formState.events && formState.events.OnCreate && window.app && window.app.debugger) {
       const hitBp = window.app.debugger.handleLiveEvent(formState.name, 'OnCreate', formState.events.OnCreate, {
         sender: formState.name,
-        senderType: 'TForm'
+        senderType: 'TVoxForm'
       });
       if (hitBp) {
         this.close();
@@ -360,6 +400,39 @@ class VoxFormRunner {
 
     // 2. Disparar eventos dos componentes visuais
     formState.components.forEach(comp => {
+      // Menu Principal (vox_MainMenu / TVoxMainMenu)
+      if (['vox_MainMenu', 'TMainMenu', 'TVoxMainMenu', 'vox_PopupMenu', 'TPopupMenu', 'TVoxPopupMenu'].includes(comp.type)) {
+        const rawItems = (comp.props && comp.props.Items !== undefined) ? comp.props.Items : 'Cadastros, Vendas, Relatórios, Configurações';
+        const items = (rawItems || '').split(',').map(i => i.trim()).filter(Boolean);
+        items.forEach((item, idx) => {
+          const cleanItem = item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_]/g, '_');
+          const evKey = `OnClick_${cleanItem}`;
+          const handlerName = (comp.events && (comp.events[evKey] || comp.events[item])) ? (comp.events[evKey] || comp.events[item]) : `${comp.name}_${cleanItem}Click`;
+
+          const menuEls = this.modalBody ? this.modalBody.querySelectorAll('.vcl-menu-top-item, .vcl-menu-sidebar-item') : [];
+          menuEls.forEach(el => {
+            if (el.innerText && el.innerText.trim().includes(item)) {
+              el.style.cursor = 'pointer';
+              el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (window.app && window.app.debugger) {
+                  const hitBp = window.app.debugger.handleLiveEvent(comp.name, evKey, handlerName, {
+                    sender: comp.name,
+                    item: item,
+                    index: idx
+                  });
+                  if (hitBp) {
+                    this.close();
+                    return;
+                  }
+                }
+                alert(`[Evento VCL MainMenu]\n${comp.name}.${handlerName}() acionado para a opção: "${item}".`);
+              });
+            }
+          });
+        });
+      }
+
       const btn = document.getElementById(`live_${comp.id}`);
       if (!btn) return;
 
@@ -370,7 +443,7 @@ class VoxFormRunner {
         if (window.app && window.app.debugger) {
           const hitBp = window.app.debugger.handleLiveEvent(comp.name, 'OnClick', handlerName, {
             sender: comp.name,
-            senderType: comp.type
+            senderType: (typeof window !== 'undefined' && window.getVoxClassType) ? window.getVoxClassType(comp.type) : comp.type
           });
           if (hitBp) {
             this.close();

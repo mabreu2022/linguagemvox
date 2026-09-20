@@ -30,6 +30,7 @@ class VoxStudioApp {
     this.selectedOpenGroup = null;
     this.currentOpenFileCategory = 'all';
     this.openFileSearchQuery = '';
+    this.currentView = 'designer';
   }
 
   init() {
@@ -62,22 +63,43 @@ class VoxStudioApp {
     this.initTabs();
     this.checkServerStatus();
 
-    // Tentar carregar Form1.vxf existente do projeto; se não existir, inicia formulário limpo
+    // Tentar carregar Form1.vxf existente do projeto; se não existir, tenta autosave do localStorage ou inicia limpo
     this.loadForm('forms/Form1.vxf').then(loaded => {
       if (!loaded) {
-        this.designer.form = {
-          name: 'Form1',
-          title: 'Form1',
-          width: 700,
-          height: 480,
-          components: []
-        };
-        this.designer.syncIdCounter();
-        this.designer.selectedComponent = null;
-        this.designer.renderForm();
-        this.inspector.update(null);
-        this.updateStructureTree();
-        this.syncCodeFromDesigner();
+        let restored = false;
+        try {
+          const autoSaved = localStorage.getItem('vox_autosave_form');
+          if (autoSaved) {
+            const parsed = JSON.parse(autoSaved);
+            if (parsed && parsed.components && parsed.components.length > 0) {
+              this.designer.form = parsed;
+              this.designer.syncIdCounter();
+              this.designer.renderForm();
+              this.syncCodeFromDesigner();
+              this.updateStructureTree();
+              restored = true;
+            }
+          }
+        } catch (_) {}
+
+        if (!restored) {
+          this.designer.form = {
+            name: 'Form1',
+            title: 'Form1',
+            width: 700,
+            height: 480,
+            components: []
+          };
+          this.designer.syncIdCounter();
+          this.designer.selectedComponent = null;
+          this.designer.renderForm();
+          this.inspector.update(null);
+          this.updateStructureTree();
+          this.syncCodeFromDesigner();
+        }
+      }
+      if (this.openTabs && this.openTabs[0]) {
+        this.openTabs[0].formState = JSON.parse(JSON.stringify(this.designer.form));
       }
     });
   }
@@ -252,6 +274,20 @@ class VoxStudioApp {
   switchTab(tabId) {
     if (tabId === this.activeTabId) return;
 
+    // Preservar formulário atual no estado das abas
+    if (this.designer && this.designer.form) {
+      if (this.openTabs) {
+        this.openTabs.forEach(t => {
+          if (t.isForm || (t.name && t.name.endsWith('.vxf'))) {
+            t.formState = JSON.parse(JSON.stringify(this.designer.form));
+          }
+        });
+      }
+      try {
+        localStorage.setItem('vox_autosave_form', JSON.stringify(this.designer.form));
+      } catch (_) {}
+    }
+
     const curTab = this.getActiveTab();
     if (curTab) {
       if (this.currentView === 'code' && this.editor) {
@@ -277,19 +313,21 @@ class VoxStudioApp {
     };
 
     if (tab.isForm) {
-      if (tab.formState) {
+      if (tab.formState && tab.formState.components && tab.formState.components.length > 0) {
+        this.designer.form = JSON.parse(JSON.stringify(tab.formState));
+      } else if (this.designer.form && this.designer.form.components && this.designer.form.components.length > 0) {
+        // Se o designer já possui componentes desenhados e a aba estiver vazia, preserva os componentes!
+        tab.formState = JSON.parse(JSON.stringify(this.designer.form));
+      } else if (tab.formState) {
         this.designer.form = tab.formState;
-        this.designer.syncIdCounter();
-        this.designer.renderForm();
-        this.syncCodeFromDesigner();
       } else if (tab.content) {
         try {
           this.designer.form = JSON.parse(tab.content);
-          this.designer.syncIdCounter();
-          this.designer.renderForm();
-          this.syncCodeFromDesigner();
         } catch (_) {}
       }
+      this.designer.syncIdCounter();
+      this.designer.renderForm();
+      this.syncCodeFromDesigner();
       this.switchView('designer');
     } else {
       if (tab.content !== undefined && this.editor) {
@@ -429,6 +467,8 @@ class VoxStudioApp {
           row.className = 'palette-comp-row';
           row.draggable = true;
           row.dataset.type = c.name;
+          const classType = c.className || (window.getVoxClassType ? window.getVoxClassType(c.name) : c.name);
+          row.title = `${c.name} (${classType})`;
           row.innerHTML = `
             <span>${c.icon || '▫️'}</span>
             <span>${c.name}</span>
@@ -440,9 +480,22 @@ class VoxStudioApp {
 
           row.addEventListener('click', () => {
             const sel = this.designer.selectedComponent;
-            const isNewContainer = this.designer.isContainerComponent(c.name);
-            if (!isNewContainer && sel && this.designer.isContainerComponent(sel.type)) {
-              this.designer.addComponent(c.name, 20, 20, sel.name);
+            let targetParent = null;
+            if (sel) {
+              if (this.designer.isTabSheetComponent(sel.type)) {
+                targetParent = sel.name;
+              } else if (this.designer.isPageControlComponent(sel.type)) {
+                const pages = this.designer.form.components.filter(cp =>
+                  this.designer.isTabSheetComponent(cp.type) && cp.parent === sel.name
+                );
+                const activeIdx = Math.min(pages.length - 1, Math.max(0, parseInt(sel.props.ActivePageIndex, 10) || 0));
+                targetParent = pages[activeIdx] ? pages[activeIdx].name : sel.name;
+              } else if (this.designer.isContainerComponent(sel.type)) {
+                targetParent = sel.name;
+              }
+            }
+            if (targetParent) {
+              this.designer.addComponent(c.name, 20, 20, targetParent);
             } else {
               this.designer.addComponent(c.name, 40, 40, null);
             }
@@ -527,6 +580,8 @@ class VoxStudioApp {
     const form = this.designer.form;
     const selected = this.designer.selectedComponent;
 
+    const formClassType = 'TVoxForm';
+
     let html = `
       <div class="tree-node ${!selected ? 'selected' : ''}"
         onclick="window.app.designer.selectComponent(null)"
@@ -535,7 +590,7 @@ class VoxStudioApp {
         title="Formulário Raiz: ${form.name}">
         <span>🪟</span>
         <span style="font-weight:700;">${form.name}</span>
-        <span style="color:#6c7889; font-size:10px;">: T${form.name}</span>
+        <span style="color:#6c7889; font-size:10px;">: ${formClassType}</span>
       </div>
     `;
 
@@ -549,7 +604,8 @@ class VoxStudioApp {
 
       children.forEach(c => {
         const isSel = selected && selected.id === c.id;
-        const meta = window.VOX_COMPONENTS[c.type];
+        const classType = window.getVoxClassType ? window.getVoxClassType(c.type || c.className) : (c.type || 'TVoxComponent');
+        const meta = window.VOX_COMPONENTS ? window.VOX_COMPONENTS[c.type] : null;
         const icon = meta ? meta.icon : '▫️';
         const isContainer = this.designer.isContainerComponent(c.type);
         const padLeft = 20 + depth * 16;
@@ -566,10 +622,10 @@ class VoxStudioApp {
             ondragstart="window.app.onTreeDragStart(event, '${c.name}')"
             ${containerDropEvents}
             onclick="window.app.selectComponentById('${c.id}')"
-            title="${c.name} (${c.type})${c.parent ? ' • Pai: ' + c.parent : ''}">
+            title="${c.name} (${classType})${c.parent ? ' • Pai: ' + c.parent : ''}">
             <span>${icon}</span>
             <span style="font-weight:${isContainer ? '600' : 'normal'}; color:${isContainer ? '#38bdf8' : 'inherit'};">${c.name}</span>
-            <span style="color:#6c7889; font-size:10px;">: ${c.type}</span>
+            <span style="color:#6c7889; font-size:10px;">: ${classType}</span>
           </div>
         `;
 
@@ -693,6 +749,21 @@ class VoxStudioApp {
         } else {
           this.startDebug();
         }
+      } else if (e.key === 'Escape') {
+        // Padrão Delphi clássico: Escape seleciona o contêiner pai (TabSheet -> PageControl -> Form)
+        if (this.currentView !== 'code' && this.designer && this.designer.selectedComponent) {
+          const sel = this.designer.selectedComponent;
+          if (sel.parent && sel.parent !== this.designer.form.name) {
+            const parentComp = this.designer.getComponentByName(sel.parent);
+            if (parentComp) {
+              e.preventDefault();
+              this.designer.selectComponent(parentComp);
+            }
+          } else {
+            e.preventDefault();
+            this.designer.selectComponent(null);
+          }
+        }
       } else if (e.key === 'F5') {
         e.preventDefault();
         this.toggleBreakpointCurrentLine();
@@ -769,13 +840,26 @@ class VoxStudioApp {
 
   onFormChanged() {
     this.isDirty = true;
+    if (this.designer && this.designer.form) {
+      if (this.openTabs) {
+        this.openTabs.forEach(t => {
+          if (t.isForm || (t.name && t.name.endsWith('.vxf'))) {
+            t.formState = JSON.parse(JSON.stringify(this.designer.form));
+            t.isDirty = true;
+          }
+        });
+      }
+      try {
+        localStorage.setItem('vox_autosave_form', JSON.stringify(this.designer.form));
+      } catch (_) {}
+    }
     if (this.currentView === 'code') {
       this.syncCodeFromDesigner();
     }
     this.updateStructureTree();
   }
 
-  jumpToEvent(comp, eventName) {
+  jumpToEvent(comp, eventName, cleanItem, rawItem) {
     if (!comp) return;
 
     // Se der duplo-clique em um vox_Query ou TFDQuery, abre direto o SQL Command Editor clássico do Delphi!
@@ -786,7 +870,12 @@ class VoxStudioApp {
 
     let handlerName = comp.events && comp.events[eventName];
     if (!handlerName) {
-      handlerName = `${comp.name}${eventName.replace('On', '')}`;
+      if (eventName && eventName.startsWith('OnClick_')) {
+        const itemClean = cleanItem || eventName.replace('OnClick_', '');
+        handlerName = `${comp.name}_${itemClean}Click`;
+      } else {
+        handlerName = `${comp.name}${eventName.replace('On', '')}`;
+      }
       if (!comp.events) comp.events = {};
       comp.events[eventName] = handlerName;
     }
@@ -794,12 +883,16 @@ class VoxStudioApp {
     this.switchView('code');
 
     const currentCode = this.editor.getCode();
-    const result = window.VoxCodeGen.ensureEventHandler(currentCode, handlerName, comp.name, eventName);
+    const result = window.VoxCodeGen.ensureEventHandler(currentCode, handlerName, comp.name, eventName, rawItem || cleanItem);
     this.editor.setCode(result.voxCode);
 
     setTimeout(() => {
       this.editor.jumpToMethod(handlerName);
     }, 50);
+
+    if (this.inspector && this.inspector.target === comp) {
+      this.inspector.render();
+    }
   }
 
   // Pular para manipulador de Evento do Formulário Delphi (OnCreate, OnShow, OnClose, etc.)
@@ -1527,10 +1620,13 @@ class VoxStudioApp {
   newForm() {
     let idx = 1;
     const existingForms = (this.currentProject && this.currentProject.units) ? this.currentProject.units : [];
-    while (existingForms.some(u => u.toLowerCase() === `form${idx}.vxf` || u.toLowerCase() === `form${idx}.vox`)) {
+    while (existingForms.some(u => {
+      const lower = u.toLowerCase();
+      return lower === `vox_form${idx}.vxf` || lower === `vox_form${idx}.vox` || lower === `form${idx}.vxf` || lower === `form${idx}.vox`;
+    })) {
       idx++;
     }
-    const formName = `Form${idx}`;
+    const formName = `vox_form${idx}`;
     const vxfName = `${formName}.vxf`;
     const voxName = `${formName}.vox`;
 
@@ -1725,8 +1821,8 @@ class ${baseName} {
     }
 
     this.designer.form = {
-      name: 'Form1',
-      title: 'Form1',
+      name: 'vox_form1',
+      title: 'vox_form1',
       width: formWidth,
       height: formHeight,
       components: components
@@ -1745,39 +1841,39 @@ class ${baseName} {
       name: projName,
       file: `${projName}.dproj`,
       folder: '.',
-      mainForm: 'Form1',
-      units: ['Form1.vox', 'Form1.vxf']
+      mainForm: 'vox_form1',
+      units: ['vox_form1.vox', 'vox_form1.vxf']
     };
     this.currentFile = {
-      name: 'Form1.vxf',
-      path: 'forms/Form1.vxf',
+      name: 'vox_form1.vxf',
+      path: 'forms/vox_form1.vxf',
       type: 'vxf'
     };
 
     // 2. Inicializar abas de documentos
     this.openTabs = [
       this.createTabObject({
-        id: 'tab_form1',
-        name: 'Form1.vxf',
-        title: 'Form1.vxf',
-        path: 'forms/Form1.vxf',
+        id: 'tab_vox_form1',
+        name: 'vox_form1.vxf',
+        title: 'vox_form1.vxf',
+        path: 'forms/vox_form1.vxf',
         type: 'form',
         isForm: true,
         isDirty: true,
         formState: JSON.parse(JSON.stringify(this.designer.form))
       }),
       this.createTabObject({
-        id: 'tab_unit1',
-        name: 'Form1.vox',
-        title: 'Form1.vox',
-        path: 'forms/Form1.vox',
+        id: 'tab_vox_unit1',
+        name: 'vox_form1.vox',
+        title: 'vox_form1.vox',
+        path: 'forms/vox_form1.vox',
         type: 'unit',
         isForm: false,
         isDirty: true,
         content: window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : ''
       })
     ];
-    this.activeTabId = 'tab_form1';
+    this.activeTabId = 'tab_vox_form1';
     this.renderTabs();
 
     // 3. Atualizar Project Explorer e cabeçalho
@@ -2816,18 +2912,49 @@ class ${baseName} {
     this.openProjectGroup(name.trim());
   }
 
-  // --- 4. SALVAR PROJETO COMO (.DPROJ) ---
+  // --- 4. SALVAR PROJETO COMO (.DPROJ) - PADRÃO DELPHI 13 ---
+  initSaveProjectDialogState() {
+    this.saveDialogState = {
+      currentDir: 'projetos',
+      history: ['projetos'],
+      historyIdx: 0,
+      sortBy: 'name',
+      sortAsc: true,
+      items: [],
+      selectedItem: null,
+      selectedType: '.dproj'
+    };
+  }
+
   openSaveProjectAsModal() {
     const modal = document.getElementById('saveProjectAsModal');
     if (!modal) return;
-    const nameInput = document.getElementById('saveProjNameInput');
-    const folderInput = document.getElementById('saveProjFolderInput');
+    if (!this.saveDialogState) {
+      this.initSaveProjectDialogState();
+    }
 
-    const curName = this.currentProject ? this.currentProject.name : 'MeuProjeto';
-    if (nameInput) nameInput.value = curName;
-    if (folderInput) folderInput.value = `projetos/${curName}`;
+    const curName = (this.currentProject && this.currentProject.name) ? this.currentProject.name : 'Project1';
+    const initialDir = (this.currentProject && this.currentProject.folder) ? this.currentProject.folder : 'projetos';
+    
+    this.saveDialogState.currentDir = initialDir;
+    this.saveDialogState.history = [initialDir];
+    this.saveDialogState.historyIdx = 0;
+    this.saveDialogState.selectedItem = null;
+
+    const nameInput = document.getElementById('saveProjNameInput');
+    if (nameInput) {
+      nameInput.value = `${curName}.dproj`;
+      setTimeout(() => {
+        nameInput.focus();
+        nameInput.setSelectionRange(0, curName.length);
+      }, 50);
+    }
+
+    const searchInput = document.getElementById('dsdSearchInput');
+    if (searchInput) searchInput.value = '';
 
     modal.style.display = 'flex';
+    this.saveDialogLoadDir(this.saveDialogState.currentDir);
   }
 
   closeSaveProjectAsModal() {
@@ -2835,33 +2962,358 @@ class ${baseName} {
     if (modal) modal.style.display = 'none';
   }
 
-  setSaveProjFolder(baseFolder) {
-    const nameInput = document.getElementById('saveProjNameInput');
-    const folderInput = document.getElementById('saveProjFolderInput');
-    const name = nameInput ? nameInput.value.trim() : 'MeuProjeto';
-    if (folderInput) folderInput.value = `${baseFolder}/${name}`;
+  async saveDialogLoadDir(dir) {
+    try {
+      const tbody = document.getElementById('dsdFilesTableBody');
+      const emptyNotice = document.getElementById('dsdEmptyNotice');
+      if (emptyNotice) emptyNotice.style.display = 'none';
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color:#888;">Carregando...</td></tr>`;
+
+      const relDir = dir || '';
+      const res = await fetch(`/api/fs/list-dir?dir=${encodeURIComponent(relDir)}`);
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao listar pasta');
+      }
+
+      this.saveDialogState.currentDir = data.currentDir;
+      this.saveDialogState.items = data.items || [];
+      this.saveDialogState.selectedItem = null;
+
+      // 1. Breadcrumbs
+      this.saveDialogRenderBreadcrumbs(data.currentDir);
+
+      // 2. Nav buttons state
+      this.saveDialogUpdateNavButtons();
+
+      // 3. Search placeholder
+      const searchInput = document.getElementById('dsdSearchInput');
+      const curFolderName = data.currentDir ? data.currentDir.split('/').pop() : 'Workspace';
+      if (searchInput) {
+        searchInput.placeholder = `Pesquisar em ${curFolderName}`;
+        if (searchInput.value.trim()) {
+          this.saveDialogFilter(searchInput.value);
+          return;
+        }
+      }
+
+      // 4. Sidebar highlights
+      this.saveDialogHighlightSidebar(data.currentDir);
+
+      // 5. Render files table
+      this.saveDialogRenderTable(this.saveDialogState.items);
+    } catch (err) {
+      console.error('saveDialogLoadDir error:', err);
+      const tbody = document.getElementById('dsdFilesTableBody');
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#ef4444; padding:20px;">Falha ao carregar pasta: ${err.message}</td></tr>`;
+    }
   }
 
-  updateSaveProjPreview() {
-    const nameInput = document.getElementById('saveProjNameInput');
-    const folderInput = document.getElementById('saveProjFolderInput');
-    if (nameInput && folderInput && folderInput.value.startsWith('projetos/')) {
-      folderInput.value = `projetos/${nameInput.value.trim()}`;
+  saveDialogRenderBreadcrumbs(currentDir) {
+    const container = document.getElementById('dsdBreadcrumbs');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Raiz (Workspace)
+    const rootItem = document.createElement('span');
+    rootItem.className = 'dsd-crumb-item';
+    rootItem.textContent = 'Workspace';
+    rootItem.title = 'Ir para a raiz do workspace';
+    rootItem.onclick = () => this.saveDialogNavigateTo('');
+    container.appendChild(rootItem);
+
+    if (currentDir && currentDir.trim()) {
+      const parts = currentDir.split('/').filter(Boolean);
+      let accum = '';
+      for (let i = 0; i < parts.length; i++) {
+        const sep = document.createElement('span');
+        sep.className = 'dsd-crumb-sep';
+        sep.textContent = '>';
+        container.appendChild(sep);
+
+        accum += (accum ? '/' : '') + parts[i];
+        const target = accum;
+        const crumb = document.createElement('span');
+        crumb.className = 'dsd-crumb-item';
+        crumb.textContent = parts[i];
+        crumb.onclick = () => this.saveDialogNavigateTo(target);
+        container.appendChild(crumb);
+      }
     }
+  }
+
+  saveDialogHighlightSidebar(currentDir) {
+    const norm = (currentDir || '').toLowerCase();
+    document.querySelectorAll('.dsd-place-item').forEach(el => el.classList.remove('active'));
+    if (norm === 'projetos' || norm.startsWith('projetos/')) {
+      const el = document.getElementById('dsdPlaceProj');
+      if (el) el.classList.add('active');
+    } else if (norm === 'clientes' || norm.startsWith('clientes/')) {
+      const el = document.getElementById('dsdPlaceCli');
+      if (el) el.classList.add('active');
+    } else if (norm === 'src' || norm.startsWith('src/')) {
+      const el = document.getElementById('dsdPlaceSrc');
+      if (el) el.classList.add('active');
+    } else if (norm === 'documentos' || norm.startsWith('documentos/')) {
+      const el = document.getElementById('dsdPlaceDocs');
+      if (el) el.classList.add('active');
+    } else if (norm === 'downloads' || norm.startsWith('downloads/')) {
+      const el = document.getElementById('dsdPlaceDown');
+      if (el) el.classList.add('active');
+    } else if (!norm) {
+      const el = document.getElementById('dsdPlaceRoot');
+      if (el) el.classList.add('active');
+    }
+  }
+
+  saveDialogNavigateTo(folder) {
+    const norm = (folder || '').replace(/\\/g, '/');
+    if (norm === this.saveDialogState.currentDir) return;
+
+    this.saveDialogState.history = this.saveDialogState.history.slice(0, this.saveDialogState.historyIdx + 1);
+    this.saveDialogState.history.push(norm);
+    this.saveDialogState.historyIdx = this.saveDialogState.history.length - 1;
+    this.saveDialogLoadDir(norm);
+  }
+
+  saveDialogNavBack() {
+    if (this.saveDialogState.historyIdx > 0) {
+      this.saveDialogState.historyIdx--;
+      const prev = this.saveDialogState.history[this.saveDialogState.historyIdx];
+      this.saveDialogLoadDir(prev);
+    }
+  }
+
+  saveDialogNavForward() {
+    if (this.saveDialogState.historyIdx < this.saveDialogState.history.length - 1) {
+      this.saveDialogState.historyIdx++;
+      const next = this.saveDialogState.history[this.saveDialogState.historyIdx];
+      this.saveDialogLoadDir(next);
+    }
+  }
+
+  saveDialogNavUp() {
+    const cur = this.saveDialogState.currentDir || '';
+    if (!cur) return;
+    const parts = cur.split('/').filter(Boolean);
+    parts.pop();
+    const parent = parts.join('/');
+    this.saveDialogNavigateTo(parent);
+  }
+
+  saveDialogRefresh() {
+    this.saveDialogLoadDir(this.saveDialogState.currentDir);
+  }
+
+  saveDialogUpdateNavButtons() {
+    const backBtn = document.getElementById('dsdNavBack');
+    const fwdBtn = document.getElementById('dsdNavForward');
+    const upBtn = document.getElementById('dsdNavUp');
+    if (backBtn) backBtn.disabled = this.saveDialogState.historyIdx <= 0;
+    if (fwdBtn) fwdBtn.disabled = this.saveDialogState.historyIdx >= this.saveDialogState.history.length - 1;
+    if (upBtn) upBtn.disabled = !this.saveDialogState.currentDir;
+  }
+
+  saveDialogRenderTable(items) {
+    const tbody = document.getElementById('dsdFilesTableBody');
+    const emptyNotice = document.getElementById('dsdEmptyNotice');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!items || items.length === 0) {
+      if (emptyNotice) emptyNotice.style.display = 'block';
+      return;
+    }
+    if (emptyNotice) emptyNotice.style.display = 'none';
+
+    const sorted = [...items];
+    const col = this.saveDialogState.sortBy || 'name';
+    const asc = this.saveDialogState.sortAsc ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+
+      if (col === 'name') {
+        return asc * a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      } else if (col === 'mtime') {
+        return asc * ((a.rawMtime || 0) - (b.rawMtime || 0));
+      } else if (col === 'type') {
+        return asc * (a.type || '').localeCompare(b.type || '');
+      } else if (col === 'size') {
+        return asc * ((a.rawSize || 0) - (b.rawSize || 0));
+      }
+      return 0;
+    });
+
+    sorted.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.className = 'dsd-file-row';
+
+      let icon = '📁';
+      if (!item.isDirectory) {
+        if (item.name.endsWith('.dproj')) icon = '⚡';
+        else if (item.name.endsWith('.vproj') || item.name.endsWith('.vpr')) icon = '🟣';
+        else if (item.name.endsWith('.vox') || item.name.endsWith('.pas')) icon = '📝';
+        else if (item.name.endsWith('.vxf') || item.name.endsWith('.dfm')) icon = '🪟';
+        else icon = '📄';
+      }
+
+      tr.innerHTML = `
+        <td>
+          <div class="dsd-item-name-cell">
+            <span style="font-size:14px;">${icon}</span>
+            <span>${item.name}</span>
+          </div>
+        </td>
+        <td>${item.mtime || ''}</td>
+        <td>${item.type || ''}</td>
+        <td style="text-align:right;">${item.size || ''}</td>
+      `;
+
+      tr.onclick = () => {
+        this.saveDialogSelectRow(item, tr);
+      };
+
+      tr.ondblclick = () => {
+        if (item.isDirectory) {
+          const nextDir = this.saveDialogState.currentDir ? `${this.saveDialogState.currentDir}/${item.name}` : item.name;
+          this.saveDialogNavigateTo(nextDir);
+        } else {
+          const nameInput = document.getElementById('saveProjNameInput');
+          if (nameInput) nameInput.value = item.name;
+        }
+      };
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  saveDialogSelectRow(item, rowEl) {
+    this.saveDialogState.selectedItem = item;
+    document.querySelectorAll('.dsd-file-row').forEach(r => r.classList.remove('selected'));
+    if (rowEl) rowEl.classList.add('selected');
+
+    if (!item.isDirectory) {
+      const nameInput = document.getElementById('saveProjNameInput');
+      if (nameInput) nameInput.value = item.name;
+    }
+  }
+
+  saveDialogFilter(query) {
+    if (!this.saveDialogState || !this.saveDialogState.items) return;
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+      this.saveDialogRenderTable(this.saveDialogState.items);
+      return;
+    }
+    const filtered = this.saveDialogState.items.filter(it =>
+      it.name.toLowerCase().includes(q) || (it.type && it.type.toLowerCase().includes(q))
+    );
+    this.saveDialogRenderTable(filtered);
+  }
+
+  saveDialogSortBy(col) {
+    if (this.saveDialogState.sortBy === col) {
+      this.saveDialogState.sortAsc = !this.saveDialogState.sortAsc;
+    } else {
+      this.saveDialogState.sortBy = col;
+      this.saveDialogState.sortAsc = true;
+    }
+
+    ['Name', 'Mtime', 'Type', 'Size'].forEach(k => {
+      const icon = document.getElementById(`dsdSortIcon${k}`);
+      if (icon) {
+        if (k.toLowerCase() === col) {
+          icon.textContent = this.saveDialogState.sortAsc ? '▲' : '▼';
+        } else {
+          icon.textContent = '';
+        }
+      }
+    });
+
+    const searchInput = document.getElementById('dsdSearchInput');
+    if (searchInput && searchInput.value.trim()) {
+      this.saveDialogFilter(searchInput.value);
+    } else {
+      this.saveDialogRenderTable(this.saveDialogState.items);
+    }
+  }
+
+  async saveDialogCreateNewFolder() {
+    const name = prompt('Nome da nova pasta:', 'Nova pasta');
+    if (!name || !name.trim()) return;
+
+    try {
+      const res = await fetch('/api/fs/create-dir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentDir: this.saveDialogState.currentDir,
+          folderName: name.trim()
+        })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Erro ao criar pasta');
+      this.showToast(`📁 Pasta "${data.folderName}" criada com sucesso!`);
+      await this.saveDialogLoadDir(this.saveDialogState.currentDir);
+    } catch (err) {
+      alert('Falha ao criar pasta: ' + err.message);
+    }
+  }
+
+  saveDialogChangeType(val) {
+    const nameInput = document.getElementById('saveProjNameInput');
+    if (!nameInput) return;
+    let name = nameInput.value.trim();
+    if (val === '.dproj') {
+      if (name.endsWith('.vproj')) name = name.replace(/\.vproj$/, '.dproj');
+      else if (!name.endsWith('.dproj')) name += '.dproj';
+    } else if (val === '.vproj') {
+      if (name.endsWith('.dproj')) name = name.replace(/\.dproj$/, '.vproj');
+      else if (!name.endsWith('.vproj')) name += '.vproj';
+    }
+    nameInput.value = name;
+  }
+
+  saveDialogToggleRecent() {
+    const choice = prompt('Ir para local recente:\n1: projetos/\n2: clientes/\n3: src/\n4: Workspace (raiz)\nDigite o número:', '1');
+    if (choice === '1') this.saveDialogNavigateTo('projetos');
+    else if (choice === '2') this.saveDialogNavigateTo('clientes');
+    else if (choice === '3') this.saveDialogNavigateTo('src');
+    else if (choice === '4') this.saveDialogNavigateTo('');
+  }
+
+  saveDialogToggleOrganize() {
+    this.saveDialogCreateNewFolder();
   }
 
   async confirmSaveProjectAs() {
     const nameInput = document.getElementById('saveProjNameInput');
-    const folderInput = document.getElementById('saveProjFolderInput');
-    const projectName = nameInput ? nameInput.value.trim() : 'NovoProjeto';
-    const folder = folderInput ? folderInput.value.trim() : `projetos/${projectName}`;
+    let filename = nameInput ? nameInput.value.trim() : 'Project1.dproj';
+    if (!filename) filename = 'Project1.dproj';
+
+    const typeSelect = document.getElementById('saveProjTypeSelect');
+    const selectedExt = typeSelect ? typeSelect.value : '.dproj';
+
+    if (!filename.includes('.') && selectedExt !== '*.*') {
+      filename += selectedExt;
+    }
+
+    let baseName = filename;
+    if (baseName.toLowerCase().endsWith('.dproj')) baseName = baseName.slice(0, -6);
+    else if (baseName.toLowerCase().endsWith('.vproj')) baseName = baseName.slice(0, -6);
+    else if (baseName.toLowerCase().endsWith('.vpr')) baseName = baseName.slice(0, -4);
+    baseName = baseName.replace(/[^a-zA-Z0-9_]/g, '') || 'Project1';
+
+    const folder = (this.saveDialogState && this.saveDialogState.currentDir) ? this.saveDialogState.currentDir : 'projetos';
 
     try {
-      this.showToast('💾 Salvando projeto...');
+      this.showToast('💾 Salvando projeto no padrão Delphi 13...');
       const res = await fetch('/api/project/save-as', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectName, folder })
+        body: JSON.stringify({ projectName: baseName, folder })
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Erro ao salvar projeto');
@@ -3225,6 +3677,27 @@ class ${baseName} {
 
   async buildWebApp() {
     try {
+      this.onFormChanged();
+      const formName = (this.designer && this.designer.form && this.designer.form.name) || 'Form1';
+
+      // Auto-salvamento Delphi: Gravar arquivos .vxf e .vox no disco antes de compilar
+      try {
+        const vxfContent = JSON.stringify(this.designer.form, null, 2);
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${formName}.vxf`, content: vxfContent })
+        });
+        const voxGen = this.editor ? this.editor.getCode() : window.VoxCodeGen.generateVoxCode(this.designer.form);
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${formName}.vox`, content: voxGen })
+        });
+      } catch (errSave) {
+        console.warn('Auto-save antes de compilar:', errSave);
+      }
+
       const voxCode = this.editor.getCode() || window.VoxCodeGen.generateVoxCode(this.designer.form);
       const webPkg = window.VoxCodeGen.generateWebSystem(this.designer.form, voxCode);
 

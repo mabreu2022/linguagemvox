@@ -71,11 +71,14 @@ class VoxObjectInspector {
     if (!this.compSelector || !window.app || !window.app.designer) return;
 
     const form = window.app.designer.form;
-    let html = `<option value="__form__">${form.name} T${form.name}</option>`;
+    const formClassType = 'TVoxForm';
+    const formSelected = !this.target ? 'selected' : '';
+    let html = `<option value="__form__" ${formSelected}>${form.name} : ${formClassType}</option>`;
 
     form.components.forEach(c => {
       const selected = (this.target && this.target.id === c.id) ? 'selected' : '';
-      html += `<option value="${c.name}" ${selected}>${c.name} ${c.type}</option>`;
+      const classType = window.getVoxClassType ? window.getVoxClassType(c.type || c.className) : (c.type || 'TVoxComponent');
+      html += `<option value="${c.name}" ${selected}>${c.name} : ${classType}</option>`;
     });
 
     this.compSelector.innerHTML = html;
@@ -136,15 +139,24 @@ class VoxObjectInspector {
         });
       }
 
-      propsList = [
-        { name: 'Name', value: comp.name, type: 'text', targetType: 'comp', propKey: 'name' },
-        { name: 'Parent', value: comp.parent || formName, type: 'select', options: availableParents, targetType: 'parent', propKey: 'parent' },
-        { name: 'Left', value: comp.left, type: 'number', targetType: 'comp', propKey: 'left' },
-        { name: 'Top', value: comp.top, type: 'number', targetType: 'comp', propKey: 'top' },
-        { name: 'Width', value: comp.width, type: 'number', targetType: 'comp', propKey: 'width' },
-        { name: 'Height', value: comp.height, type: 'number', targetType: 'comp', propKey: 'height' },
-        { name: 'Align', value: comp.props.Align || 'alNone', type: 'select', options: ['alNone', 'alTop', 'alBottom', 'alLeft', 'alRight', 'alClient'], targetType: 'custom', propKey: 'Align' }
-      ];
+      const isTab = (comp.type === 'vox_TabSheet' || comp.type === 'TVoxTabSheet' || comp.type === 'TTabSheet');
+      if (isTab) {
+        propsList = [
+          { name: 'Name', value: comp.name, type: 'text', targetType: 'comp', propKey: 'name' },
+          { name: 'Parent', value: comp.parent || formName, type: 'select', options: availableParents, targetType: 'parent', propKey: 'parent' },
+          { name: 'Align', value: (comp.props && comp.props.Align) || 'alClient', type: 'select', options: ['alClient', 'alNone', 'alTop', 'alBottom', 'alLeft', 'alRight'], targetType: 'custom', propKey: 'Align' }
+        ];
+      } else {
+        propsList = [
+          { name: 'Name', value: comp.name, type: 'text', targetType: 'comp', propKey: 'name' },
+          { name: 'Parent', value: comp.parent || formName, type: 'select', options: availableParents, targetType: 'parent', propKey: 'parent' },
+          { name: 'Left', value: comp.left, type: 'number', targetType: 'comp', propKey: 'left' },
+          { name: 'Top', value: comp.top, type: 'number', targetType: 'comp', propKey: 'top' },
+          { name: 'Width', value: comp.width, type: 'number', targetType: 'comp', propKey: 'width' },
+          { name: 'Height', value: comp.height, type: 'number', targetType: 'comp', propKey: 'height' },
+          { name: 'Align', value: comp.props.Align || 'alNone', type: 'select', options: ['alNone', 'alTop', 'alBottom', 'alLeft', 'alRight', 'alClient'], targetType: 'custom', propKey: 'Align' }
+        ];
+      }
 
       Object.entries(comp.props).forEach(([key, val]) => {
         if (key === 'Align') return;
@@ -177,16 +189,28 @@ class VoxObjectInspector {
           type = 'text';
         } else if (key === 'Connection') {
           type = 'select';
-          const conns = window.app.designer.form.components.filter(c => c.type === 'vox_Connection' || c.type === 'TFDConnection').map(c => c.name);
-          options = conns.length > 0 ? conns : [val || 'vox_Connection1'];
+          const conns = window.app.designer.form.components.filter(c => c.type === 'vox_Connection' || c.type === 'TVoxConnection' || c.type === 'TFDConnection').map(c => c.name);
+          options = conns.length > 0 ? conns : [val || 'vox_connection1'];
         } else if (key === 'DataSet') {
           type = 'select';
-          const qrys = window.app.designer.form.components.filter(c => c.type === 'vox_Query' || c.type === 'TFDQuery').map(c => c.name);
-          options = qrys.length > 0 ? qrys : [val || 'vox_Query1'];
-        } else if (key === 'DataSource') {
+          const qrys = window.app.designer.form.components.filter(c => c.type === 'vox_Query' || c.type === 'TVoxQuery' || c.type === 'TFDQuery').map(c => c.name);
+          options = qrys.length > 0 ? qrys : [val || 'vox_query1'];
+        } else if (key === 'DataSource' || key === 'LookupSource') {
           type = 'select';
-          const dss = window.app.designer.form.components.filter(c => c.type === 'vox_DataSource' || c.type === 'TDataSource').map(c => c.name);
-          options = dss.length > 0 ? dss : [val || 'vox_DataSource1'];
+          const dss = window.app.designer.form.components.filter(c => c.type === 'vox_DataSource' || c.type === 'TVoxDataSource' || c.type === 'TDataSource').map(c => c.name);
+          options = dss.length > 0 ? dss : [val || 'vox_datasource1'];
+        } else if (key === 'Kind') {
+          type = 'select';
+          options = ['bkOK', 'bkCancel', 'bkClose', 'bkHelp', 'bkYes', 'bkNo', 'bkCustom'];
+        } else if (key === 'ModalResult') {
+          type = 'select';
+          options = ['mrNone', 'mrOk', 'mrCancel', 'mrYes', 'mrNo', 'mrAbort', 'mrRetry', 'mrIgnore'];
+        } else if (key === 'ViewStyle') {
+          type = 'select';
+          options = ['vsReport', 'vsIcon', 'vsSmallIcon', 'vsList'];
+        } else if (key === 'Method') {
+          type = 'select';
+          options = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'];
         } else if (key === 'Layout') {
           type = 'select';
           options = ['Top', 'Left'];
@@ -196,7 +220,7 @@ class VoxObjectInspector {
         } else if (key === 'ActivePageIndex') {
           type = 'select';
           const pages = window.app.designer.form.components.filter(c =>
-            (c.type === 'vox_TabSheet' || c.type === 'TTabSheet') && c.parent === comp.name
+            (c.type === 'vox_TabSheet' || c.type === 'TVoxTabSheet' || c.type === 'TTabSheet') && c.parent === comp.name
           );
           if (pages.length > 0) {
             options = pages.map((p, idx) => `${idx}`);
@@ -255,8 +279,10 @@ class VoxObjectInspector {
         inputHtml = `
           <div style="display: flex; align-items: center; gap: 4px;">
             <input type="color" value="${p.value || '#000000'}" style="width: 20px; height: 18px; border: none; padding: 0; cursor: pointer;"
+              oninput="window.app.inspector.onPropChange('${p.targetType}', '${p.propKey || p.name}', this.value)"
               onchange="window.app.inspector.onPropChange('${p.targetType}', '${p.propKey || p.name}', this.value)">
             <input class="delphi-prop-input" value="${p.value || ''}"
+              oninput="window.app.inspector.onPropChange('${p.targetType}', '${p.propKey || p.name}', this.value)"
               onchange="window.app.inspector.onPropChange('${p.targetType}', '${p.propKey || p.name}', this.value)">
           </div>
         `;
@@ -287,10 +313,10 @@ class VoxObjectInspector {
     });
 
     let headerBanner = '';
-    if (this.target && (this.target.type === 'vox_Connection' || this.target.type === 'TFDConnection')) {
+    if (this.target && (this.target.type === 'vox_Connection' || this.target.type === 'TVoxConnection' || this.target.type === 'TFDConnection')) {
       headerBanner = `
         <div style="padding: 6px 8px; background: rgba(0, 120, 212, 0.15); border-bottom: 1px solid #0078d4; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 11px; font-weight: 700; color: #38bdf8;">🔌 FireDAC Connection</span>
+          <span style="font-size: 11px; font-weight: 700; color: #38bdf8;">🔌 TVoxConnection</span>
           <button class="tool-btn btn-run-delphi" style="padding: 2px 8px; font-size: 10.5px;" onclick="window.app.openConnectionEditor('${this.target.id}')">⚙️ Configurar...</button>
         </div>
       `;
@@ -304,11 +330,26 @@ class VoxObjectInspector {
     `;
 
     let actionsHtml = '';
-    if (this.target && (this.target.type === 'vox_PageControl' || this.target.type === 'TPageControl')) {
+    const isPageControl = this.target && (this.target.type === 'vox_PageControl' || this.target.type === 'TVoxPageControl' || this.target.type === 'TPageControl');
+    const isTabSheet = this.target && (this.target.type === 'vox_TabSheet' || this.target.type === 'TVoxTabSheet' || this.target.type === 'TTabSheet');
+
+    if (isPageControl) {
       actionsHtml = `
         <div style="padding: 6px 8px; background: rgba(0, 120, 212, 0.1); border-bottom: 1px solid rgba(0, 120, 212, 0.2); display: flex; gap: 6px;">
           <button class="tool-btn" style="flex: 1; padding: 4px; font-size: 11px; background: #0078d4; color: #ffffff; border-radius: 3px; cursor: pointer; border: none;" onclick="window.app.designer.addTabSheet()">
             📄 + Nova Página (TabSheet)
+          </button>
+        </div>
+      `;
+    } else if (isTabSheet && this.target.parent) {
+      const pcName = this.target.parent;
+      actionsHtml = `
+        <div style="padding: 5px 8px; background: rgba(56, 189, 248, 0.1); border-bottom: 1px solid rgba(56, 189, 248, 0.2); display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: #38bdf8;">📑 Aba de <strong>${pcName}</strong></span>
+          <button class="tool-btn" style="padding: 2px 8px; font-size: 10.5px; background: #094771; border: 1px solid #0078d4; color: #ffffff; border-radius: 3px; cursor: pointer;"
+            onclick="window.app.designer.selectComponent(window.app.designer.getComponentByName('${pcName}'))"
+            title="Selecionar o PageControl pai">
+            ⇡ Selecionar ${pcName}
           </button>
         </div>
       `;
@@ -335,6 +376,7 @@ class VoxObjectInspector {
       `;
 
       formEvents.forEach(evName => {
+        if (this.searchFilter && !evName.toLowerCase().includes(this.searchFilter.toLowerCase())) return;
         const handler = (form.events && form.events[evName]) ? form.events[evName] : '';
         const defaultHandler = `${form.name}_${evName}`;
 
@@ -365,33 +407,114 @@ class VoxObjectInspector {
 
     const comp = this.target;
     const meta = window.VOX_COMPONENTS ? window.VOX_COMPONENTS[comp.type] : null;
-    const eventsList = (meta && meta.events && meta.events.length > 0)
-      ? meta.events
-      : ['OnClick', 'OnDblClick', 'OnChange', 'OnEnter', 'OnExit', 'OnKeyDown', 'OnKeyUp'];
+    const isMenuComp = [
+      'vox_MainMenu', 'TMainMenu', 'TVoxMainMenu',
+      'vox_PopupMenu', 'TPopupMenu', 'TVoxPopupMenu'
+    ].includes(comp.type);
 
-    let rowsHtml = `
-      <tr style="background: #191f28; font-weight: 600; font-size: 10px; color: #38bdf8;">
-        <td colspan="2" style="padding: 4px 6px;">Eventos do Componente (${comp.name})</td>
-      </tr>
-    `;
+    let rowsHtml = '';
 
-    eventsList.forEach(evName => {
-      const handler = (comp.events && comp.events[evName]) ? comp.events[evName] : '';
-      const defaultHandler = `${comp.name}_${evName}`;
+    if (isMenuComp) {
+      const defaultItemsStr = comp.type.includes('Popup')
+        ? 'Copiar, Colar, Excluir, Propriedades'
+        : 'Cadastros, Vendas, Relatórios, Configurações';
+      const rawItems = (comp.props && comp.props.Items !== undefined) ? comp.props.Items : defaultItemsStr;
+      const menuItems = (rawItems || '').split(',').map(i => i.trim()).filter(Boolean);
 
       rowsHtml += `
-        <tr ondblclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evName}')">
-          <td class="prop-col-name" style="color: #4cc2ff; cursor: pointer;" title="Duplo-clique para abrir o código">${evName}</td>
-          <td class="prop-col-val" style="display: flex; align-items: center;">
-            <input class="delphi-prop-input" value="${handler}" placeholder="(${defaultHandler})"
-              onchange="window.app.inspector.onEventChange('${evName}', this.value)">
-            <button class="tool-btn" style="height: 18px; padding: 0 4px; font-size: 10px;"
-              title="Abrir no Código Vox"
-              onclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evName}')">⚙</button>
-          </td>
+        <tr style="background: #191f28; font-weight: 600; font-size: 10px; color: #38bdf8;">
+          <td colspan="2" style="padding: 4px 6px;">Opções do Menu - OnClick (${comp.name})</td>
         </tr>
       `;
-    });
+
+      menuItems.forEach((item) => {
+        const cleanItem = item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_]/g, '_');
+        const evKey = `OnClick_${cleanItem}`;
+        const displayLabel = `OnClick (${item})`;
+
+        if (this.searchFilter) {
+          const filter = this.searchFilter.toLowerCase();
+          if (!displayLabel.toLowerCase().includes(filter) && !evKey.toLowerCase().includes(filter)) {
+            return;
+          }
+        }
+
+        const handler = (comp.events && (comp.events[evKey] || comp.events[item])) ? (comp.events[evKey] || comp.events[item]) : '';
+        const defaultHandler = `${comp.name}_${cleanItem}Click`;
+        const escapedItem = item.replace(/'/g, "\\'");
+
+        rowsHtml += `
+          <tr ondblclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evKey}', '${cleanItem}', '${escapedItem}')">
+            <td class="prop-col-name" style="color: #4cc2ff; cursor: pointer;" title="Opção de Menu: '${item}' — Duplo-clique para abrir o código">${displayLabel}</td>
+            <td class="prop-col-val" style="display: flex; align-items: center;">
+              <input class="delphi-prop-input" value="${handler}" placeholder="(${defaultHandler})"
+                onchange="window.app.inspector.onEventChange('${evKey}', this.value)">
+              <button class="tool-btn" style="height: 18px; padding: 0 4px; font-size: 10px;"
+                title="Abrir no Código Vox"
+                onclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evKey}', '${cleanItem}', '${escapedItem}')">⚙</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      const generalEvents = (meta && meta.events && meta.events.length > 0)
+        ? meta.events
+        : ['OnItemClick', 'OnToggleCollapse'];
+
+      rowsHtml += `
+        <tr style="background: #191f28; font-weight: 600; font-size: 10px; color: #38bdf8; border-top: 1px solid rgba(255,255,255,0.08);">
+          <td colspan="2" style="padding: 4px 6px;">Eventos Gerais (${comp.name})</td>
+        </tr>
+      `;
+
+      generalEvents.forEach(evName => {
+        if (this.searchFilter && !evName.toLowerCase().includes(this.searchFilter.toLowerCase())) return;
+        const handler = (comp.events && comp.events[evName]) ? comp.events[evName] : '';
+        const defaultHandler = `${comp.name}_${evName}`;
+
+        rowsHtml += `
+          <tr ondblclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evName}')">
+            <td class="prop-col-name" style="color: #4cc2ff; cursor: pointer;" title="Duplo-clique para abrir o código">${evName}</td>
+            <td class="prop-col-val" style="display: flex; align-items: center;">
+              <input class="delphi-prop-input" value="${handler}" placeholder="(${defaultHandler})"
+                onchange="window.app.inspector.onEventChange('${evName}', this.value)">
+              <button class="tool-btn" style="height: 18px; padding: 0 4px; font-size: 10px;"
+                title="Abrir no Código Vox"
+                onclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evName}')">⚙</button>
+            </td>
+          </tr>
+        `;
+      });
+    } else {
+      const eventsList = (meta && meta.events && meta.events.length > 0)
+        ? meta.events
+        : ['OnClick', 'OnDblClick', 'OnChange', 'OnEnter', 'OnExit', 'OnKeyDown', 'OnKeyUp'];
+
+      rowsHtml += `
+        <tr style="background: #191f28; font-weight: 600; font-size: 10px; color: #38bdf8;">
+          <td colspan="2" style="padding: 4px 6px;">Eventos do Componente (${comp.name})</td>
+        </tr>
+      `;
+
+      eventsList.forEach(evName => {
+        if (this.searchFilter && !evName.toLowerCase().includes(this.searchFilter.toLowerCase())) return;
+        const handler = (comp.events && comp.events[evName]) ? comp.events[evName] : '';
+        const defaultHandler = `${comp.name}_${evName}`;
+
+        rowsHtml += `
+          <tr ondblclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evName}')">
+            <td class="prop-col-name" style="color: #4cc2ff; cursor: pointer;" title="Duplo-clique para abrir o código">${evName}</td>
+            <td class="prop-col-val" style="display: flex; align-items: center;">
+              <input class="delphi-prop-input" value="${handler}" placeholder="(${defaultHandler})"
+                onchange="window.app.inspector.onEventChange('${evName}', this.value)">
+              <button class="tool-btn" style="height: 18px; padding: 0 4px; font-size: 10px;"
+                title="Abrir no Código Vox"
+                onclick="window.app.jumpToEvent(window.app.designer.selectedComponent, '${evName}')">⚙</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
 
     const publishedBadge = `
       <div style="padding: 4px 8px; background: rgba(56, 189, 248, 0.08); font-size: 10px; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
@@ -435,9 +558,28 @@ class VoxObjectInspector {
       }
     } else if (type === 'custom') {
       if (this.target) {
+        if (!this.target.props) this.target.props = {};
+
         if (key === 'Align') {
-          const oldAlign = this.target.props.Align;
+          const oldAlign = this.target.props ? this.target.props.Align : undefined;
           this.target.props.Align = value;
+
+          // Se for TabSheet, aplica também no PageControl pai para atender à expectativa direta do usuário!
+          const isTab = (this.target.type === 'vox_TabSheet' || this.target.type === 'TVoxTabSheet' || this.target.type === 'TTabSheet');
+          if (isTab && this.target.parent && window.app && window.app.designer) {
+            const parentPc = window.app.designer.getComponentByName(this.target.parent);
+            if (parentPc) {
+              if (!parentPc.props) parentPc.props = {};
+              parentPc.props.Align = value;
+              window.app.designer.recalculateAlignments(true);
+              window.app.designer.updateComponentElement(parentPc);
+              window.app.showToast(`📐 Alinhamento "${value}" aplicado ao PageControl (${parentPc.name})!`);
+              window.app.onFormChanged();
+              this.render();
+              return;
+            }
+          }
+
           if (window.app && window.app.designer) {
             if (value !== 'alNone' && (!oldAlign || oldAlign === 'alNone')) {
               this.target._origWidth = this.target.width;
@@ -450,6 +592,12 @@ class VoxObjectInspector {
               this.target.height = this.target._origHeight || (meta ? meta.defaultHeight : 120);
               this.target.left = this.target._origLeft !== undefined ? this.target._origLeft : 20;
               this.target.top = this.target._origTop !== undefined ? this.target._origTop : 20;
+            } else if ((value === 'alTop' || value === 'alBottom') && (oldAlign === 'alClient' || oldAlign === 'alLeft' || oldAlign === 'alRight')) {
+              const meta = window.VOX_COMPONENTS[this.target.type];
+              this.target.height = this.target._origHeight || (meta ? meta.defaultHeight : 180);
+            } else if ((value === 'alLeft' || value === 'alRight') && (oldAlign === 'alClient' || oldAlign === 'alTop' || oldAlign === 'alBottom')) {
+              const meta = window.VOX_COMPONENTS[this.target.type];
+              this.target.width = this.target._origWidth || (meta ? meta.defaultWidth : 200);
             }
             window.app.designer.recalculateAlignments(true);
             window.app.designer.updateComponentElement(this.target);
@@ -458,6 +606,8 @@ class VoxObjectInspector {
           this.render();
           return;
         }
+
+        this.target.props[key] = value;
         if (key === 'Alignment') {
           this.target.props[key] = value;
           if (window.app && window.app.designer) {
@@ -482,6 +632,7 @@ class VoxObjectInspector {
           }
           window.app.designer.updateComponentElement(this.target);
           this.render();
+          return;
         } else if (this.target.type === 'vox_Connection' || this.target.type === 'TFDConnection') {
           if (key === 'DriverName' || key === 'Driver') {
             if (value === 'MySQL') {

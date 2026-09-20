@@ -1,0 +1,46 @@
+// ==============================================================================
+// Form2.vox — Unidade RAD Gerada pelo Vox Studio
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+
+classe Form2 herda vox_Form {
+private:
+    // ── Membros e Métodos Privados ──────────────────────────────────────────
+    var _initialized: bool;
+
+    private procedure LogInterno(msg: str) {
+        println("[DEBUG INTERNO] " + msg);
+    }
+
+published:
+    // ── Propriedades e Componentes Publicados (Object Inspector) ─────────────
+    var width: int;
+    var height: int;
+    var title: str;
+
+
+public:
+    // ── Construtor e Inicialização de Tela ────────────────────────────────────
+    new() {
+        this.title = "Cadastro de Clientes";
+        this.width = 720;
+        this.height = 480;
+        this._initialized = true;
+
+
+        println("Formulário " + this.title + " inicializado no Vox Studio.");
+    }
+
+
+    // Tratador de Evento Publicado: Form2 -> OnCreate
+    public procedure FormCreate(sender: any) {
+        println("Formulário Form2 carregado com sucesso!");
+    }
+}
+
+// ── Ponto de Entrada para Execução Standalone ─────────────────────────────────
+public fn main() -> void {
+    let app = new Form2();
+    println("Janela ativa: " + app.title + " [" + str(app.width) + "x" + str(app.height) + "]");
+}

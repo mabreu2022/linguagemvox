@@ -63,14 +63,16 @@ window.VOX_COMPONENTS = {
     defaultHeight: 18,
     defaultProps: {
       Caption: 'Label1',
-      Color: '#1a1a1a',
+      Color: 'inherit',
       WordWrap: false,
       Visible: true
     },
     events: ['OnClick', 'OnDblClick'],
     render(comp) {
+      const isDefaultOrDark = !comp.props.Color || comp.props.Color === 'inherit' || comp.props.Color === 'default' || ['#1a1a1a', '#000000', '#000', '#111827'].includes((comp.props.Color || '').toLowerCase());
+      const labelColor = isDefaultOrDark ? 'inherit' : comp.props.Color;
       return `
-        <div class="vcl-label" style="color: ${comp.props.Color || '#1a1a1a'};">
+        <div class="vcl-label" style="color: ${labelColor};">
           ${comp.props.Caption || 'Label1'}
         </div>
       `;
@@ -259,48 +261,62 @@ window.VOX_COMPONENTS = {
         .split(',')
         .map(i => i.trim())
         .filter(Boolean);
-      const activeIdx = comp.props.ActiveIndex || 0;
+      const activeIdx = (comp.props.ActiveIndex !== undefined && comp.props.ActiveIndex !== '') ? parseInt(comp.props.ActiveIndex, 10) : 0;
       const title = comp.props.Title || 'Meu Sistema';
       const isCollapsed = comp.props.Collapsed === true;
+      const textColor = comp.props.TextColor || '#e2e8f0';
+      const bgColor = comp.props.BackgroundColor || '#1e2430';
 
       if (isLeft) {
         // Menu Lateral (Sidebar Vertical à Esquerda - com suporte a mini-sidebar e colapso)
         const icons = ['📁', '🛒', '📊', '⚙️', '📄', '🏷️', '👥', '📦'];
-        let itemsHtml = items.map((item, idx) => `
-          <div class="vcl-menu-sidebar-item ${idx === activeIdx ? 'active' : ''}" title="${item}">
-            <span class="vcl-menu-icon">${icons[idx % icons.length]}</span>
-            <span class="vcl-menu-text" style="${isCollapsed ? 'display:none;' : ''}">${item}</span>
-          </div>
-        `).join('');
+        let itemsHtml = items.map((item, idx) => {
+          const cleanItem = item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_]/g, '_');
+          const escapedItem = item.replace(/'/g, "\\'");
+          const itemColorStyle = idx === activeIdx ? '' : `color: ${textColor};`;
+          return `
+            <div class="vcl-menu-sidebar-item ${idx === activeIdx ? 'active' : ''}" style="${itemColorStyle}" title="${item} (Duplo-clique para abrir evento OnClick)"
+              ondblclick="event.stopPropagation(); if (window.app) window.app.jumpToEvent(window.app.designer.form.components.find(c => c.name === '${comp.name}') || window.app.designer.selectedComponent, 'OnClick_${cleanItem}', '${cleanItem}', '${escapedItem}')">
+              <span class="vcl-menu-icon">${icons[idx % icons.length]}</span>
+              <span class="vcl-menu-text" style="${isCollapsed ? 'display:none;' : ''}; ${itemColorStyle}">${item}</span>
+            </div>
+          `;
+        }).join('');
 
         return `
-          <div class="vcl-menu-sidebar ${isCollapsed ? 'collapsed' : ''}" style="background: ${comp.props.BackgroundColor || ''}; color: ${comp.props.TextColor || ''};">
-            <div class="vcl-menu-sidebar-brand">
-              <span class="vcl-menu-collapse-btn" title="Alternar Modo Mini / Expandido (Responsivo)" style="cursor:pointer; font-size:14px; margin-right:4px;">☰</span>
-              <span class="vcl-menu-brand-text" style="${isCollapsed ? 'display:none;' : ''}; font-weight: 700; letter-spacing: 0.5px;">${title}</span>
+          <div class="vcl-menu-sidebar ${isCollapsed ? 'collapsed' : ''}" style="background: ${bgColor}; color: ${textColor};">
+            <div class="vcl-menu-sidebar-brand" style="color: ${textColor};">
+              <span class="vcl-menu-collapse-btn" title="Alternar Modo Mini / Expandido (Responsivo)" style="cursor:pointer; font-size:14px; margin-right:4px; color: ${textColor};">☰</span>
+              <span class="vcl-menu-brand-text" style="${isCollapsed ? 'display:none;' : ''}; font-weight: 700; letter-spacing: 0.5px; color: ${textColor};">${title}</span>
             </div>
             <div class="vcl-menu-sidebar-items">
               ${itemsHtml}
             </div>
-            <div class="vcl-menu-sidebar-footer" style="${isCollapsed ? 'display:none;' : ''}">
-              <span style="font-size: 10px; opacity: 0.7;">vox_MainMenu • Responsivo</span>
+            <div class="vcl-menu-sidebar-footer" style="${isCollapsed ? 'display:none;' : ''}; color: ${textColor}; opacity: 0.75;">
+              <span style="font-size: 10px;">vox_MainMenu • Responsivo</span>
             </div>
           </div>
         `;
       } else {
         // Menu Horizontal no Topo (Top Navbar - com suporte a mobile hamburger)
-        let itemsHtml = items.map((item, idx) => `
-          <div class="vcl-menu-top-item ${idx === activeIdx ? 'active' : ''}">
-            <span>${item}</span>
-          </div>
-        `).join('');
+        let itemsHtml = items.map((item, idx) => {
+          const cleanItem = item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_]/g, '_');
+          const escapedItem = item.replace(/'/g, "\\'");
+          const itemColorStyle = idx === activeIdx ? '' : `color: ${textColor};`;
+          return `
+            <div class="vcl-menu-top-item ${idx === activeIdx ? 'active' : ''}" style="${itemColorStyle}" title="${item} (Duplo-clique para abrir evento OnClick)"
+              ondblclick="event.stopPropagation(); if (window.app) window.app.jumpToEvent(window.app.designer.form.components.find(c => c.name === '${comp.name}') || window.app.designer.selectedComponent, 'OnClick_${cleanItem}', '${cleanItem}', '${escapedItem}')">
+              <span style="${itemColorStyle}">${item}</span>
+            </div>
+          `;
+        }).join('');
 
         return `
-          <div class="vcl-menu-top" style="background: ${comp.props.BackgroundColor || ''}; color: ${comp.props.TextColor || ''};">
-            <div class="vcl-menu-top-brand">
-              <span class="vcl-menu-mobile-btn" style="display:none; cursor:pointer; margin-right:6px;">☰</span>
+          <div class="vcl-menu-top" style="background: ${bgColor}; color: ${textColor};">
+            <div class="vcl-menu-top-brand" style="color: ${textColor};">
+              <span class="vcl-menu-mobile-btn" style="display:none; cursor:pointer; margin-right:6px; color: ${textColor};">☰</span>
               <span>🚀</span>
-              <span style="font-weight: 700; margin-right: 8px;">${title}</span>
+              <span style="font-weight: 700; margin-right: 8px; color: ${textColor};">${title}</span>
             </div>
             <div class="vcl-menu-top-items">
               ${itemsHtml}
@@ -1031,10 +1047,813 @@ window.VOX_COMPONENTS = {
         </div>
       `;
     }
+  },
+
+  // --------------------------------------------------------------------------
+  // 6. NOVOS COMPONENTES DELPHI 13 - EXPANDIDOS
+  // --------------------------------------------------------------------------
+
+  // --- DATA CONTROLS ---
+  vox_DBLookupComboBox: {
+    name: 'vox_DBLookupComboBox',
+    category: 'Data Controls',
+    label: 'vox_DBLookupComboBox',
+    icon: '🔍',
+    defaultWidth: 160,
+    defaultHeight: 26,
+    defaultProps: {
+      DataSource: 'vox_datasource1',
+      DataField: 'cliente_id',
+      LookupSource: 'vox_datasource2',
+      KeyField: 'id',
+      ListField: 'nome',
+      Text: 'Selecione...'
+    },
+    events: ['OnChange', 'OnDropDown', 'OnCloseUp'],
+    render(comp) {
+      return `
+        <div class="vcl-combo vcl-dblookup">
+          <span style="font-size:11px; color:#1e293b;">${comp.props.Text || 'Selecione [Lookup]...'}</span>
+          <span class="vcl-combo-arrow">🔍</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_DBMemo: {
+    name: 'vox_DBMemo',
+    category: 'Data Controls',
+    label: 'vox_DBMemo',
+    icon: '📝',
+    defaultWidth: 180,
+    defaultHeight: 90,
+    defaultProps: {
+      DataSource: 'vox_datasource1',
+      DataField: 'observacoes',
+      WordWrap: true,
+      ReadOnly: false
+    },
+    events: ['OnChange', 'OnEnter', 'OnExit'],
+    render(comp) {
+      return `
+        <div class="vcl-memo vcl-dbmemo">
+          <span style="color:#64748b; font-size:10px; font-style:italic;">[DB: ${comp.props.DataField || 'observacoes'}]</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_DBImage: {
+    name: 'vox_DBImage',
+    category: 'Data Controls',
+    label: 'vox_DBImage',
+    icon: '🖼️',
+    defaultWidth: 120,
+    defaultHeight: 120,
+    defaultProps: {
+      DataSource: 'vox_datasource1',
+      DataField: 'foto',
+      Stretch: true,
+      Center: true
+    },
+    events: ['OnClick', 'OnDblClick'],
+    render(comp) {
+      return `
+        <div class="vcl-dbimage" style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:4px;">
+          <span style="font-size:24px;">🖼️</span>
+          <span style="font-size:10px; color:#64748b; margin-top:4px;">[DBImage: ${comp.props.DataField || 'foto'}]</span>
+        </div>
+      `;
+    }
+  },
+
+  // --- DATA ACCESS ---
+  vox_MemTable: {
+    name: 'vox_MemTable',
+    category: 'Data Access',
+    label: 'vox_MemTable',
+    icon: '🧠',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      TableName: 'MemTable1',
+      Active: false,
+      Filter: '',
+      Filtered: false
+    },
+    events: ['AfterOpen', 'BeforeOpen', 'AfterPost', 'BeforePost', 'OnCalcFields'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_MemTable (Tabela em Memória)">
+          <span style="font-size:18px;">🧠</span>
+          <span class="vcl-nv-tag">MemTable</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_Transaction: {
+    name: 'vox_Transaction',
+    category: 'Data Access',
+    label: 'vox_Transaction',
+    icon: '🔄',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Connection: 'vox_connection1',
+      Isolation: 'ReadCommitted',
+      AutoCommit: false
+    },
+    events: ['OnStart', 'OnCommit', 'OnRollback'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_Transaction (Controle de Transações)">
+          <span style="font-size:18px;">🔄</span>
+          <span class="vcl-nv-tag">Transact</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_StoredProc: {
+    name: 'vox_StoredProc',
+    category: 'Data Access',
+    label: 'vox_StoredProc',
+    icon: '⚙️',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Connection: 'vox_connection1',
+      StoredProcName: 'sp_calcular_saldo',
+      Params: 'p_id:int, p_val:float'
+    },
+    events: ['BeforeExecute', 'AfterExecute'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_StoredProc">
+          <span style="font-size:18px;">⚙️</span>
+          <span class="vcl-nv-tag">StoredProc</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_SQLScript: {
+    name: 'vox_SQLScript',
+    category: 'Data Access',
+    label: 'vox_SQLScript',
+    icon: '📜',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Connection: 'vox_connection1',
+      Script: 'CREATE TABLE IF NOT EXISTS demo (id INT PRIMARY KEY);'
+    },
+    events: ['BeforeExecute', 'AfterExecute'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_SQLScript">
+          <span style="font-size:18px;">📜</span>
+          <span class="vcl-nv-tag">SQLScript</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_Table: {
+    name: 'vox_Table',
+    category: 'Data Access',
+    label: 'vox_Table',
+    icon: '🗄️',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Connection: 'vox_connection1',
+      TableName: 'clientes',
+      Active: false
+    },
+    events: ['AfterOpen', 'BeforeOpen', 'AfterPost'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_Table">
+          <span style="font-size:18px;">🗄️</span>
+          <span class="vcl-nv-tag">Table</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_RESTClient: {
+    name: 'vox_RESTClient',
+    category: 'Data Access',
+    label: 'vox_RESTClient',
+    icon: '🌐',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      BaseURL: 'https://api.exemplo.com/v1',
+      ContentType: 'application/json',
+      Timeout: 30000
+    },
+    events: ['OnError', 'OnBeforeRequest'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_RESTClient">
+          <span style="font-size:18px;">🌐</span>
+          <span class="vcl-nv-tag">RESTClient</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_RESTRequest: {
+    name: 'vox_RESTRequest',
+    category: 'Data Access',
+    label: 'vox_RESTRequest',
+    icon: '📡',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Client: 'vox_restclient1',
+      Method: 'GET',
+      Resource: 'clientes',
+      Params: ''
+    },
+    events: ['OnAfterExecute', 'OnError'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_RESTRequest">
+          <span style="font-size:18px;">📡</span>
+          <span class="vcl-nv-tag">RESTReq</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_RESTAdapter: {
+    name: 'vox_RESTAdapter',
+    category: 'Data Access',
+    label: 'vox_RESTAdapter',
+    icon: '🔌',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Request: 'vox_restrequest1',
+      DataSet: 'vox_memtable1',
+      RootElement: 'data'
+    },
+    events: ['OnUpdatePayload'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_RESTAdapter">
+          <span style="font-size:18px;">🔌</span>
+          <span class="vcl-nv-tag">RESTAdapter</span>
+        </div>
+      `;
+    }
+  },
+
+  // --- ADDITIONAL ---
+  vox_BitBtn: {
+    name: 'vox_BitBtn',
+    category: 'Additional',
+    label: 'vox_BitBtn',
+    icon: '🆗',
+    defaultWidth: 95,
+    defaultHeight: 28,
+    defaultProps: {
+      Caption: '&OK',
+      Kind: 'bkOK',
+      ModalResult: 'mrOk',
+      Glyph: 'check',
+      Enabled: true
+    },
+    events: ['OnClick'],
+    render(comp) {
+      const icon = comp.props.Kind === 'bkCancel' ? '❌' : (comp.props.Kind === 'bkClose' ? '🚪' : '✔️');
+      return `
+        <div class="vcl-button vcl-bitbtn">
+          <span style="margin-right:4px;">${icon}</span>
+          <span>${comp.props.Caption || '&OK'}</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_MaskEdit: {
+    name: 'vox_MaskEdit',
+    category: 'Additional',
+    label: 'vox_MaskEdit',
+    icon: '🎭',
+    defaultWidth: 150,
+    defaultHeight: 24,
+    defaultProps: {
+      Text: '',
+      EditMask: '!999.999.999-99;1;_',
+      Placeholder: '000.000.000-00',
+      MaxLength: 14,
+      Enabled: true
+    },
+    events: ['OnChange', 'OnExit', 'OnEnter'],
+    render(comp) {
+      return `
+        <div class="vcl-edit vcl-maskedit">
+          <span style="color:${comp.props.Text ? 'inherit' : '#94a3b8'};">${comp.props.Text || comp.props.Placeholder || '000.000.000-00'}</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_StringGrid: {
+    name: 'vox_StringGrid',
+    category: 'Additional',
+    label: 'vox_StringGrid',
+    icon: '▦',
+    defaultWidth: 260,
+    defaultHeight: 140,
+    defaultProps: {
+      ColCount: 4,
+      RowCount: 4,
+      FixedCols: 1,
+      FixedRows: 1,
+      DefaultColWidth: 60,
+      DefaultRowHeight: 24
+    },
+    events: ['OnSelectCell', 'OnDrawCell', 'OnClick'],
+    render(comp) {
+      return `
+        <div class="vcl-stringgrid" style="width:100%; height:100%; background:#fff; border:1px solid #cbd5e1; display:grid; grid-template-columns: 40px repeat(3, 1fr); grid-template-rows: repeat(4, 24px); font-size:11px; text-align:center;">
+          <div style="background:#e2e8f0; font-weight:bold; border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; line-height:24px;">#</div>
+          <div style="background:#e2e8f0; font-weight:bold; border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; line-height:24px;">A</div>
+          <div style="background:#e2e8f0; font-weight:bold; border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; line-height:24px;">B</div>
+          <div style="background:#e2e8f0; font-weight:bold; border-bottom:1px solid #cbd5e1; line-height:24px;">C</div>
+          <div style="background:#f1f5f9; font-weight:bold; border-right:1px solid #cbd5e1; border-bottom:1px solid #f1f5f9; line-height:24px;">1</div>
+          <div style="border-right:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; line-height:24px;">100</div>
+          <div style="border-right:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; line-height:24px;">Alpha</div>
+          <div style="border-bottom:1px solid #f1f5f9; line-height:24px;">Sim</div>
+          <div style="background:#f1f5f9; font-weight:bold; border-right:1px solid #cbd5e1; border-bottom:1px solid #f1f5f9; line-height:24px;">2</div>
+          <div style="border-right:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; line-height:24px;">200</div>
+          <div style="border-right:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; line-height:24px;">Beta</div>
+          <div style="border-bottom:1px solid #f1f5f9; line-height:24px;">Não</div>
+        </div>
+      `;
+    }
+  },
+
+  vox_LabeledEdit: {
+    name: 'vox_LabeledEdit',
+    category: 'Additional',
+    label: 'vox_LabeledEdit',
+    icon: '🏷️',
+    defaultWidth: 160,
+    defaultHeight: 46,
+    defaultProps: {
+      Text: '',
+      EditLabel: 'Código:',
+      LabelPosition: 'lpAbove',
+      LabelSpacing: 4
+    },
+    events: ['OnChange', 'OnEnter', 'OnExit'],
+    render(comp) {
+      return `
+        <div class="vcl-labelededit" style="display:flex; flex-direction:column; gap:${comp.props.LabelSpacing || 4}px;">
+          <label style="font-size:11px; font-weight:600; color:#1e293b;">${comp.props.EditLabel || 'Código:'}</label>
+          <div class="vcl-edit" style="height:24px;">${comp.props.Text || ''}</div>
+        </div>
+      `;
+    }
+  },
+
+  vox_ScrollBox: {
+    name: 'vox_ScrollBox',
+    category: 'Additional',
+    label: 'vox_ScrollBox',
+    icon: '📜',
+    isContainer: true,
+    defaultWidth: 260,
+    defaultHeight: 180,
+    defaultProps: {
+      Align: 'alNone',
+      AutoScroll: true,
+      BorderStyle: 'bsSingle',
+      Color: '#ffffff'
+    },
+    events: ['OnScroll'],
+    render(comp) {
+      return `
+        <div class="vcl-scrollbox" style="width:100%; height:100%; border:1px solid #cbd5e1; background:${comp.props.Color || '#ffffff'}; overflow:auto; position:relative;">
+          <span style="position:absolute; right:6px; bottom:6px; font-size:10px; color:#94a3b8;">📜 ScrollBox</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_Splitter: {
+    name: 'vox_Splitter',
+    category: 'Additional',
+    label: 'vox_Splitter',
+    icon: '↔️',
+    defaultWidth: 6,
+    defaultHeight: 150,
+    defaultProps: {
+      Align: 'alLeft',
+      MinSize: 30,
+      Beveled: true
+    },
+    events: ['OnMoved'],
+    render(comp) {
+      return `
+        <div class="vcl-splitter" style="width:100%; height:100%; background:#cbd5e1; border-left:1px solid #94a3b8; cursor:col-resize; display:flex; align-items:center; justify-content:center;">
+          <div style="width:2px; height:16px; background:#64748b; border-radius:1px;"></div>
+        </div>
+      `;
+    }
+  },
+
+  vox_Bevel: {
+    name: 'vox_Bevel',
+    category: 'Additional',
+    label: 'vox_Bevel',
+    icon: '🔲',
+    defaultWidth: 150,
+    defaultHeight: 4,
+    defaultProps: {
+      Shape: 'bsTopLine',
+      Style: 'bsLowered'
+    },
+    events: [],
+    render(comp) {
+      return `
+        <div class="vcl-bevel" style="width:100%; height:100%; border-top:1px solid #94a3b8; border-bottom:1px solid #ffffff;"></div>
+      `;
+    }
+  },
+
+  vox_FlowPanel: {
+    name: 'vox_FlowPanel',
+    category: 'Additional',
+    label: 'vox_FlowPanel',
+    icon: '🌊',
+    isContainer: true,
+    defaultWidth: 260,
+    defaultHeight: 120,
+    defaultProps: {
+      Align: 'alNone',
+      FlowStyle: 'fsLeftRightTopBottom',
+      Padding: 8
+    },
+    events: [],
+    render(comp) {
+      return `
+        <div class="vcl-flowpanel" style="width:100%; height:100%; border:1px dashed #38bdf8; background:rgba(56,189,248,0.05); position:relative; border-radius:4px;">
+          <span style="position:absolute; top:4px; left:6px; font-size:10px; color:#0284c7; font-weight:600;">🌊 FlowPanel (Flexbox)</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_GridPanel: {
+    name: 'vox_GridPanel',
+    category: 'Additional',
+    label: 'vox_GridPanel',
+    icon: '⊞',
+    isContainer: true,
+    defaultWidth: 260,
+    defaultHeight: 140,
+    defaultProps: {
+      Align: 'alNone',
+      RowCount: 2,
+      ColumnCount: 2,
+      Padding: 8
+    },
+    events: [],
+    render(comp) {
+      return `
+        <div class="vcl-gridpanel" style="width:100%; height:100%; border:1px dashed #6366f1; background:rgba(99,102,241,0.05); position:relative; border-radius:4px;">
+          <span style="position:absolute; top:4px; left:6px; font-size:10px; color:#4f46e5; font-weight:600;">⊞ GridPanel (CSS Grid)</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_SplitView: {
+    name: 'vox_SplitView',
+    category: 'Additional',
+    label: 'vox_SplitView',
+    icon: '📂',
+    isContainer: true,
+    defaultWidth: 180,
+    defaultHeight: 300,
+    defaultProps: {
+      Align: 'alLeft',
+      CompactWidth: 48,
+      OpenedWidth: 180,
+      Opened: true,
+      Placement: 'svLeft'
+    },
+    events: ['OnOpening', 'OnClosing', 'OnClosed'],
+    render(comp) {
+      return `
+        <div class="vcl-splitview" style="width:100%; height:100%; background:#1e2430; color:#fff; border-right:1px solid #334155; display:flex; flex-direction:column; padding:8px;">
+          <div style="font-weight:700; font-size:12px; display:flex; align-items:center; gap:6px; padding-bottom:8px; border-bottom:1px solid #334155;">
+            <span>📂</span> <span>Menu Gaveta</span>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  // --- WIN32 ---
+  vox_TreeView: {
+    name: 'vox_TreeView',
+    category: 'Win32',
+    label: 'vox_TreeView',
+    icon: '🌲',
+    defaultWidth: 160,
+    defaultHeight: 160,
+    defaultProps: {
+      Items: 'Raiz/Item 1, Raiz/Item 2, Configurações/Opção A',
+      ReadOnly: true,
+      ShowLines: true,
+      ShowRoot: true
+    },
+    events: ['OnChange', 'OnExpanding', 'OnCollapsing', 'OnClick'],
+    render(comp) {
+      return `
+        <div class="vcl-treeview" style="width:100%; height:100%; background:#fff; border:1px solid #cbd5e1; padding:6px; font-size:11px; overflow:hidden; color:#1e293b;">
+          <div>📂 <strong>Principal</strong></div>
+          <div style="padding-left:14px;">├── 📄 Item 1</div>
+          <div style="padding-left:14px;">└── 📄 Item 2</div>
+          <div>📂 <strong>Configurações</strong></div>
+          <div style="padding-left:14px;">└── ⚙️ Geral</div>
+        </div>
+      `;
+    }
+  },
+
+  vox_ListView: {
+    name: 'vox_ListView',
+    category: 'Win32',
+    label: 'vox_ListView',
+    icon: '📑',
+    defaultWidth: 240,
+    defaultHeight: 140,
+    defaultProps: {
+      Columns: 'Código, Descrição, Valor',
+      ViewStyle: 'vsReport',
+      GridLines: true,
+      RowSelect: true
+    },
+    events: ['OnClick', 'OnDblClick', 'OnSelectItem'],
+    render(comp) {
+      return `
+        <div class="vcl-listview" style="width:100%; height:100%; background:#fff; border:1px solid #cbd5e1; font-size:11px; display:flex; flex-direction:column;">
+          <div style="display:flex; background:#e2e8f0; border-bottom:1px solid #cbd5e1; font-weight:600; padding:4px 6px; color:#1e293b;">
+            <div style="flex:1;">Código</div><div style="flex:2;">Descrição</div><div style="flex:1;">Valor</div>
+          </div>
+          <div style="padding:4px 6px; border-bottom:1px solid #f1f5f9; display:flex; color:#334155;">
+            <div style="flex:1;">001</div><div style="flex:2;">Item Alpha</div><div style="flex:1;">12.50</div>
+          </div>
+          <div style="padding:4px 6px; border-bottom:1px solid #f1f5f9; display:flex; color:#334155;">
+            <div style="flex:1;">002</div><div style="flex:2;">Item Beta</div><div style="flex:1;">45.00</div>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  vox_StatusBar: {
+    name: 'vox_StatusBar',
+    category: 'Win32',
+    label: 'vox_StatusBar',
+    icon: 'ℹ️',
+    isContainer: true,
+    defaultWidth: 700,
+    defaultHeight: 24,
+    defaultProps: {
+      Align: 'alBottom',
+      Panels: 'Pronto, Usuário: Admin, NUM',
+      SimplePanel: false
+    },
+    events: ['OnClick'],
+    render(comp) {
+      const panels = (comp.props.Panels || 'Pronto, Usuário: Admin, NUM').split(',').map(p => p.trim());
+      const panelsHtml = panels.map(p => `<div style="border-right:1px solid #cbd5e1; padding:0 8px; font-size:11px; color:#475569;">${p}</div>`).join('');
+      return `
+        <div class="vcl-statusbar" style="width:100%; height:100%; background:#f1f5f9; border-top:1px solid #cbd5e1; display:flex; align-items:center;">
+          ${panelsHtml}
+        </div>
+      `;
+    }
+  },
+
+  vox_ToolBar: {
+    name: 'vox_ToolBar',
+    category: 'Win32',
+    label: 'vox_ToolBar',
+    icon: '🛠️',
+    isContainer: true,
+    defaultWidth: 700,
+    defaultHeight: 34,
+    defaultProps: {
+      Align: 'alTop',
+      ButtonWidth: 28,
+      ButtonHeight: 28,
+      Flat: true,
+      ShowCaptions: false
+    },
+    events: [],
+    render(comp) {
+      return `
+        <div class="vcl-toolbar" style="width:100%; height:100%; background:#f8fafc; border-bottom:1px solid #cbd5e1; display:flex; align-items:center; gap:4px; padding:0 6px;">
+          <button style="width:26px; height:26px; border:1px solid #cbd5e1; background:#fff; border-radius:3px; cursor:pointer;" title="Novo">📄</button>
+          <button style="width:26px; height:26px; border:1px solid #cbd5e1; background:#fff; border-radius:3px; cursor:pointer;" title="Abrir">📂</button>
+          <button style="width:26px; height:26px; border:1px solid #cbd5e1; background:#fff; border-radius:3px; cursor:pointer;" title="Salvar">💾</button>
+          <div style="width:1px; height:18px; background:#cbd5e1; margin:0 4px;"></div>
+          <button style="width:26px; height:26px; border:1px solid #cbd5e1; background:#fff; border-radius:3px; cursor:pointer;" title="Imprimir">🖨️</button>
+        </div>
+      `;
+    }
+  },
+
+  vox_RichEdit: {
+    name: 'vox_RichEdit',
+    category: 'Win32',
+    label: 'vox_RichEdit',
+    icon: '🖋️',
+    defaultWidth: 200,
+    defaultHeight: 110,
+    defaultProps: {
+      Lines: 'Texto formatado RichEdit',
+      ReadOnly: false,
+      WordWrap: true
+    },
+    events: ['OnChange', 'OnSelectionChange'],
+    render(comp) {
+      return `
+        <div class="vcl-richedit" style="width:100%; height:100%; background:#fff; border:1px solid #cbd5e1; padding:6px; font-family:'Segoe UI',sans-serif; font-size:12px; color:#1e293b; overflow:auto;">
+          <strong>RichEdit</strong> • <em>Formatação Rica</em>
+        </div>
+      `;
+    }
+  },
+
+  vox_NumberBox: {
+    name: 'vox_NumberBox',
+    category: 'Win32',
+    label: 'vox_NumberBox',
+    icon: '🔢',
+    defaultWidth: 120,
+    defaultHeight: 24,
+    defaultProps: {
+      Value: 0.00,
+      MinValue: 0,
+      MaxValue: 999999,
+      Decimal: 2,
+      CurrencyFormat: 'R$ '
+    },
+    events: ['OnChange', 'OnExit'],
+    render(comp) {
+      const val = parseFloat(comp.props.Value || 0).toFixed(parseInt(comp.props.Decimal, 10) || 2);
+      const prefix = comp.props.CurrencyFormat || '';
+      return `
+        <div class="vcl-edit vcl-numberbox" style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-weight:600; color:#1e293b;">${prefix}${val}</span>
+          <div style="display:flex; flex-direction:column; font-size:8px; line-height:8px; color:#64748b;">
+            <span>▲</span><span>▼</span>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  vox_ActivityIndicator: {
+    name: 'vox_ActivityIndicator',
+    category: 'Win32',
+    label: 'vox_ActivityIndicator',
+    icon: '⏳',
+    defaultWidth: 32,
+    defaultHeight: 32,
+    defaultProps: {
+      Animate: true,
+      IndicatorType: 'aitRotatingSector',
+      IndicatorSize: 'aisMedium'
+    },
+    events: [],
+    render(comp) {
+      return `
+        <div class="vcl-activity-indicator" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;" title="ActivityIndicator">
+          <div style="width:22px; height:22px; border:3px solid #cbd5e1; border-top-color:#0078d4; border-radius:50%; animation:spin 1s linear infinite;"></div>
+        </div>
+      `;
+    }
+  },
+
+  // --- STANDARD (MENUS / ACTIONS) ---
+  vox_ActionList: {
+    name: 'vox_ActionList',
+    category: 'Standard',
+    label: 'vox_ActionList',
+    icon: '⚡',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Actions: 'actSalvar, actExcluir, actImprimir, actFechar'
+    },
+    events: ['OnExecute', 'OnUpdate'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_ActionList">
+          <span style="font-size:18px; color:#f59e0b;">⚡</span>
+          <span class="vcl-nv-tag">ActionList</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_PopupMenu: {
+    name: 'vox_PopupMenu',
+    category: 'Standard',
+    label: 'vox_PopupMenu',
+    icon: '📋',
+    isNonVisual: true,
+    defaultWidth: 38,
+    defaultHeight: 38,
+    defaultProps: {
+      Items: 'Copiar, Colar, Excluir, Propriedades'
+    },
+    events: ['OnPopup'],
+    render(comp) {
+      return `
+        <div class="vcl-non-visual" title="vox_PopupMenu">
+          <span style="font-size:18px; color:#3b82f6;">📋</span>
+          <span class="vcl-nv-tag">PopMenu</span>
+        </div>
+      `;
+    }
   }
 };
 
-// Aliases de Retrocompatibilidade para que projetos antigos continuem funcionando
+// ============================================================================
+// 1. Padronização Institucional: TVox[Componente] e getVoxClassType
+// ============================================================================
+Object.keys(window.VOX_COMPONENTS).forEach(k => {
+  const c = window.VOX_COMPONENTS[k];
+  if (c && !c.className) {
+    if (c.name.startsWith('vox_')) {
+      c.className = 'TVox' + c.name.substring(4);
+    } else if (c.name.startsWith('TVox')) {
+      c.className = c.name;
+    } else {
+      c.className = 'TVox' + c.name;
+    }
+  }
+});
+
+// Helper canônico global para obter o tipo institucional TVox... de qualquer componente ou string de tipo
+window.getVoxClassType = function(typeOrComp) {
+  if (!typeOrComp) return 'TVoxComponent';
+  if (typeof typeOrComp === 'object') {
+    if (typeOrComp.className) return typeOrComp.className;
+    typeOrComp = typeOrComp.type || '';
+  }
+  const t = String(typeOrComp).trim();
+  if (t === 'form' || t === '__form__' || t === 'Form' || t === 'TForm' || t === 'TVoxForm') return 'TVoxForm';
+  const meta = window.VOX_COMPONENTS && window.VOX_COMPONENTS[t];
+  if (meta && meta.className) return meta.className;
+  if (t.startsWith('TVox')) return t;
+  if (t.startsWith('vox_')) {
+    const raw = t.substring(4);
+    return 'TVox' + raw;
+  }
+  if (t.startsWith('T')) {
+    return 'TVox' + t.substring(1);
+  }
+  return 'TVox' + t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+// Atribuir className canônico a todos os componentes e criar aliases oficiais TVox[Componente]
+Object.values(window.VOX_COMPONENTS).forEach(c => {
+  if (c && c.name) {
+    if (!c.className) {
+      c.className = window.getVoxClassType(c.name);
+    }
+    if (!window.VOX_COMPONENTS[c.className]) {
+      window.VOX_COMPONENTS[c.className] = c;
+    }
+  }
+});
+
+// Aliases de Retrocompatibilidade para importação de projetos legados
 window.VOX_COMPONENTS['TButton'] = window.VOX_COMPONENTS['vox_Button'];
 window.VOX_COMPONENTS['TEdit'] = window.VOX_COMPONENTS['vox_Edit'];
 window.VOX_COMPONENTS['TLabel'] = window.VOX_COMPONENTS['vox_Label'];
@@ -1057,12 +1876,18 @@ window.VOX_COMPONENTS['Vox_RadioGroup'] = window.VOX_COMPONENTS['vox_RadioGroup'
 window.VOX_COMPONENTS['TCheckListBox'] = window.VOX_COMPONENTS['vox_CheckListGroupBox'];
 window.VOX_COMPONENTS['Vox_CheckListGroupBox'] = window.VOX_COMPONENTS['vox_CheckListGroupBox'];
 window.VOX_COMPONENTS['TPageControl'] = window.VOX_COMPONENTS['vox_PageControl'];
+window.VOX_COMPONENTS['TVoxPageControl'] = window.VOX_COMPONENTS['vox_PageControl'];
 window.VOX_COMPONENTS['TTabSheet'] = window.VOX_COMPONENTS['vox_TabSheet'];
+window.VOX_COMPONENTS['TVoxTabSheet'] = window.VOX_COMPONENTS['vox_TabSheet'];
 
 // Função para registrar novos componentes criados pela Fábrica de Componentes (Component Factory)
 window.registerCustomComponent = function(compDef) {
   if (!compDef || !compDef.name) return false;
+  if (!compDef.className) {
+    compDef.className = compDef.name.startsWith('TVox') ? compDef.name : ('TVox' + (compDef.name.startsWith('vox_') ? compDef.name.substring(4) : compDef.name));
+  }
   window.VOX_COMPONENTS[compDef.name] = compDef;
+  window.VOX_COMPONENTS[compDef.className] = compDef;
   if (window.app) {
     window.app.initPalette();
     window.app.showToast(`✨ Componente ${compDef.name} registrado com sucesso na Paleta!`);

@@ -1,0 +1,11 @@
+{
+  "ProjectName": "Project1",
+  "MainForm": "Form1",
+  "Units": [
+    "Unit1.vox",
+    "Form1.vxf",
+    "Form2.vox",
+    "Form2.vxf"
+  ],
+  "Updated": "2026-09-20T18:10:29.046Z"
+}

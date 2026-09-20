@@ -15,11 +15,12 @@ window.VoxCodeGen = {
     let eventMethods = [];
 
     components.forEach(comp => {
+      const classType = (typeof window !== 'undefined' && window.getVoxClassType) ? window.getVoxClassType(comp.type || comp.className) : (comp.type.startsWith('TVox') ? comp.type : ('TVox' + (comp.type.startsWith('vox_') ? comp.type.substring(4) : comp.type)));
       // Declaração do componente
-      declLines.push(`    let mut ${comp.name}: ${comp.type};`);
+      declLines.push(`    let mut ${comp.name}: ${classType};`);
 
       // Inicialização no construtor new()
-      initLines.push(`        this.${comp.name} = new ${comp.type}();`);
+      initLines.push(`        this.${comp.name} = new ${classType}();`);
       if (comp.parent && comp.parent !== formName) {
         initLines.push(`        this.${comp.name}.parent = "${comp.parent}";`);
       }
@@ -84,6 +85,12 @@ window.VoxCodeGen = {
       if (comp.props.Title !== undefined) {
         initLines.push(`        this.${comp.name}.title = "${comp.props.Title}";`);
       }
+      if (comp.props.TextColor !== undefined) {
+        initLines.push(`        this.${comp.name}.textColor = "${comp.props.TextColor}";`);
+      }
+      if (comp.props.BackgroundColor !== undefined) {
+        initLines.push(`        this.${comp.name}.backgroundColor = "${comp.props.BackgroundColor}";`);
+      }
       if (comp.props.IP !== undefined) {
         initLines.push(`        this.${comp.name}.IP = "${comp.props.IP}";`);
       } else if (comp.props.Server !== undefined) {
@@ -115,6 +122,36 @@ window.VoxCodeGen = {
       }
       if (comp.props.Collapsed !== undefined) {
         initLines.push(`        this.${comp.name}.collapsed = ${comp.props.Collapsed};`);
+      }
+      if (comp.props.KeyField !== undefined) {
+        initLines.push(`        this.${comp.name}.keyField = "${comp.props.KeyField}";`);
+      }
+      if (comp.props.ListField !== undefined) {
+        initLines.push(`        this.${comp.name}.listField = "${comp.props.ListField}";`);
+      }
+      if (comp.props.LookupSource !== undefined) {
+        initLines.push(`        this.${comp.name}.lookupSource = "${comp.props.LookupSource}";`);
+      }
+      if (comp.props.EditMask !== undefined) {
+        initLines.push(`        this.${comp.name}.editMask = "${comp.props.EditMask}";`);
+      }
+      if (comp.props.EditLabel !== undefined) {
+        initLines.push(`        this.${comp.name}.editLabel = "${comp.props.EditLabel}";`);
+      }
+      if (comp.props.Kind !== undefined) {
+        initLines.push(`        this.${comp.name}.kind = "${comp.props.Kind}";`);
+      }
+      if (comp.props.ModalResult !== undefined) {
+        initLines.push(`        this.${comp.name}.modalResult = "${comp.props.ModalResult}";`);
+      }
+      if (comp.props.BaseURL !== undefined) {
+        initLines.push(`        this.${comp.name}.baseURL = "${comp.props.BaseURL}";`);
+      }
+      if (comp.props.Resource !== undefined) {
+        initLines.push(`        this.${comp.name}.resource = "${comp.props.Resource}";`);
+      }
+      if (comp.props.Method !== undefined) {
+        initLines.push(`        this.${comp.name}.method = "${comp.props.Method}";`);
       }
 
       // Conexão de eventos declarados
@@ -181,7 +218,7 @@ ${m.body}
 
 import ${importedUnits.join(', ')};
 
-classe ${formName} herda vox_Form {
+classe ${formName} herda TVoxForm {
 private:
     // ── Membros e Métodos Privados ──────────────────────────────────────────
     var _initialized: bool;
@@ -229,22 +266,38 @@ public fn main() -> void {
     const width = formState.width || 680;
     const height = formState.height || 480;
     const components = formState.components || [];
+    const formBgColor = (formState.color && formState.color !== 'clBtnFace') ? formState.color : '#f0f0f0';
 
     // Localizar componente SQL e Conexão (vox_Query ou TFDQuery)
     const queryComp = components.find(c => c.type === 'vox_Query' || c.type === 'TFDQuery');
     const sqlQuery = (queryComp && queryComp.props && queryComp.props.SQL) ? queryComp.props.SQL : 'SELECT * FROM clientes';
 
-    // 1. Gerar HTML dos Componentes (Hierárquico Delphi VCL)
+    // 1. Gerar HTML dos Componentes (Hierárquico Delphi VCL / Vox VCL)
     const nonVisual = [
       'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
+      'vox_MemTable', 'vox_Transaction', 'vox_StoredProc', 'vox_SQLScript', 'vox_Table',
+      'vox_ActionList', 'vox_PopupMenu', 'vox_RESTClient', 'vox_RESTRequest', 'vox_RESTAdapter',
+      'TVoxDataSource', 'TVoxConnection', 'TVoxQuery', 'TVoxTimer', 'TVoxOpenDialog', 'TVoxSaveDialog',
+      'TVoxMemTable', 'TVoxTransaction', 'TVoxStoredProc', 'TVoxSQLScript', 'TVoxTable',
+      'TVoxActionList', 'TVoxPopupMenu', 'TVoxRESTClient', 'TVoxRESTRequest', 'TVoxRESTAdapter',
       'TDataSource', 'TFDConnection', 'TFDQuery', 'TTimer', 'TOpenDialog', 'TSaveDialog'
     ];
 
     const isContainer = (type) => {
       const containers = [
-        'vox_Panel', 'TPanel', 'vox_GroupBox', 'TGroupBox', 'vox_Card', 'TCard',
-        'vox_RadioGroup', 'TRadioGroup', 'vox_CheckListGroupBox', 'TCheckListBox',
-        'vox_PageControl', 'TPageControl', 'vox_TabSheet', 'TTabSheet'
+        'vox_Panel', 'TPanel', 'TVoxPanel',
+        'vox_GroupBox', 'TGroupBox', 'TVoxGroupBox',
+        'vox_Card', 'TCard', 'TVoxCard',
+        'vox_RadioGroup', 'TRadioGroup', 'TVoxRadioGroup',
+        'vox_CheckListGroupBox', 'TCheckListBox', 'TVoxCheckListBox',
+        'vox_PageControl', 'TPageControl', 'TVoxPageControl',
+        'vox_TabSheet', 'TTabSheet', 'TVoxTabSheet',
+        'vox_ScrollBox', 'TScrollBox', 'TVoxScrollBox',
+        'vox_ToolBar', 'TToolBar', 'TVoxToolBar',
+        'vox_StatusBar', 'TStatusBar', 'TVoxStatusBar',
+        'vox_FlowPanel', 'TFlowPanel', 'TVoxFlowPanel',
+        'vox_GridPanel', 'TGridPanel', 'TVoxGridPanel',
+        'vox_SplitView', 'TSplitView', 'TVoxSplitView'
       ];
       return containers.includes(type);
     };
@@ -338,9 +391,18 @@ public fn main() -> void {
         return `
           <input type="text" id="${comp.name}" class="web-input" value="${comp.props.Text || ''}" placeholder="${comp.props.Placeholder || ''}" style="${style}">
         `;
-      } else if (comp.type === 'vox_Label' || comp.type === 'TLabel') {
+      } else if (comp.type === 'vox_Label' || comp.type === 'TLabel' || comp.type === 'TVoxLabel') {
+        const isCustom = comp.props.Color && comp.props.Color !== 'inherit' && comp.props.Color !== 'default' && comp.props.Color !== '#1a1a1a';
+        let labelColor = '#1a1a1a';
+        if (isCustom) {
+          labelColor = comp.props.Color;
+        } else {
+          const bgHex = (formBgColor || '#f0f0f0').replace('#', '');
+          const isBgDark = bgHex.length === 6 && (parseInt(bgHex, 16) < 0x777777);
+          labelColor = isBgDark ? '#f0f6fc' : '#1a1a1a';
+        }
         return `
-          <div id="${comp.name}" class="web-label" style="${style} color: ${comp.props.Color || '#e2e8f0'};">
+          <div id="${comp.name}" class="web-label" style="${style} color: ${labelColor}; font-weight: 500;">
             ${comp.props.Caption || comp.name || 'Label'}
           </div>
         `;
@@ -567,7 +629,7 @@ public fn main() -> void {
             <span>${comp.props.Caption || field}</span>
           </label>
         `;
-      } else if (comp.type === 'vox_MainMenu' || comp.type === 'TMainMenu') {
+      } else if (comp.type === 'vox_MainMenu' || comp.type === 'TMainMenu' || comp.type === 'TVoxMainMenu') {
         const isLeft = comp.props.Layout === 'Left' || comp.props.MenuType === 'Left';
         const items = (comp.props.Items || 'Cadastros, Vendas, Relatórios, Configurações')
           .split(',')
@@ -575,40 +637,54 @@ public fn main() -> void {
           .filter(Boolean);
         const title = comp.props.Title || 'Meu Sistema';
         const activeIdx = comp.props.ActiveIndex || 0;
+        const textColor = comp.props.TextColor || '#e2e8f0';
+        const bgColor = comp.props.BackgroundColor || '#1e2430';
 
         if (isLeft) {
           const icons = ['📁', '🛒', '📊', '⚙️', '📄', '🏷️', '👥', '📦'];
-          let itemsHtml = items.map((item, idx) => `
-            <div class="web-sidebar-item ${idx === activeIdx ? 'active' : ''}" onclick="app.handleMenuClick('${item}', ${idx})" title="${item}">
+          let itemsHtml = items.map((item, idx) => {
+            const cleanItem = item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_]/g, '_');
+            const evKey = `OnClick_${cleanItem}`;
+            const handlerName = (comp.events && (comp.events[evKey] || comp.events[item])) ? (comp.events[evKey] || comp.events[item]) : `${comp.name}_${cleanItem}Click`;
+            const itemColorStyle = idx === activeIdx ? '' : `color: ${textColor};`;
+            return `
+            <div class="web-sidebar-item ${idx === activeIdx ? 'active' : ''}" style="${itemColorStyle}" onclick="app.handleMenuClick('${item}', ${idx}, '${handlerName}')" title="${item}">
               <span class="sidebar-icon">${icons[idx % icons.length]}</span>
-              <span class="sidebar-text">${item}</span>
+              <span class="sidebar-text" style="${itemColorStyle}">${item}</span>
             </div>
-          `).join('');
+          `;
+          }).join('');
 
           return `
-            <aside id="${comp.name}" class="web-sidebar-menu">
-              <div class="web-menu-brand">
-                <span class="web-sidebar-toggle-btn" onclick="app.toggleSidebar()" title="Recolher / Expandir Menu">☰</span>
-                <span class="web-brand-title">🚀 ${title}</span>
+            <aside id="${comp.name}" class="web-sidebar-menu" style="background: ${bgColor}; color: ${textColor};">
+              <div class="web-menu-brand" style="color: ${textColor};">
+                <span class="web-sidebar-toggle-btn" onclick="app.toggleSidebar()" title="Recolher / Expandir Menu" style="color: ${textColor};">☰</span>
+                <span class="web-brand-title" style="color: ${textColor};">🚀 ${title}</span>
               </div>
               <nav class="web-sidebar-nav">
                 ${itemsHtml}
               </nav>
-              <div class="web-menu-footer">v1.0 • Vox Web</div>
+              <div class="web-menu-footer" style="color: ${textColor}; opacity: 0.75;">v1.0 • Vox Web</div>
             </aside>
           `;
         } else {
-          let itemsHtml = items.map((item, idx) => `
-            <div class="web-topbar-item ${idx === activeIdx ? 'active' : ''}" onclick="app.handleMenuClick('${item}', ${idx})">
-              <span>${item}</span>
+          let itemsHtml = items.map((item, idx) => {
+            const cleanItem = item.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_]/g, '_');
+            const evKey = `OnClick_${cleanItem}`;
+            const handlerName = (comp.events && (comp.events[evKey] || comp.events[item])) ? (comp.events[evKey] || comp.events[item]) : `${comp.name}_${cleanItem}Click`;
+            const itemColorStyle = idx === activeIdx ? '' : `color: ${textColor};`;
+            return `
+            <div class="web-topbar-item ${idx === activeIdx ? 'active' : ''}" style="${itemColorStyle}" onclick="app.handleMenuClick('${item}', ${idx}, '${handlerName}')">
+              <span style="${itemColorStyle}">${item}</span>
             </div>
-          `).join('');
+          `;
+          }).join('');
 
           return `
-            <nav id="${comp.name}" class="web-topbar-menu">
-              <div class="web-menu-brand">
-                <span class="web-topbar-toggle-btn" onclick="app.toggleTopMenu()" title="Menu Mobile">☰</span>
-                <span>🚀 ${title}</span>
+            <nav id="${comp.name}" class="web-topbar-menu" style="background: ${bgColor}; color: ${textColor};">
+              <div class="web-menu-brand" style="color: ${textColor};">
+                <span class="web-topbar-toggle-btn" onclick="app.toggleTopMenu()" title="Menu Mobile" style="color: ${textColor};">☰</span>
+                <span style="color: ${textColor};">🚀 ${title}</span>
               </div>
               <div class="web-topbar-items" id="webTopbarItems">
                 ${itemsHtml}
@@ -616,6 +692,144 @@ public fn main() -> void {
             </nav>
           `;
         }
+      } else if (comp.type === 'vox_DBLookupComboBox' || comp.type === 'TDBLookupComboBox' || comp.type === 'TVoxDBLookupComboBox') {
+        return `
+          <div id="${comp.name}" class="web-input web-combo" style="${style}; display:flex; justify-content:space-between; align-items:center; background:#ffffff; color:#0f172a; cursor:pointer;">
+            <span>${comp.props.Text || 'Selecione [Lookup]...'}</span>
+            <span>🔍</span>
+          </div>
+        `;
+      } else if (comp.type === 'vox_DBMemo' || comp.type === 'TDBMemo' || comp.type === 'TVoxDBMemo') {
+        const field = comp.props.DataField || 'observacoes';
+        return `
+          <textarea id="${comp.name}" data-field="${field}" class="web-input web-memo" style="${style}; background:#ffffff; color:#0f172a;" placeholder="[DB: ${field}]"></textarea>
+        `;
+      } else if (comp.type === 'vox_DBImage' || comp.type === 'TDBImage' || comp.type === 'TVoxDBImage') {
+        const field = comp.props.DataField || 'foto';
+        return `
+          <div id="${comp.name}" data-field="${field}" class="web-dbimage" style="${style}; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#ffffff; border:1px dashed #cbd5e1; border-radius:4px;">
+            <span style="font-size:24px;">🖼️</span>
+            <span style="font-size:10px; color:#64748b;">[DBImage: ${field}]</span>
+          </div>
+        `;
+      } else if (comp.type === 'vox_BitBtn' || comp.type === 'TBitBtn' || comp.type === 'TVoxBitBtn') {
+        const icon = comp.props.Kind === 'bkCancel' ? '❌' : (comp.props.Kind === 'bkClose' ? '🚪' : '✔️');
+        return `
+          <button id="${comp.name}" class="web-btn web-bitbtn" style="${style}; display:inline-flex; align-items:center; justify-content:center; gap:4px;" onclick="app.handleClick('${comp.name}')">
+            <span>${icon}</span>
+            <span>${comp.props.Caption || '&OK'}</span>
+          </button>
+        `;
+      } else if (comp.type === 'vox_MaskEdit' || comp.type === 'TMaskEdit' || comp.type === 'TVoxMaskEdit') {
+        return `
+          <input type="text" id="${comp.name}" class="web-input web-mask" value="${comp.props.Text || ''}" placeholder="${comp.props.Placeholder || '000.000.000-00'}" style="${style}; background:#ffffff; color:#0f172a;">
+        `;
+      } else if (comp.type === 'vox_StringGrid' || comp.type === 'TStringGrid' || comp.type === 'TVoxStringGrid') {
+        return `
+          <div id="${comp.name}" class="web-grid-wrapper" style="${style}; background:#ffffff; border:1px solid #cbd5e1;">
+            <table class="web-table">
+              <thead>
+                <tr><th>#</th><th>A</th><th>B</th><th>C</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>1</td><td>100</td><td>Alpha</td><td>Sim</td></tr>
+                <tr><td>2</td><td>200</td><td>Beta</td><td>Não</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      } else if (comp.type === 'vox_LabeledEdit' || comp.type === 'TLabeledEdit' || comp.type === 'TVoxLabeledEdit') {
+        return `
+          <div id="${comp.name}" style="${style}; display:flex; flex-direction:column; gap:3px;">
+            <label style="font-size:11px; font-weight:600; color:#1e293b;">${comp.props.EditLabel || 'Código:'}</label>
+            <input type="text" class="web-input" style="width:100%; height:24px; background:#ffffff; color:#0f172a;" value="${comp.props.Text || ''}">
+          </div>
+        `;
+      } else if (comp.type === 'vox_ScrollBox' || comp.type === 'TScrollBox' || comp.type === 'TVoxScrollBox') {
+        return `
+          <div id="${comp.name}" class="web-scrollbox" style="${style}; overflow:auto; background:${comp.props.Color || '#ffffff'}; border:1px solid #cbd5e1;">
+            ${childrenHtml}
+          </div>
+        `;
+      } else if (comp.type === 'vox_Splitter' || comp.type === 'TSplitter' || comp.type === 'TVoxSplitter') {
+        return `
+          <div id="${comp.name}" class="web-splitter" style="${style}; background:#cbd5e1; cursor:col-resize; display:flex; align-items:center; justify-content:center;">
+            <div style="width:2px; height:16px; background:#64748b; border-radius:1px;"></div>
+          </div>
+        `;
+      } else if (comp.type === 'vox_Bevel' || comp.type === 'TBevel' || comp.type === 'TVoxBevel') {
+        return `
+          <div id="${comp.name}" class="web-bevel" style="${style}; border-top:1px solid #94a3b8; border-bottom:1px solid #ffffff;"></div>
+        `;
+      } else if (comp.type === 'vox_FlowPanel' || comp.type === 'TFlowPanel' || comp.type === 'TVoxFlowPanel') {
+        return `
+          <div id="${comp.name}" class="web-flowpanel" style="${style}; display:flex; flex-wrap:wrap; gap:8px; padding:8px; border:1px dashed #38bdf8; background:rgba(56,189,248,0.05); border-radius:4px;">
+            ${childrenHtml}
+          </div>
+        `;
+      } else if (comp.type === 'vox_GridPanel' || comp.type === 'TGridPanel' || comp.type === 'TVoxGridPanel') {
+        return `
+          <div id="${comp.name}" class="web-gridpanel" style="${style}; display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; padding:8px; border:1px dashed #6366f1; background:rgba(99,102,241,0.05); border-radius:4px;">
+            ${childrenHtml}
+          </div>
+        `;
+      } else if (comp.type === 'vox_SplitView' || comp.type === 'TSplitView' || comp.type === 'TVoxSplitView') {
+        return `
+          <aside id="${comp.name}" class="web-splitview" style="${style}; background:#1e2430; color:#ffffff; padding:8px; border-right:1px solid #334155;">
+            <div style="font-weight:700; font-size:12px; margin-bottom:8px;">📂 Gaveta</div>
+            ${childrenHtml}
+          </aside>
+        `;
+      } else if (comp.type === 'vox_TreeView' || comp.type === 'TTreeView' || comp.type === 'TVoxTreeView') {
+        return `
+          <div id="${comp.name}" class="web-treeview" style="${style}; background:#ffffff; border:1px solid #cbd5e1; padding:6px; font-size:11px; color:#1e293b; overflow:auto;">
+            <div>📂 <strong>Principal</strong></div>
+            <div style="padding-left:14px;">├── 📄 Item 1</div>
+            <div style="padding-left:14px;">└── 📄 Item 2</div>
+          </div>
+        `;
+      } else if (comp.type === 'vox_ListView' || comp.type === 'TListView' || comp.type === 'TVoxListView') {
+        return `
+          <div id="${comp.name}" class="web-listview" style="${style}; background:#ffffff; border:1px solid #cbd5e1; font-size:11px; display:flex; flex-direction:column; overflow:auto;">
+            <div style="display:flex; background:#e2e8f0; border-bottom:1px solid #cbd5e1; font-weight:600; padding:4px 6px; color:#1e293b;">
+              <div style="flex:1;">Código</div><div style="flex:2;">Descrição</div><div style="flex:1;">Valor</div>
+            </div>
+            <div style="display:flex; padding:4px 6px; border-bottom:1px solid #f1f5f9; color:#334155;">
+              <div style="flex:1;">001</div><div style="flex:2;">Item Alpha</div><div style="flex:1;">12.50</div>
+            </div>
+          </div>
+        `;
+      } else if (comp.type === 'vox_StatusBar' || comp.type === 'TStatusBar' || comp.type === 'TVoxStatusBar') {
+        const panels = (comp.props.Panels || 'Pronto, Usuário: Admin, NUM').split(',').map(p => p.trim());
+        const panelsHtml = panels.map(p => `<div style="border-right:1px solid #cbd5e1; padding:0 8px; font-size:11px; color:#475569;">${p}</div>`).join('');
+        return `
+          <div id="${comp.name}" class="web-statusbar" style="${style}; background:#f1f5f9; border-top:1px solid #cbd5e1; display:flex; align-items:center; height:24px;">
+            ${panelsHtml}
+            ${childrenHtml}
+          </div>
+        `;
+      } else if (comp.type === 'vox_ToolBar' || comp.type === 'TToolBar' || comp.type === 'TVoxToolBar') {
+        return `
+          <div id="${comp.name}" class="web-toolbar" style="${style}; background:#f8fafc; border-bottom:1px solid #cbd5e1; display:flex; align-items:center; gap:4px; padding:0 6px;">
+            <button style="padding:3px 8px; border:1px solid #cbd5e1; background:#ffffff; border-radius:3px; cursor:pointer;" title="Novo">📄</button>
+            <button style="padding:3px 8px; border:1px solid #cbd5e1; background:#ffffff; border-radius:3px; cursor:pointer;" title="Salvar">💾</button>
+            ${childrenHtml}
+          </div>
+        `;
+      } else if (comp.type === 'vox_RichEdit' || comp.type === 'TRichEdit' || comp.type === 'TVoxRichEdit') {
+        return `
+          <textarea id="${comp.name}" class="web-input web-richedit" style="${style}; background:#ffffff; color:#0f172a; font-family:'Segoe UI',sans-serif;">${comp.props.Lines || 'RichEdit'}</textarea>
+        `;
+      } else if (comp.type === 'vox_NumberBox' || comp.type === 'TNumberBox' || comp.type === 'TVoxNumberBox') {
+        return `
+          <input type="number" id="${comp.name}" class="web-input web-numberbox" value="${comp.props.Value || 0}" style="${style}; background:#ffffff; color:#0f172a; font-weight:600; text-align:right;">
+        `;
+      } else if (comp.type === 'vox_ActivityIndicator' || comp.type === 'TActivityIndicator' || comp.type === 'TVoxActivityIndicator') {
+        return `
+          <div id="${comp.name}" class="web-activityindicator" style="${style}; display:flex; align-items:center; justify-content:center;">
+            <div style="width:24px; height:24px; border:3px solid #cbd5e1; border-top-color:#0078d4; border-radius:50%; animation:spin 1s linear infinite;"></div>
+          </div>
+        `;
       } else {
         // Fallback genérico para qualquer outro componente visual ou customizado
         return `
@@ -668,7 +882,7 @@ public fn main() -> void {
           <button class="sys-btn close-btn" onclick="app.closeForm()" title="Fechar Formulário">✕</button>
         </div>
       </div>
-      <div class="form-canvas" id="webFormCanvas">
+      <div class="form-canvas" id="webFormCanvas" style="background-color: ${formBgColor};">
         ${compHtmlList.join('\n')}
       </div>
       <!-- Painel exibido quando o formulário é fechado -->
@@ -697,13 +911,14 @@ public fn main() -> void {
    Aplicação Web Gerada pelo Vox Studio RAD
    ============================================================================== */
 :root {
-  --bg-body: #0d1117;
-  --bg-card: #161b22;
-  --bg-input: #0b0e14;
-  --border-color: #30363d;
+  --bg-body: #1e2430;
+  --bg-card: #283040;
+  --bg-input: #ffffff;
+  --border-color: #cbd5e1;
   --accent-color: #0078d4;
-  --text-main: #f0f6fc;
-  --text-muted: #8b949e;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --form-bg: ${formBgColor};
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -720,11 +935,12 @@ body {
 .app-header {
   height: 50px;
   background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #334155;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  color: #f8fafc;
 }
 
 .brand {
@@ -759,9 +975,27 @@ body {
   overflow: hidden;
 }
 
+.web-form-window {
+  background: var(--form-bg, #f0f0f0);
+}
+
+.web-form-titlebar {
+  background: #ffffff;
+  border-bottom: 1px solid #cbd5e1;
+  color: #0f172a;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
 .form-canvas {
   position: relative;
-  background: #12161f;
+  background-color: var(--form-bg, #f0f0f0);
+  color: #1a1a1a;
   flex: 1;
   width: 100%;
   height: 100%;
@@ -770,46 +1004,50 @@ body {
   box-sizing: border-box;
 }
 
-/* Controles Web */
+/* Controles Web com visual clássico e moderno Delphi VCL */
 .web-btn {
-  background: linear-gradient(180deg, #2a3449 0%, #1f2637 100%);
-  border: 1px solid var(--border-color);
-  color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  border: 1px solid #94a3b8;
+  color: #0f172a;
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   transition: all 0.15s ease;
 }
 .web-btn:hover {
-  background: #0078d4;
-  border-color: #4cc2ff;
+  background: #e2e8f0;
+  border-color: #64748b;
 }
 
 .web-input {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  color: #ffffff;
-  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  color: #0f172a;
+  border-radius: 3px;
   padding: 0 8px;
   font-size: 12px;
   outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 .web-input:focus {
-  border-color: var(--accent-color);
+  border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
 }
 
 .web-label {
-  color: var(--text-main);
+  color: #1a1a1a;
   font-size: 12px;
   display: flex;
   align-items: center;
 }
 
 .web-groupbox {
-  border: 1px solid var(--border-color);
+  border: 1px solid #cbd5e1;
   border-radius: 4px;
   padding: 8px;
+  background: rgba(255, 255, 255, 0.5);
 }
 .web-groupbox legend {
   padding: 0 6px;
@@ -819,8 +1057,8 @@ body {
 }
 
 .web-grid-wrapper {
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: 4px;
   overflow-y: auto;
 }
@@ -831,21 +1069,29 @@ body {
   font-size: 11.5px;
 }
 .web-table th {
-  background: #212631;
-  color: #4cc2ff;
+  background: #e2e8f0;
+  color: #0f172a;
   padding: 6px 8px;
   text-align: left;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #cbd5e1;
+  border-right: 1px solid #cbd5e1;
+  font-weight: 600;
   position: sticky;
   top: 0;
 }
 .web-table td {
   padding: 6px 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  color: #c9d1d9;
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  color: #1e293b;
+  background: #ffffff;
 }
-.web-table tr {
-  cursor: pointer;
+.web-table tr:hover td {
+  background: #f8fafc;
+}
+.web-table tr.selected td {
+  background: #0078d4;
+  color: #ffffff;
 }
 .web-table tr:hover {
   background: rgba(0, 120, 212, 0.15);
@@ -1394,9 +1640,13 @@ class WebAppController {
     await this.loadData();
   }
 
-  handleMenuClick(item, idx) {
-    console.log('[Vox Menu]', item, idx);
-    alert('Módulo selecionado: ' + item);
+  handleMenuClick(item, idx, handlerName) {
+    console.log('[Vox Menu Click]', item, idx, handlerName);
+    if (handlerName && typeof this[handlerName] === 'function') {
+      this[handlerName](item, idx);
+      return;
+    }
+    alert('Menu [' + item + '] acionado com sucesso!');
   }
 
   toggleSidebar() {
@@ -1689,20 +1939,22 @@ server.listen(PORT, () => {
     };
   },
 
-  ensureEventHandler(currentCode, handlerName, compName, eventName) {
-    if (!currentCode || !currentCode.includes('class ')) {
+  ensureEventHandler(currentCode, handlerName, compName, eventName, itemLabel) {
+    if (!currentCode || (!currentCode.includes('classe ') && !currentCode.includes('class '))) {
       currentCode = this.generateVoxCode(window.app.designer.form);
     }
 
-    const methodSig = `pub fn ${handlerName}(`;
+    const methodSig = `procedure ${handlerName}(`;
     if (currentCode.includes(methodSig) || currentCode.includes(`fn ${handlerName}(`)) {
       return { voxCode: currentCode, created: false };
     }
 
+    const desc = itemLabel ? `Opção de Menu [${itemLabel}] de ${compName}` : `${compName} -> ${eventName}`;
+    const printMsg = itemLabel ? `Menu [${itemLabel}] acionado em ${compName}!` : `Evento ${compName}.${eventName} executado!`;
     const methodBlock = `
-    // Tratador de Evento: ${compName} -> ${eventName}
-    pub fn ${handlerName}(sender: any) -> void {
-        println("Evento ${compName}.${eventName} executado!");
+    // Tratador de Evento: ${desc}
+    public procedure ${handlerName}(sender: any) {
+        println("${printMsg}");
     }
 `;
 

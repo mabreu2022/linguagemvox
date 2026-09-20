@@ -1554,34 +1554,131 @@ classe vox_CardDestaque herda vox_Panel {
     </div>
   </div>
 
-  <!-- 4. MODAL: SALVAR PROJETO COMO (.DPROJ) -->
+  <!-- 4. MODAL: SALVAR PROJETO COMO (PADRÃO DELPHI 13 / WINDOWS FILE DIALOG) -->
   <div class="modal-overlay" id="saveProjectAsModal" style="display: none; z-index: 2400;">
-    <div class="modal-content" style="width: 580px; max-width: 95vw;">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="color: #38bdf8; font-size: 16px;">💾</span>
-          <span style="font-weight: 700;">Salvar Projeto Como... (.dproj)</span>
+    <div class="delphi-save-dialog-window">
+      <!-- 1. TITLEBAR -->
+      <div class="dsd-titlebar">
+        <div class="dsd-title-left">
+          <svg class="dsd-delphi-icon" viewBox="0 0 24 24" width="16" height="16" fill="none">
+            <circle cx="12" cy="12" r="10" fill="#dc2626"/>
+            <path d="M7 12a5 5 0 0 1 8.5-3.5L14 10a3 3 0 1 0 0 4l1.5 1.5A5 5 0 0 1 7 12z" fill="#ffffff"/>
+          </svg>
+          <span class="dsd-title-text" id="dsdTitleText">Salvar Projeto Como...</span>
         </div>
-        <button class="tool-btn" onclick="window.app.closeSaveProjectAsModal()" style="height: 22px; padding: 0 8px;">✕</button>
+        <div class="dsd-title-controls">
+          <button class="dsd-btn-ctl" title="Minimizar">🗕</button>
+          <button class="dsd-btn-ctl" title="Maximizar">🗖</button>
+          <button class="dsd-btn-ctl dsd-close" title="Fechar" onclick="window.app.closeSaveProjectAsModal()">✕</button>
+        </div>
       </div>
-      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 14px;">
-        <div>
-          <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Nome do Projeto:</label>
-          <input type="text" id="saveProjNameInput" class="delphi-prop-input" placeholder="Ex.: MeuSistemaERP" style="width: 100%; height: 26px; font-weight: 600; color: #38bdf8;" oninput="window.app.updateSaveProjPreview()">
+
+      <!-- 2. NAVIGATION BAR & BREADCRUMBS -->
+      <div class="dsd-navbar">
+        <div class="dsd-nav-buttons">
+          <button class="dsd-nav-btn" id="dsdNavBack" title="Voltar" onclick="window.app.saveDialogNavBack()">←</button>
+          <button class="dsd-nav-btn" id="dsdNavForward" title="Avançar" onclick="window.app.saveDialogNavForward()">→</button>
+          <button class="dsd-nav-btn" id="dsdNavRecent" title="Locais recentes" onclick="window.app.saveDialogToggleRecent()">▾</button>
+          <button class="dsd-nav-btn" id="dsdNavUp" title="Subir um nível (Pasta acima)" onclick="window.app.saveDialogNavUp()">↑</button>
         </div>
-        <div>
-          <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Pasta de Destino:</label>
-          <input type="text" id="saveProjFolderInput" class="delphi-prop-input" placeholder="Ex.: projetos/MeuSistemaERP" style="width: 100%; height: 26px; font-family: monospace;">
-          <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
-            <span style="font-size: 10.5px; color: #64748b;">Pastas rápidas:</span>
-            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setSaveProjFolder('projetos')">📁 projetos/</button>
-            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setSaveProjFolder('clientes')">📁 clientes/</button>
-            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setSaveProjFolder('src')">📁 src/</button>
+        
+        <div class="dsd-address-bar" id="dsdAddressBar">
+          <span class="dsd-addr-icon">📁</span>
+          <div class="dsd-breadcrumbs" id="dsdBreadcrumbs">
+            <!-- Breadcrumbs inseridos dinamicamente -->
+          </div>
+          <button class="dsd-addr-refresh" title="Atualizar (F5)" onclick="window.app.saveDialogRefresh()">↻</button>
+        </div>
+
+        <div class="dsd-search-bar">
+          <span class="dsd-search-icon">🔍</span>
+          <input type="text" id="dsdSearchInput" placeholder="Pesquisar..." oninput="window.app.saveDialogFilter(this.value)">
+        </div>
+      </div>
+
+      <!-- 3. COMMAND / ACTION BAR -->
+      <div class="dsd-commandbar">
+        <div class="dsd-cmd-left">
+          <button class="dsd-cmd-btn" onclick="window.app.saveDialogToggleOrganize()">Organizar ▾</button>
+          <button class="dsd-cmd-btn" onclick="window.app.saveDialogCreateNewFolder()"><span style="color:#f59e0b; margin-right:4px;">📁</span> Nova pasta</button>
+        </div>
+        <div class="dsd-cmd-right">
+          <button class="dsd-cmd-btn-icon" title="Mais opções de exibição">📑 ▾</button>
+          <button class="dsd-cmd-btn-icon" title="Ajuda">❓</button>
+        </div>
+      </div>
+
+      <!-- 4. MAIN SPLIT CONTENT -->
+      <div class="dsd-main-content">
+        <!-- Left Places Pane -->
+        <div class="dsd-places-sidebar">
+          <div class="dsd-place-section">
+            <div class="dsd-place-header">⭐ Acesso Rápido</div>
+            <div class="dsd-place-item" id="dsdPlaceDesk" onclick="window.app.saveDialogNavigateTo('')"><span class="dsd-p-icon">🖥️</span> Área de Trabalho</div>
+            <div class="dsd-place-item" id="dsdPlaceDown" onclick="window.app.saveDialogNavigateTo('downloads')"><span class="dsd-p-icon">⬇️</span> Downloads</div>
+            <div class="dsd-place-item" id="dsdPlaceDocs" onclick="window.app.saveDialogNavigateTo('documentos')"><span class="dsd-p-icon">📄</span> Documentos</div>
+            <div class="dsd-place-item" id="dsdPlaceProj" onclick="window.app.saveDialogNavigateTo('projetos')"><span class="dsd-p-icon">📁</span> Projetos</div>
+            <div class="dsd-place-item" id="dsdPlaceCli" onclick="window.app.saveDialogNavigateTo('clientes')"><span class="dsd-p-icon">📁</span> Clientes</div>
+            <div class="dsd-place-item" id="dsdPlaceSrc" onclick="window.app.saveDialogNavigateTo('src')"><span class="dsd-p-icon">📁</span> Código Fonte (src)</div>
+          </div>
+          <div class="dsd-place-section">
+            <div class="dsd-place-header">☁️ Nuvem & Rede</div>
+            <div class="dsd-place-item" onclick="window.app.saveDialogNavigateTo('')"><span class="dsd-p-icon">☁️</span> OneDrive</div>
+          </div>
+          <div class="dsd-place-section">
+            <div class="dsd-place-header">💻 Este Computador</div>
+            <div class="dsd-place-item" id="dsdPlaceRoot" onclick="window.app.saveDialogNavigateTo('')"><span class="dsd-p-icon">💾</span> Workspace Root</div>
           </div>
         </div>
-        <div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid #282f3a;">
-          <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeSaveProjectAsModal()">Cancelar</button>
-          <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmSaveProjectAs()">💾 Salvar Projeto</button>
+
+        <!-- Right File / Details Table -->
+        <div class="dsd-files-viewport">
+          <table class="dsd-files-table">
+            <thead>
+              <tr>
+                <th class="dsd-col-name" onclick="window.app.saveDialogSortBy('name')">Nome <span id="dsdSortIconName">▲</span></th>
+                <th class="dsd-col-mtime" onclick="window.app.saveDialogSortBy('mtime')">Data de modificação <span id="dsdSortIconMtime"></span></th>
+                <th class="dsd-col-type" onclick="window.app.saveDialogSortBy('type')">Tipo <span id="dsdSortIconType"></span></th>
+                <th class="dsd-col-size" onclick="window.app.saveDialogSortBy('size')">Tamanho <span id="dsdSortIconSize"></span></th>
+              </tr>
+            </thead>
+            <tbody id="dsdFilesTableBody">
+              <!-- Linhas de pastas e arquivos geradas dinamicamente -->
+            </tbody>
+          </table>
+          <div id="dsdEmptyNotice" style="display:none; text-align:center; padding: 40px; color: #888; font-size:12px;">
+            Esta pasta está vazia.
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. BOTTOM BAR -->
+      <div class="dsd-bottom-bar">
+        <div class="dsd-bottom-left">
+          <span class="dsd-hide-folders-btn">^ Ocultar pastas</span>
+        </div>
+        <div class="dsd-bottom-center">
+          <div class="dsd-form-row">
+            <label class="dsd-label">Nome:</label>
+            <div class="dsd-input-wrapper">
+              <input type="text" id="saveProjNameInput" class="dsd-input" value="Project1.dproj" onkeydown="if(event.key==='Enter') window.app.confirmSaveProjectAs()">
+              <button class="dsd-dropdown-btn">▾</button>
+            </div>
+          </div>
+          <div class="dsd-form-row">
+            <label class="dsd-label">Tipo:</label>
+            <div class="dsd-input-wrapper">
+              <select id="saveProjTypeSelect" class="dsd-select" onchange="window.app.saveDialogChangeType(this.value)">
+                <option value=".dproj" selected>Delphi project (*.dproj)</option>
+                <option value=".vproj">Vox project (*.vproj; *.vpr)</option>
+                <option value="*.*">Todos os arquivos (*.*)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="dsd-bottom-right">
+          <button class="dsd-btn-action dsd-btn-save" onclick="window.app.confirmSaveProjectAs()">Salvar</button>
+          <button class="dsd-btn-action dsd-btn-cancel" onclick="window.app.closeSaveProjectAsModal()">Cancelar</button>
         </div>
       </div>
     </div>

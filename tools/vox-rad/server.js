@@ -578,15 +578,120 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
+  // API: Listar Diretório do Workspace (Windows Explorer / Delphi Style)
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/fs/list-dir' && req.method === 'GET') {
+    try {
+      const relDir = urlObj.searchParams.get('dir') || '';
+      const targetDir = path.resolve(WORKSPACE_DIR, relDir);
+      if (!targetDir.startsWith(path.resolve(WORKSPACE_DIR))) {
+        return sendJson(res, 400, { success: false, error: 'Acesso negado fora do workspace' });
+      }
+
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      const entries = fs.readdirSync(targetDir, { withFileTypes: true });
+      const items = [];
+
+      for (const ent of entries) {
+        if (ent.name === '.git' || ent.name === 'node_modules') continue;
+        const fullPath = path.join(targetDir, ent.name);
+        try {
+          const stats = fs.statSync(fullPath);
+          const isDir = ent.isDirectory();
+          const ext = path.extname(ent.name).toLowerCase();
+          
+          let typeDesc = isDir ? 'Pasta de arquivos' : 'Arquivo';
+          if (!isDir) {
+            if (ext === '.dproj') typeDesc = 'Delphi Project';
+            else if (ext === '.vproj' || ext === '.vpr') typeDesc = 'Vox Project';
+            else if (ext === '.vox') typeDesc = 'Código Fonte Vox';
+            else if (ext === '.vxf') typeDesc = 'Formulário Delphi/Vox';
+            else if (ext === '.pas') typeDesc = 'Delphi unit';
+            else if (ext === '.dfm') typeDesc = 'Delphi form';
+            else if (ext === '.json') typeDesc = 'Arquivo JSON';
+            else if (ext === '.txt' || ext === '.md') typeDesc = 'Documento de Texto';
+            else if (ext === '.exe') typeDesc = 'Aplicativo';
+          }
+
+          const pad = n => n.toString().padStart(2, '0');
+          const d = stats.mtime;
+          const mtimeStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+          let sizeStr = '';
+          if (!isDir) {
+            const kb = Math.ceil(stats.size / 1024);
+            sizeStr = `${kb} KB`;
+          }
+
+          items.push({
+            name: ent.name,
+            isDirectory: isDir,
+            type: typeDesc,
+            size: sizeStr,
+            rawSize: stats.size,
+            mtime: mtimeStr,
+            rawMtime: stats.mtimeMs
+          });
+        } catch (_) {}
+      }
+
+      // Pastas primeiro, depois arquivos alfabeticamente
+      items.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      });
+
+      const relPath = path.relative(WORKSPACE_DIR, targetDir).replace(/\\/g, '/');
+      return sendJson(res, 200, {
+        success: true,
+        currentDir: relPath,
+        items
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Criar Nova Pasta (Nova pasta)
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/fs/create-dir' && req.method === 'POST') {
+    try {
+      const { parentDir = '', folderName } = await parseBody(req);
+      if (!folderName || !folderName.trim()) {
+        return sendJson(res, 400, { success: false, error: 'Nome da pasta é obrigatório' });
+      }
+      const safeName = folderName.trim().replace(/[/\\?%*:|"<>]/g, '_');
+      const targetDir = path.resolve(WORKSPACE_DIR, parentDir, safeName);
+      if (!targetDir.startsWith(path.resolve(WORKSPACE_DIR))) {
+        return sendJson(res, 400, { success: false, error: 'Pasta inválida' });
+      }
+      fs.mkdirSync(targetDir, { recursive: true });
+      return sendJson(res, 200, {
+        success: true,
+        folderName: safeName,
+        folderPath: path.relative(WORKSPACE_DIR, targetDir).replace(/\\/g, '/')
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // API: Salvar Projeto (.dproj)
   // --------------------------------------------------------------------------
   if (pathname === '/api/project/save-as' && req.method === 'POST') {
     try {
       const { projectName, folder, content } = await parseBody(req);
-      if (!projectName) {
-        return sendJson(res, 400, { success: false, error: 'Nome do projeto é obrigatório' });
-      }
-      const safeName = projectName.replace(/[^a-zA-Z0-9_]/g, '');
+      let baseName = (projectName || '').trim();
+      if (baseName.toLowerCase().endsWith('.dproj')) baseName = baseName.slice(0, -6);
+      else if (baseName.toLowerCase().endsWith('.vproj')) baseName = baseName.slice(0, -6);
+      else if (baseName.toLowerCase().endsWith('.vpr')) baseName = baseName.slice(0, -4);
+      const safeName = baseName.replace(/[^a-zA-Z0-9_]/g, '') || 'Project1';
       const targetFolder = (folder && folder.trim()) ? folder.trim() : path.join('projetos', safeName);
       const targetDir = path.resolve(WORKSPACE_DIR, targetFolder);
       if (!targetDir.startsWith(path.resolve(WORKSPACE_DIR))) {

@@ -1,106 +1,95 @@
 {
   "name": "Form1",
-  "title": "Form1 — Aplicação Vox",
-  "width": 680,
-  "height": 480,
+  "title": "Calculadora",
+  "width": 320,
+  "height": 380,
   "components": [
     {
       "id": "comp_1",
-      "name": "DataSource1",
-      "type": "TDataSource",
-      "left": 536,
-      "top": 16,
-      "width": 120,
-      "height": 38,
+      "name": "vox_pagecontrol1",
+      "type": "vox_PageControl",
+      "parent": null,
+      "left": 0,
+      "top": 0,
+      "width": 318,
+      "height": 350,
       "props": {
-        "DataSet": "clientes",
-        "Engine": "SQLite",
-        "AutoConnect": true
+        "ActivePageIndex": 0,
+        "TabPosition": "tpTop",
+        "Align": "alClient"
       },
       "events": {}
     },
     {
       "id": "comp_2",
-      "name": "DBGrid1",
-      "type": "TDBGrid",
-      "left": 32,
-      "top": 96,
-      "width": 624,
-      "height": 190,
+      "name": "vox_tabsheet1",
+      "type": "vox_TabSheet",
+      "parent": "vox_pagecontrol1",
+      "left": 0,
+      "top": 26,
+      "width": 318,
+      "height": 324,
       "props": {
-        "DataSource": "DataSource1",
-        "Columns": "ID, Nome, E-mail, Cidade, Saldo",
-        "ShowHeaders": true,
-        "Striped": true
+        "Caption": "Geral",
+        "PageIndex": 0,
+        "ImageIndex": -1,
+        "Align": "alClient"
       },
       "events": {}
     },
     {
       "id": "comp_3",
-      "name": "ComboBox1",
-      "type": "TComboBox",
-      "left": 48,
-      "top": 48,
-      "width": 160,
-      "height": 32,
+      "name": "vox_tabsheet2",
+      "type": "vox_TabSheet",
+      "parent": "vox_pagecontrol1",
+      "left": 0,
+      "top": 26,
+      "width": 318,
+      "height": 324,
       "props": {
-        "Items": "Opção 1, Opção 2, Opção 3",
-        "SelectedItem": "Opção 1",
-        "BgColor": "#111520",
-        "TextColor": "#ffffff",
-        "FontSize": 12
+        "Caption": "Detalhes",
+        "PageIndex": 1,
+        "ImageIndex": -1,
+        "Align": "alClient"
       },
       "events": {}
+    },
+    {
+      "id": "comp_4",
+      "name": "vox_panel1",
+      "type": "vox_Panel",
+      "parent": "vox_tabsheet1",
+      "left": 0,
+      "top": 0,
+      "width": 318,
+      "height": 120,
+      "props": {
+        "Caption": "vox_panel1",
+        "BevelOuter": "bvRaised",
+        "Color": "#e9ecef",
+        "Align": "alTop",
+        "Alignment": "taCenter"
+      },
+      "events": {},
+      "_origWidth": 200,
+      "_origHeight": 120,
+      "_origLeft": 50,
+      "_origTop": 60
     },
     {
       "id": "comp_5",
-      "name": "DBEdit1",
-      "type": "TDBEdit",
-      "left": 56,
-      "top": 8,
-      "width": 180,
-      "height": 32,
+      "name": "vox_dbgrid1",
+      "type": "vox_DBGrid",
+      "parent": "vox_tabsheet1",
+      "left": 0,
+      "top": 164,
+      "width": 318,
+      "height": 160,
       "props": {
-        "DataSource": "DataSource1",
-        "DataField": "nome",
-        "Placeholder": "Campo vinculado...",
-        "BgColor": "#111520",
-        "TextColor": "#ffffff"
-      },
-      "events": {}
-    },
-    {
-      "id": "comp_6",
-      "name": "Card1",
-      "type": "TCard",
-      "left": 32,
-      "top": 304,
-      "width": 220,
-      "height": 120,
-      "props": {
-        "Title": "Métrica / Total",
-        "Value": "R$ 14.850,00",
-        "BgColor": "#1e293b",
-        "AccentColor": "#00e5ff"
-      },
-      "events": {}
-    },
-    {
-      "id": "comp_7",
-      "name": "Button1",
-      "type": "TButton",
-      "left": 544,
-      "top": 304,
-      "width": 100,
-      "height": 34,
-      "props": {
-        "Caption": "Button1",
-        "Enabled": true,
-        "Visible": true,
-        "BgColor": "#2563eb",
-        "TextColor": "#ffffff",
-        "FontSize": 12,
-        "Cursor": "pointer"
+        "DataSource": "vox_DataSource1",
+        "Columns": "id, nome, email, cidade, saldo",
+        "ReadOnly": false,
+        "Align": "alBottom"
       },
       "events": {}
     }

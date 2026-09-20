@@ -216,7 +216,7 @@ class VoxDebugger {
     // Configurar variáveis locais do escopo
     this.locals = {
       'sender': { value: `${context.compName}`, type: 'Component' },
-      'this': { value: `T${this.app.designer.form.name}`, type: 'TForm' },
+      'this': { value: `TVox${this.app.designer.form.name}`, type: 'TVoxForm' },
       'event': { value: `"${context.eventName}"`, type: 'String' },
       'time': { value: `"${new Date().toLocaleTimeString()}"`, type: 'String' }
     };
@@ -510,7 +510,7 @@ class VoxDebugger {
     }
 
     if (expr === 'this') {
-      return { value: `{ name: "${this.app?.designer?.form?.name || 'Form1'}" }`, type: 'TForm' };
+      return { value: `{ name: "${this.app?.designer?.form?.name || 'vox_form1'}" }`, type: 'TVoxForm' };
     }
 
     if (expr === 'sender') {
