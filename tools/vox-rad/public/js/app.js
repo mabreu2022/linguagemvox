@@ -1641,6 +1641,7 @@ class VoxStudioApp {
       'language_spec': '/docs/LANGUAGE_SPEC.md',
       'tutorial': '/docs/TUTORIAL.md',
       'manual_clientes': '/docs/manual_clientes.html',
+      'manual_ide': '/docs/manual_ide.html',
       'livro_componentes': '/docs/livro_componentes.html',
       'livro_vox': '/docs/livro_vox.html',
       'index': '/docs/index.html'

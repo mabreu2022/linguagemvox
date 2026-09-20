@@ -1,0 +1,2125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual Oficial do Vox Studio RAD — IDE, Menus, Propriedades e Componentes</title>
+  <meta name="description" content="Guia e manual de referência completo do Vox Studio RAD: ambiente de desenvolvimento visual Delphi-Like, menubar, toolbar, painéis dock, object inspector, propriedades, eventos e catálogo de componentes." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d16;
+      --bg-surface: #0f1422;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(24, 34, 56, 0.85);
+      --border: rgba(124, 111, 247, 0.18);
+      --border-focus: rgba(124, 111, 247, 0.6);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --accent: #7c6ff7;
+      --accent-glow: rgba(124, 111, 247, 0.4);
+      --delphi-blue: #0098ff;
+      --delphi-cyan: #38bdf8;
+      --delphi-green: #22c55e;
+      --delphi-amber: #f59e0b;
+      --delphi-purple: #c084fc;
+      --delphi-rose: #f43f5e;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --code-bg: #0d111b;
+      --sidebar-w: 300px;
+      --header-h: 68px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 20px 45px rgba(0, 0, 0, 0.6);
+    }
+
+    body.theme-light {
+      --bg: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.9);
+      --bg-card-hover: #ffffff;
+      --border: rgba(124, 111, 247, 0.25);
+      --border-focus: rgba(124, 111, 247, 0.8);
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --code-bg: #f1f5f9;
+      --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.07);
+    }
+
+    html { scroll-behavior: smooth; font-size: 15px; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(124, 111, 247, 0.12) 0px, transparent 45%),
+        radial-gradient(at 100% 100%, rgba(0, 152, 255, 0.1) 0px, transparent 45%);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.65;
+      overflow-x: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    /* Barra Superior Fixa */
+    #navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: rgba(9, 13, 22, 0.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      transition: background-color 0.25s ease;
+    }
+    body.theme-light #navbar {
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--delphi-blue), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .brand-title span {
+      background: linear-gradient(90deg, #38bdf8, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(124, 111, 247, 0.18);
+      border: 1px solid rgba(124, 111, 247, 0.4);
+      color: #c4b5fd;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .search-box-top {
+      position: relative;
+      width: 280px;
+    }
+    .search-box-top input {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem 0.45rem 2.2rem;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .search-box-top input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.85rem;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .btn-theme-toggle {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+    }
+    .btn-theme-toggle:hover {
+      border-color: var(--accent);
+      background: rgba(124, 111, 247, 0.15);
+    }
+
+    /* Estrutura Principal */
+    #layout {
+      display: flex;
+      margin-top: var(--header-h);
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    /* Sidebar de Navegação */
+    #sidebar {
+      width: var(--sidebar-w);
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: var(--header-h);
+      bottom: 0;
+      left: 0;
+      overflow-y: auto;
+      padding: 1.5rem 1rem 3rem 1.2rem;
+      z-index: 900;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(124, 111, 247, 0.4) transparent;
+    }
+    #sidebar::-webkit-scrollbar { width: 5px; }
+    #sidebar::-webkit-scrollbar-thumb { background: rgba(124, 111, 247, 0.4); border-radius: 3px; }
+
+    .nav-group-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--delphi-cyan);
+      margin: 1.3rem 0 0.5rem 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .nav-group-title:first-child { margin-top: 0; }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(124, 111, 247, 0.12);
+      transform: translateX(3px);
+    }
+    .nav-link.active {
+      color: #fff;
+      font-weight: 600;
+      background: linear-gradient(90deg, rgba(124, 111, 247, 0.35), rgba(0, 152, 255, 0.2));
+      border-left: 3px solid var(--accent);
+    }
+    .nav-link-badge {
+      font-size: 0.68rem;
+      padding: 1px 6px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.08);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Conteúdo Principal */
+    #content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      max-width: 1140px;
+      padding: 2.5rem 3rem 6rem 3rem;
+    }
+
+    /* Hero */
+    .hero-banner {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 3rem 2.5rem;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-banner::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--delphi-blue), var(--accent), var(--delphi-rose));
+    }
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(0, 152, 255, 0.15);
+      border: 1px solid rgba(0, 152, 255, 0.35);
+      color: var(--delphi-cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+    }
+    .hero-banner h1 {
+      font-size: 2.6rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #ffffff 30%, #cbd5e1 90%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    body.theme-light .hero-banner h1 {
+      background: linear-gradient(135deg, #0f172a 30%, #334155 90%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-desc {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      max-width: 820px;
+      margin-bottom: 1.8rem;
+    }
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.2rem;
+      margin-top: 1.5rem;
+    }
+    .stat-card {
+      background: rgba(13, 17, 28, 0.6);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.2rem;
+    }
+    body.theme-light .stat-card {
+      background: #f1f5f9;
+    }
+    .stat-number {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    /* Seções */
+    section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 90px;
+    }
+    .section-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      position: relative;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      margin-left: 1rem;
+    }
+    .section-desc {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 1.8rem;
+    }
+
+    /* Cards e Grids */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+    .info-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .info-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-focus);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .info-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .info-card-icon {
+      font-size: 1.6rem;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(124, 111, 247, 0.15);
+      border: 1px solid rgba(124, 111, 247, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .info-card h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .info-card p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    /* Tabelas Elegantes */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+      margin: 1.5rem 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      text-align: left;
+    }
+    th {
+      background: rgba(124, 111, 247, 0.12);
+      color: var(--text);
+      font-weight: 700;
+      padding: 0.9rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      padding: 0.85rem 1.2rem;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td {
+      background: rgba(124, 111, 247, 0.05);
+      color: var(--text);
+    }
+    td strong { color: var(--text); font-weight: 600; }
+
+    /* Badges e Tags */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+    .badge-blue { background: rgba(0, 152, 255, 0.18); color: #38bdf8; border: 1px solid rgba(0, 152, 255, 0.35); }
+    .badge-green { background: rgba(34, 197, 94, 0.18); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35); }
+    .badge-purple { background: rgba(192, 132, 252, 0.18); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.35); }
+    .badge-amber { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .badge-rose { background: rgba(244, 63, 94, 0.18); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.35); }
+    .badge-dark { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); }
+
+    .shortcut-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #1e2538;
+      color: #93c5fd;
+      border: 1px solid rgba(147, 197, 253, 0.3);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    body.theme-light .shortcut-badge {
+      background: #e2e8f0;
+      color: #1e40af;
+      border-color: #cbd5e1;
+    }
+
+    /* Blocos de Código */
+    .code-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin: 1.2rem 0;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+    .btn-copy {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-copy:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    pre {
+      padding: 1.2rem;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #e2e8f0;
+    }
+    body.theme-light pre { color: #1e293b; }
+    .kw { color: #f472b6; font-weight: 600; }
+    .fn { color: #60a5fa; }
+    .str { color: #34d399; }
+    .typ { color: #fbbf24; }
+    .comm { color: #64748b; font-style: italic; }
+
+    /* Callouts / Avisos */
+    .callout {
+      padding: 1.2rem 1.5rem;
+      border-radius: var(--radius-md);
+      margin: 1.5rem 0;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      border-left: 4px solid;
+    }
+    .callout-info {
+      background: rgba(0, 152, 255, 0.08);
+      border-color: var(--delphi-blue);
+      color: var(--text);
+    }
+    .callout-tip {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: var(--delphi-green);
+      color: var(--text);
+    }
+    .callout-warning {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: var(--delphi-amber);
+      color: var(--text);
+    }
+    .callout-icon { font-size: 1.3rem; flex-shrink: 0; line-height: 1.2; }
+    .callout-content h4 { font-size: 0.98rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .callout-content p { font-size: 0.9rem; color: var(--text-muted); margin: 0; }
+
+    /* Caixa de Busca Interativa de Componentes */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      background: var(--bg-card);
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+    .filter-input {
+      flex: 1;
+      min-width: 240px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.9rem;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .filter-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .filter-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Diagrama Visual da IDE */
+    .ide-mockup-container {
+      background: #181d28;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.2rem;
+      margin: 2rem 0;
+      box-shadow: var(--shadow-lg);
+    }
+    .ide-mockup-header {
+      height: 28px;
+      background: #232834;
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      align-items: center;
+      padding: 0 0.75rem;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+    .mac-btn { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .mac-red { background: #ef4444; }
+    .mac-yellow { background: #eab308; }
+    .mac-green { background: #22c55e; }
+    .ide-mockup-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr 240px;
+      gap: 6px;
+      height: 380px;
+      background: #0f121a;
+      padding: 6px;
+      border-radius: 0 0 6px 6px;
+    }
+    .mockup-panel {
+      background: #1a1f2c;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      padding: 0.5rem;
+      position: relative;
+    }
+    .mockup-panel-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 0.3rem;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mockup-canvas {
+      flex: 1;
+      background: #f4f6f8;
+      background-image: radial-gradient(#6b7280 1.2px, transparent 1.2px);
+      background-size: 8px 8px;
+      border-radius: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+    .mockup-form-window {
+      position: absolute;
+      top: 20px; left: 20px; right: 20px; bottom: 20px;
+      background: #ffffff;
+      border: 1px solid #94a3b8;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+    }
+    .mockup-form-caption {
+      height: 22px;
+      background: #e2e8f0;
+      border-bottom: 1px solid #cbd5e1;
+      display: flex;
+      align-items: center;
+      padding: 0 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .mockup-form-body {
+      flex: 1;
+      padding: 0.75rem;
+      position: relative;
+    }
+
+    /* Component Item Card */
+    .comp-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.4rem;
+      margin-bottom: 1.2rem;
+      transition: all 0.2s;
+    }
+    .comp-card:hover {
+      border-color: var(--border-focus);
+      background: var(--bg-card-hover);
+    }
+    .comp-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.8rem;
+    }
+    .comp-title-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .comp-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: rgba(0, 152, 255, 0.15);
+      border: 1px solid rgba(0, 152, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.7rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .comp-name {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .comp-delphi-alias {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 3rem 0;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.88rem;
+      margin-top: 4rem;
+    }
+
+    /* Responsividade */
+    @media (max-width: 960px) {
+      #sidebar { transform: translateX(-100%); transition: transform 0.25s; }
+      #sidebar.open { transform: translateX(0); }
+      #content { margin-left: 0; padding: 2rem 1.5rem; }
+      .search-box-top { display: none; }
+      .ide-mockup-grid { grid-template-columns: 1fr; height: auto; }
+      .mockup-canvas { height: 260px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       BARRA DE NAVEGAÇÃO SUPERIOR
+       ======================================================================== -->
+  <header id="navbar">
+    <a href="#hero" class="brand-box">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-title">Vox Studio <span>RAD</span></div>
+      <span class="brand-badge">v0.7.0</span>
+    </a>
+
+    <div class="nav-actions">
+      <div class="search-box-top">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="globalSearch" placeholder="Pesquisar menus, componentes, props..." onkeyup="filterContent(this.value)" />
+      </div>
+      <button class="btn-theme-toggle" onclick="toggleTheme()">
+        <span id="themeBtnIcon">☀️</span> <span id="themeBtnText">Tema Claro</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       ESTRUTURA PRINCIPAL (SIDEBAR + CONTEÚDO)
+       ======================================================================== -->
+  <div id="layout">
+
+    <!-- SIDEBAR DE NAVEGAÇÃO FIXA -->
+    <nav id="sidebar">
+      <div class="nav-group-title">Visão Geral</div>
+      <a href="#hero" class="nav-link active"><span>🚀 Introdução à IDE</span></a>
+      <a href="#arquitetura" class="nav-link"><span>🏛️ Arquitetura de Projetos</span></a>
+      <a href="#anatomia-ide" class="nav-link"><span>📐 Anatomia da Interface</span></a>
+
+      <div class="nav-group-title">Menubar & Ferramentas</div>
+      <a href="#menu-file" class="nav-link"><span>📁 Menu File</span> <span class="nav-link-badge">17</span></a>
+      <a href="#menu-edit" class="nav-link"><span>✂️ Menu Edit</span> <span class="nav-link-badge">8</span></a>
+      <a href="#menu-search" class="nav-link"><span>🔍 Menu Search</span> <span class="nav-link-badge">5</span></a>
+      <a href="#menu-view" class="nav-link"><span>👁️ Menu View & F12</span> <span class="nav-link-badge">4</span></a>
+      <a href="#menu-project" class="nav-link"><span>⚙️ Menu Project</span> <span class="nav-link-badge">7</span></a>
+      <a href="#menu-run" class="nav-link"><span>🐞 Menu Run & Debug</span> <span class="nav-link-badge">12</span></a>
+      <a href="#menu-tools-git" class="nav-link"><span>🛠️ Tools, Git & Help</span> <span class="nav-link-badge">15</span></a>
+
+      <div class="nav-group-title">Painéis & Docks</div>
+      <a href="#structure-panel" class="nav-link"><span>🌲 Structure (Hierarquia)</span></a>
+      <a href="#object-inspector" class="nav-link"><span>🔍 Object Inspector</span></a>
+      <a href="#form-designer" class="nav-link"><span>🎨 Form Designer (WYSIWYG)</span></a>
+      <a href="#code-editor" class="nav-link"><span>📝 Editor de Código (.vox)</span></a>
+      <a href="#project-manager" class="nav-link"><span>📦 Project Manager (.voxProj)</span></a>
+
+      <div class="nav-group-title">RTTI: Propriedades & Eventos</div>
+      <a href="#propriedades-comuns" class="nav-link"><span>🏷️ Propriedades Universais</span></a>
+      <a href="#propriedades-layout" class="nav-link"><span>📐 Align & Anchors (VCL)</span></a>
+      <a href="#propriedades-dados" class="nav-link"><span>🗄️ Propriedades de Dados</span></a>
+      <a href="#eventos-ciclo" class="nav-link"><span>⚡ Eventos & Ciclo de Vida</span></a>
+
+      <div class="nav-group-title">Catálogo de Componentes</div>
+      <a href="#cat-standard" class="nav-link"><span>🔘 Standard VCL</span> <span class="nav-link-badge">12</span></a>
+      <a href="#cat-additional" class="nav-link"><span>📦 Additional</span> <span class="nav-link-badge">8</span></a>
+      <a href="#cat-win32" class="nav-link"><span>🗂️ Win32 Modern</span> <span class="nav-link-badge">10</span></a>
+      <a href="#cat-data-access" class="nav-link"><span>🔌 Data Access (FireDAC)</span> <span class="nav-link-badge">8</span></a>
+      <a href="#cat-data-controls" class="nav-link"><span>📊 Data Controls (DB-Aware)</span> <span class="nav-link-badge">9</span></a>
+      <a href="#cat-reports" class="nav-link"><span>📑 Relatórios & PDF</span> <span class="nav-link-badge">7</span></a>
+      <a href="#cat-rest" class="nav-link"><span>🌐 REST & Web Services</span> <span class="nav-link-badge">4</span></a>
+
+      <div class="nav-group-title">Compilação & Deploy</div>
+      <a href="#compilacao-web" class="nav-link"><span>🚀 Compilar Sistema Web</span></a>
+      <a href="#relatorios-pdf" class="nav-link"><span>📄 Motor de Relatórios PDF</span></a>
+    </nav>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main id="content">
+
+      <!-- ====================================================================
+           HERO SECTION
+           ==================================================================== -->
+      <section id="hero">
+        <div class="hero-banner">
+          <div class="hero-tag">⚡ MANUAL OFICIAL & REFERÊNCIA TÉCNICA</div>
+          <h1>Manual do Vox Studio RAD</h1>
+          <p class="hero-desc">
+            O <strong>Vox Studio RAD</strong> é um ambiente de desenvolvimento rápido integrado (IDE) de última geração, inspirado no consagrado modelo do <strong>Delphi RAD Studio (Athens 12/13)</strong> e totalmente adaptado para a linguagem moderna <strong>Vox</strong>. Este manual abrange em detalhes todos os menus, painéis móveis, propriedades RTTI, eventos e os mais de 50 componentes visuais e não-visuais da paleta.
+          </p>
+
+          <div class="hero-stats">
+            <div class="stat-card">
+              <div class="stat-number">58+</div>
+              <div class="stat-label">Componentes VCL & FireDAC</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">70+</div>
+              <div class="stat-label">Comandos de Menus & Atalhos</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">100%</div>
+              <div class="stat-label">Bidirecional (Design ↔ Código F12)</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number">HTML5 + PDF</div>
+              <div class="stat-label">Compilador & Motor de Relatórios</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           ARQUITETURA DE PROJETOS VOX
+           ==================================================================== -->
+      <section id="arquitetura">
+        <h2 class="section-title">🏛️ Arquitetura de Projetos (.voxProj)</h2>
+        <p class="section-desc">
+          O ecossistema do Vox Studio RAD adota uma estrutura modular e limpa para organizar os projetos, formulários e lógica de negócio:
+        </p>
+
+        <div class="card-grid">
+          <div class="info-card">
+            <div class="info-card-header">
+              <div class="info-card-icon">📁</div>
+              <div>
+                <h3>Arquivo de Projeto (*.voxProj)</h3>
+                <span class="badge badge-purple">Descritor Principal</span>
+              </div>
+            </div>
+            <p>
+              Substitui as antigas extensões <code>.dproj</code> por <strong><code>.voxProj</code></strong>. Contém a declaração das plataformas de destino (Windows x64 e Web HTML5), configurações de compilação (Debug / Release), units do projeto, formulários associados e metadados de versão.
+            </p>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <div class="info-card-icon">🎨</div>
+              <div>
+                <h3>Arquivo de Formulário (*.vxf)</h3>
+                <span class="badge badge-blue">Vox Form Definition</span>
+              </div>
+            </div>
+            <p>
+              Equivalente ao <code>.dfm</code> do Delphi. Armazena a árvore hierárquica de componentes, coordenadas de layout (<code>Left</code>, <code>Top</code>, <code>Width</code>, <code>Height</code>), regras de alinhamento VCL, vínculos a eventos e valores de propriedades persistidos via RTTI.
+            </p>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <div class="info-card-icon">📝</div>
+              <div>
+                <h3>Código Fonte da Unit (*.vox)</h3>
+                <span class="badge badge-green">Lógica da Aplicação</span>
+              </div>
+            </div>
+            <p>
+              Equivalente ao <code>.pas</code> do Delphi. Contém as definições de classes (<code>class TForm1</code>), atributos privados e públicos, declarações de procedures/functions e métodos manipuladores de eventos (ex: <code>btnCalcularClick()</code>).
+            </p>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <h4>Sincronização Bidirecional Contínua (Tecla F12)</h4>
+            <p>
+              Qualquer alteração feita arrastando componentes no formulário visual atualiza instantaneamente o código gerado em <code>Unit1.vox</code>. Da mesma forma, modificar métodos e propriedades no código é refletido no Designer sem necessidade de recarregar a IDE!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           ANATOMIA DA INTERFACE (MOCKUP & DOCKS)
+           ==================================================================== -->
+      <section id="anatomia-ide">
+        <h2 class="section-title">📐 Anatomia da Interface & Painéis Dock</h2>
+        <p class="section-desc">
+          A IDE é dividida em 5 grandes regiões de trabalho ancoradas e redimensionáveis através dos separadores de arrasto (<strong>Dock Splitters</strong>):
+        </p>
+
+        <div class="ide-mockup-container">
+          <div class="ide-mockup-header">
+            <span class="mac-btn mac-red"></span>
+            <span class="mac-btn mac-yellow"></span>
+            <span class="mac-btn mac-green"></span>
+            <span style="margin-left: 0.5rem; font-weight:700; color:#fff;">Vox Studio RAD — Project1.voxProj [Form1.vxf]</span>
+          </div>
+          <div class="ide-mockup-grid">
+            <!-- Coluna Esquerda -->
+            <div class="mockup-panel">
+              <div class="mockup-panel-title">
+                <span>Structure (Árvore)</span>
+                <span class="badge badge-dark">Alt+0</span>
+              </div>
+              <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.5;">
+                <div>▼ 🏛️ Form1: TVoxForm</div>
+                <div style="padding-left:12px;">▼ 📦 pnlTop: TVoxPanel</div>
+                <div style="padding-left:24px;">├ ⚡ btnBuscar: TVoxButton</div>
+                <div style="padding-left:24px;">└ 📝 edtFiltro: TVoxEdit</div>
+                <div style="padding-left:12px;">├ 📊 dbgClientes: TVoxDBGrid</div>
+                <div style="padding-left:12px;">├ ⚡ vox_Query1: TVoxQuery</div>
+                <div style="padding-left:12px;">└ 🔗 vox_DataSource1</div>
+              </div>
+              <div class="mockup-panel-title" style="margin-top:auto;">
+                <span>Object Inspector</span>
+                <span class="badge badge-dark">F11</span>
+              </div>
+              <div style="font-size: 0.7rem; color: #cbd5e1; font-family: monospace;">
+                <div>Name: <span style="color:#60a5fa;">btnBuscar</span></div>
+                <div>Caption: <span style="color:#34d399;">Buscar</span></div>
+                <div>Align: <span style="color:#fbbf24;">alNone</span></div>
+                <div>Enabled: <span style="color:#4ade80;">True</span></div>
+              </div>
+            </div>
+
+            <!-- Centro: Canvas do Designer -->
+            <div class="mockup-panel" style="padding: 0; background: transparent;">
+              <div class="mockup-canvas">
+                <div class="mockup-form-window">
+                  <div class="mockup-form-caption">
+                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#ef4444; margin-right:6px;"></span>
+                    <span>Form1 — Cadastro de Clientes & Vendas</span>
+                  </div>
+                  <div class="mockup-form-body">
+                    <div style="height: 38px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 3px; display:flex; align-items:center; padding: 0 8px; gap:8px; margin-bottom: 8px;">
+                      <span style="font-size:10px; font-weight:700; color:#475569;">Filtro:</span>
+                      <div style="height:22px; width:120px; background:#fff; border:1px solid #94a3b8; border-radius:2px;"></div>
+                      <div style="height:22px; width:65px; background:#0098ff; border-radius:2px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:9px; font-weight:700;">Buscar</div>
+                    </div>
+                    <div style="height: 140px; background: #fff; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px;">
+                      <div style="height:20px; background:#f1f5f9; border-bottom:1px solid #cbd5e1; font-size:9px; font-weight:700; color:#334155; display:flex; align-items:center; padding:0 6px;">
+                        <span style="width:30px;">ID</span>
+                        <span style="width:100px;">Nome Cliente</span>
+                        <span style="width:80px;">Cidade</span>
+                        <span>Saldo (R$)</span>
+                      </div>
+                    </div>
+                    <!-- Componente não-visual selecionado -->
+                    <div style="position:absolute; bottom: 12px; right: 12px; width: 44px; height: 44px; background: rgba(255,255,255,0.9); border: 1.5px solid #0098ff; border-radius: 4px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                      <span style="font-size:24px;">⚡</span>
+                      <div style="position:absolute; bottom:-16px; font-size:9px; font-weight:700; background:#fff; padding:0 3px; border:1px solid #cbd5e1; border-radius:2px; white-space:nowrap;">vox_Qry</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Coluna Direita -->
+            <div class="mockup-panel">
+              <div class="mockup-panel-title">
+                <span>Projects (.voxProj)</span>
+                <span class="badge badge-dark">Ctrl+Alt+F11</span>
+              </div>
+              <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.5;">
+                <div>📦 ProjectGroup1</div>
+                <div style="padding-left:12px;">▼ 🚀 Project1.exe</div>
+                <div style="padding-left:24px;">├ ⚙️ Debug / Release</div>
+                <div style="padding-left:24px;">├ 🌐 Target: Web HTML5</div>
+                <div style="padding-left:24px;">├ 📝 Unit1.vox</div>
+                <div style="padding-left:24px;">└ 🎨 Form1.vxf</div>
+              </div>
+              <div class="mockup-panel-title" style="margin-top:auto;">
+                <span>Palette de Componentes</span>
+                <span class="badge badge-dark">Ctrl+Alt+P</span>
+              </div>
+              <div style="font-size: 0.72rem; color: #cbd5e1; line-height: 1.6;">
+                <div>▼ Standard</div>
+                <div style="padding-left:8px;">🔘 vox_Button</div>
+                <div style="padding-left:8px;">📝 vox_Edit</div>
+                <div style="padding-left:8px;">🏷️ vox_Label</div>
+                <div>▼ Data Access</div>
+                <div style="padding-left:8px;">⚡ vox_Query</div>
+                <div style="padding-left:8px;">🔗 vox_DataSource</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           MENUS EM DETALHES
+           ==================================================================== -->
+      <section id="menu-file">
+        <h2 class="section-title">📁 Menus da IDE: Referência Completa</h2>
+        <p class="section-desc">
+          O sistema de menus da barra superior segue rigorosamente o padrão Delphi RAD Studio, com comandos universais, atalhos de teclado ágeis e execução não-bloqueante.
+        </p>
+
+        <!-- Menu File -->
+        <h3 style="margin: 1.8rem 0 0.8rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>📄</span> Menu File (Arquivo)
+        </h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 250px;">Item de Menu</th>
+                <th style="width: 130px;">Atalho</th>
+                <th>Ação / Descrição Detalhada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Novo Formulário (New Form)</strong></td>
+                <td><span class="shortcut-badge">Ctrl+N</span></td>
+                <td>Cria um novo par de arquivos visual (<code>.vxf</code>) e código (<code>.vox</code>) com canvas vazio.</td>
+              </tr>
+              <tr>
+                <td><strong>Nova Unit / Código Fonte...</strong></td>
+                <td><span class="shortcut-badge">Ctrl+Shift+N</span></td>
+                <td>Gera uma nova Unit Vox limpa contendo seções de interface e implementação.</td>
+              </tr>
+              <tr>
+                <td><strong>Nova Classe / Unit...</strong></td>
+                <td>—</td>
+                <td>Abre o assistente guiado para criação de classes com construtores, herança e getters/setters.</td>
+              </tr>
+              <tr>
+                <td><strong>Novo Projeto a partir de Exemplo...</strong></td>
+                <td>—</td>
+                <td>Permite escolher entre projetos completos: Calculadora, PDV Frente de Caixa, ERP e Laços com BD.</td>
+              </tr>
+              <tr>
+                <td><strong>Novo Projeto em Branco</strong></td>
+                <td>—</td>
+                <td>Inicia um novo projeto <code>.voxProj</code> do zero com um formulário padrão e estrutura organizada.</td>
+              </tr>
+              <tr>
+                <td><strong>Abrir Arquivo...</strong></td>
+                <td><span class="shortcut-badge">Ctrl+O</span></td>
+                <td>Abre caixas de diálogo para carregar qualquer arquivo <code>.vox</code>, <code>.vxf</code> ou código fonte.</td>
+              </tr>
+              <tr>
+                <td><strong>Abrir Projeto... (.voxProj)</strong></td>
+                <td><span class="shortcut-badge">Ctrl+Shift+O</span></td>
+                <td>Carrega um arquivo de projeto Vox, reconstruindo o catálogo de units e árvore no Project Manager.</td>
+              </tr>
+              <tr>
+                <td><strong>Salvar (Save)</strong></td>
+                <td><span class="shortcut-badge">Ctrl+S</span></td>
+                <td>Salva o formulário ativo ou a unit aberta no editor de código.</td>
+              </tr>
+              <tr>
+                <td><strong>Salvar Projeto Como...</strong></td>
+                <td>—</td>
+                <td>Salva uma cópia completa do projeto com nova pasta e extensão oficial <code>.voxProj</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Salvar Tudo (Save All)</strong></td>
+                <td><span class="shortcut-badge">Ctrl+Shift+S</span></td>
+                <td>Persiste simultaneamente todos os arquivos, formulários e o arquivo do projeto no disco.</td>
+              </tr>
+              <tr>
+                <td><strong>Fechar Arquivo / Aba</strong></td>
+                <td><span class="shortcut-badge">Ctrl+F4</span></td>
+                <td>Fecha o documento atualmente em foco na barra de abas centrais.</td>
+              </tr>
+              <tr>
+                <td><strong>Sair do Vox Studio (Exit)</strong></td>
+                <td><span class="shortcut-badge">Alt+F4</span></td>
+                <td>Encerra a sessão da IDE salvando preferências locais e o estado da área de trabalho.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Menu Edit -->
+        <h3 id="menu-edit" style="margin: 2.5rem 0 0.8rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>✂️</span> Menu Edit (Edição)
+        </h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 250px;">Item de Menu</th>
+                <th style="width: 130px;">Atalho</th>
+                <th>Ação / Descrição Detalhada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Desfazer (Undo)</strong></td>
+                <td><span class="shortcut-badge">Ctrl+Z</span></td>
+                <td>Reverte a última ação realizada no canvas do designer ou no editor de código.</td>
+              </tr>
+              <tr>
+                <td><strong>Refazer (Redo)</strong></td>
+                <td><span class="shortcut-badge">Ctrl+Y</span></td>
+                <td>Restaura a ação desfeita anteriormente.</td>
+              </tr>
+              <tr>
+                <td><strong>Recortar</strong></td>
+                <td><span class="shortcut-badge">Ctrl+X</span></td>
+                <td>Remove o componente visual selecionado e armazena suas propriedades na área de transferência.</td>
+              </tr>
+              <tr>
+                <td><strong>Copiar</strong></td>
+                <td><span class="shortcut-badge">Ctrl+C</span></td>
+                <td>Copia o componente selecionado mantendo todas as suas propriedades publicadas intactas.</td>
+              </tr>
+              <tr>
+                <td><strong>Colar</strong></td>
+                <td><span class="shortcut-badge">Ctrl+V</span></td>
+                <td>Cola o componente na posição do cursor com deslocamento automático (+10px, +10px).</td>
+              </tr>
+              <tr>
+                <td><strong>Duplicar Componente</strong></td>
+                <td><span class="shortcut-badge">Ctrl+D</span></td>
+                <td>Duplica instantaneamente o componente selecionado incrementando o sufixo numérico do nome.</td>
+              </tr>
+              <tr>
+                <td><strong>Excluir</strong></td>
+                <td><span class="shortcut-badge">Del</span></td>
+                <td>Remove o componente selecionado do formulário e desvincula seus manipuladores de evento órfãos.</td>
+              </tr>
+              <tr>
+                <td><strong>Selecionar Tudo</strong></td>
+                <td><span class="shortcut-badge">Ctrl+A</span></td>
+                <td>Seleciona todos os componentes visuais contidos no formulário ou contêiner ativo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Menu Search & View -->
+        <div class="card-grid" style="margin-top: 2rem;">
+          <div id="menu-search" class="info-card">
+            <h3>🔍 Menu Search (Busca no Código)</h3>
+            <p style="margin-bottom: 1rem;">Ferramentas de localização e navegação rápida por símbolos no código Vox:</p>
+            <ul style="list-style: none; padding: 0; line-height: 2;">
+              <li><strong>Localizar no Código:</strong> <span class="shortcut-badge">Ctrl+F</span></li>
+              <li><strong>Substituir no Código:</strong> <span class="shortcut-badge">Ctrl+H</span></li>
+              <li><strong>Localizar Próximo:</strong> <span class="shortcut-badge">F3</span></li>
+              <li><strong>Localizar Anterior:</strong> <span class="shortcut-badge">Shift+F3</span></li>
+              <li><strong>Ir para a Linha:</strong> <span class="shortcut-badge">Ctrl+G</span></li>
+            </ul>
+          </div>
+
+          <div id="menu-view" class="info-card">
+            <h3>👁️ Menu View (Alternância & Visualização)</h3>
+            <p style="margin-bottom: 1rem;">Controles de exibição de layout e alternância bidirecional:</p>
+            <ul style="list-style: none; padding: 0; line-height: 2;">
+              <li><strong>Alternar Design / Código:</strong> <span class="shortcut-badge" style="background:#0098ff; color:#fff;">F12</span></li>
+              <li><strong>Visual Form Designer:</strong> Abre o canvas pontilhado WYSIWYG.</li>
+              <li><strong>Editor de Código Vox:</strong> Visualiza o arquivo <code>.vox</code> com CodeInsight.</li>
+              <li><strong>Modo Claro / Escuro:</strong> Alterna entre o tema escuro moderno e o tema clássico.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Menu Project & Run -->
+        <h3 id="menu-project" style="margin: 2.5rem 0 0.8rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>⚙️</span> Menu Project & Run (Compilação e Execução)
+        </h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 250px;">Item de Menu</th>
+                <th style="width: 130px;">Atalho</th>
+                <th>Finalidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Compilar Sistema Web</strong></td>
+                <td>—</td>
+                <td>Gera a aplicação web completa empacotando HTML5 semântico, JavaScript e rotas REST na pasta <code>dist/</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Executar Sem Depuração</strong></td>
+                <td><span class="shortcut-badge">Ctrl+F9</span></td>
+                <td>Inicia o servidor e executa a aplicação instantaneamente no navegador padrão.</td>
+              </tr>
+              <tr>
+                <td><strong style="color:var(--delphi-green);">Iniciar com Depuração</strong></td>
+                <td><span class="shortcut-badge" style="background:#22c55e; color:#fff;">F9</span></td>
+                <td>Conecta o motor de depuração interativa com inspeção de pilha de chamadas e watches.</td>
+              </tr>
+              <tr>
+                <td><strong>Passo a Passo (Step Over)</strong></td>
+                <td><span class="shortcut-badge">F8</span></td>
+                <td>Executa a linha atual sem entrar em procedimentos internos.</td>
+              </tr>
+              <tr>
+                <td><strong>Entrar na Função (Step Into)</strong></td>
+                <td><span class="shortcut-badge">F7</span></td>
+                <td>Mergulha na execução interna do método ou função chamada na linha atual.</td>
+              </tr>
+              <tr>
+                <td><strong>Alternar Ponto de Parada</strong></td>
+                <td><span class="shortcut-badge">F5</span></td>
+                <td>Insere ou remove uma bolha vermelha (breakpoint) na margem esquerda da linha ativa.</td>
+              </tr>
+              <tr>
+                <td><strong>Resetar Programa</strong></td>
+                <td><span class="shortcut-badge">Ctrl+F2</span></td>
+                <td>Interrompe bruscamente o processo de execução/depuração em andamento.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Menu Tools, Git & Help -->
+        <h3 id="menu-tools-git" style="margin: 2.5rem 0 0.8rem 0; display:flex; align-items:center; gap:0.5rem;">
+          <span>🛠️</span> Menus Tools, Git e Help
+        </h3>
+        <div class="card-grid">
+          <div class="info-card">
+            <h4>🔌 Menu Tools</h4>
+            <p>
+              <strong>FireDAC Connection Editor:</strong> Assistente para configurar conexões SQLite, PostgreSQL e MySQL com teste de ping.<br />
+              <strong>SQL Command Editor:</strong> Console integrado para executar comandos <code>SELECT</code>, <code>INSERT</code> e <code>UPDATE</code> com visualização de registros em grid.<br />
+              <strong>Executar via CLI Vox:</strong> Execução nativa rápida por linha de comando.
+            </p>
+          </div>
+          <div class="info-card">
+            <h4>🐙 Menu Git</h4>
+            <p>
+              <strong>Commit & Push:</strong> Diálogo integrado para envio direto de alterações para repositórios remotos no GitHub com autenticação segura por token.<br />
+              <strong>Atualizar (Pull):</strong> Baixa commits e atualizações do repositório remoto.<br />
+              <strong>Status & Log:</strong> Terminal interativo com histórico de commits.
+            </p>
+          </div>
+          <div class="info-card">
+            <h4>📘 Menu Help</h4>
+            <p>
+              Acesso direto aos manuais da linguagem Vox (Language Spec), tutorial para iniciantes, manual do sistema de clientes, livro completo da linguagem e a fábrica de componentes personalizados.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           OBJECT INSPECTOR: PROPRIEDADES & EVENTOS
+           ==================================================================== -->
+      <section id="object-inspector">
+        <h2 class="section-title">🔍 Object Inspector: O Coração do Desenvolvimento RAD</h2>
+        <p class="section-desc">
+          O Object Inspector exibe os metadados RTTI (Run-Time Type Information) do componente em foco, divididos em duas abas: <strong>Properties</strong> (propriedades persistidas) e <strong>Events</strong> (disparadores de rotinas).
+        </p>
+
+        <!-- Propriedades Universais -->
+        <h3 id="propriedades-comuns" style="margin: 1.8rem 0 0.8rem 0;">🏷️ Propriedades Universais (Todos os Controles Visuais)</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 180px;">Propriedade</th>
+                <th style="width: 140px;">Tipo de Dado</th>
+                <th style="width: 150px;">Valor Padrão</th>
+                <th>Descrição e Comportamento em Tempo de Execução</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Name</strong></td>
+                <td><code>String (Identificador)</code></td>
+                <td>ex: <code>Button1</code></td>
+                <td>Identificador exclusivo do componente. Torna-se o nome da variável membro na classe da unit (ex: <code>Self.Button1</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Caption / Text</strong></td>
+                <td><code>String</code></td>
+                <td>ex: <code>Button1</code></td>
+                <td>Texto visível ao usuário (título do botão, etiqueta do label, texto inicial de caixas de edição).</td>
+              </tr>
+              <tr>
+                <td><strong>Left, Top</strong></td>
+                <td><code>Integer (Pixels)</code></td>
+                <td><code>0, 0</code></td>
+                <td>Coordenadas X e Y do canto superior esquerdo em relação ao contêiner pai (Form, Panel ou TabSheet).</td>
+              </tr>
+              <tr>
+                <td><strong>Width, Height</strong></td>
+                <td><code>Integer (Pixels)</code></td>
+                <td><code>75, 25</code></td>
+                <td>Largura e altura física do controle no formulário.</td>
+              </tr>
+              <tr>
+                <td><strong>Visible</strong></td>
+                <td><code>Boolean</code></td>
+                <td><code>True</code></td>
+                <td>Define se o componente deve ser renderizado e visível ao usuário final.</td>
+              </tr>
+              <tr>
+                <td><strong>Enabled</strong></td>
+                <td><code>Boolean</code></td>
+                <td><code>True</code></td>
+                <td>Habilita ou desabilita a interação com mouse e teclado (apresentando estado esmaecido quando <code>False</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Color</strong></td>
+                <td><code>TColor / Hex</code></td>
+                <td><code>clBtnFace</code> / <code>#ffffff</code></td>
+                <td>Cor de fundo do controle. Abre a paleta de cores ou seletor hexadecimal no Object Inspector.</td>
+              </tr>
+              <tr>
+                <td><strong>Font</strong></td>
+                <td><code>TFont (Composto)</code></td>
+                <td><code>Segoe UI, 9pt</code></td>
+                <td>Subpropriedades de tipografia: <code>Font.Name</code>, <code>Font.Size</code>, <code>Font.Color</code> e <code>Font.Bold</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Hint / ShowHint</strong></td>
+                <td><code>String / Boolean</code></td>
+                <td><code>"" / False</code></td>
+                <td>Texto de dica (tooltip) exibido quando o usuário posiciona o cursor sobre o controle.</td>
+              </tr>
+              <tr>
+                <td><strong>Cursor</strong></td>
+                <td><code>TCursor</code></td>
+                <td><code>crDefault</code></td>
+                <td>Formato do ponteiro do mouse (<code>crHandPoint</code>, <code>crHourGlass</code>, <code>crCross</code>, etc.).</td>
+              </tr>
+              <tr>
+                <td><strong>Tag</strong></td>
+                <td><code>Integer</code></td>
+                <td><code>0</code></td>
+                <td>Valor numérico livre para o desenvolvedor armazenar identificadores rápidos ou índices customizados.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Propriedades de Layout VCL -->
+        <h3 id="propriedades-layout" style="margin: 2.5rem 0 0.8rem 0;">📐 Regras de Alinhamento VCL: Propriedade `Align`</h3>
+        <p class="section-desc">
+          O clássico sistema de ancoragem e alinhamento responsivo do Delphi é totalmente suportado:
+        </p>
+
+        <div class="card-grid">
+          <div class="info-card">
+            <h4><code>alNone</code> (Padrão)</h4>
+            <p>O componente mantém suas coordenadas absolutas <code>Left</code> e <code>Top</code> fixas no contêiner.</p>
+          </div>
+          <div class="info-card">
+            <h4><code>alTop</code> / <code>alBottom</code></h4>
+            <p>O controle expande sua largura para 100% da área do pai e fixa-se no topo ou rodapé, empilhando novos componentes automaticamente.</p>
+          </div>
+          <div class="info-card">
+            <h4><code>alLeft</code> / <code>alRight</code></h4>
+            <p>O controle assume 100% da altura restante entre o topo e o rodapé, alinhando-se na borda esquerda ou direita.</p>
+          </div>
+          <div class="info-card" style="border-color: var(--delphi-blue);">
+            <h4 style="color:var(--delphi-cyan);"><code>alClient</code> (Preenchimento Total)</h4>
+            <p>O controle preenche automaticamente todo o espaço útil restante do contêiner. Ideal para <strong>DBGrid</strong>, <strong>PageControl</strong> e <strong>Memos</strong>.</p>
+          </div>
+        </div>
+
+        <!-- Propriedades de Dados -->
+        <h3 id="propriedades-dados" style="margin: 2.5rem 0 0.8rem 0;">🗄️ Propriedades de Conexão e Dados (FireDAC & DB-Aware)</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 200px;">Propriedade</th>
+                <th style="width: 180px;">Componentes Que Possuem</th>
+                <th>Função na Arquitetura de Dados</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Connection</strong></td>
+                <td><code>vox_Query</code>, <code>vox_DBTable</code></td>
+                <td>Seleciona o componente <code>vox_Connection</code> que fornece o pool de conexões SQLite / PostgreSQL.</td>
+              </tr>
+              <tr>
+                <td><strong>SQL</strong></td>
+                <td><code>vox_Query</code></td>
+                <td>Comando SQL (ex: <code>SELECT id, nome, saldo FROM clientes WHERE status = 1</code>).</td>
+              </tr>
+              <tr>
+                <td><strong>Active</strong></td>
+                <td><code>vox_Query</code>, <code>vox_DBTable</code></td>
+                <td>Quando <code>True</code>, executa a consulta automaticamente ao iniciar o formulário e preenche o buffer de dados.</td>
+              </tr>
+              <tr>
+                <td><strong>DataSet</strong></td>
+                <td><code>vox_DataSource</code></td>
+                <td>Aponta para a fonte de dados (ex: <code>vox_Query1</code>), servindo de ponte para os controles visuais.</td>
+              </tr>
+              <tr>
+                <td><strong>DataSource</strong></td>
+                <td><code>vox_DBGrid</code>, <code>vox_DBEdit</code>, <code>vox_DBText</code></td>
+                <td>Vincula o controle de tela ao <code>vox_DataSource</code> que contém os registros ativos.</td>
+              </tr>
+              <tr>
+                <td><strong>DataField</strong></td>
+                <td><code>vox_DBEdit</code>, <code>vox_DBText</code>, <code>vox_DBMemo</code></td>
+                <td>Nome da coluna do banco de dados (ex: <code>nome</code>, <code>saldo</code>, <code>email</code>) cujo valor será exibido e editado.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Eventos e Ciclo de Vida -->
+        <h3 id="eventos-ciclo" style="margin: 2.5rem 0 0.8rem 0;">⚡ Aba Events: Disparadores de Rotinas e Ciclo de Vida</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 180px;">Evento</th>
+                <th style="width: 170px;">Momento do Disparo</th>
+                <th>Assinatura Gerada em Vox</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>OnClick</strong></td>
+                <td>Clique simples do botão primário do mouse sobre o controle.</td>
+                <td><code>procedure btnSalvarClick(Sender: TVoxObject)</code></td>
+              </tr>
+              <tr>
+                <td><strong>OnDblClick</strong></td>
+                <td>Duplo clique rápido com o mouse.</td>
+                <td><code>procedure dbgClientesDblClick(Sender: TVoxObject)</code></td>
+              </tr>
+              <tr>
+                <td><strong>OnEnter / OnExit</strong></td>
+                <td>O controle recebe ou perde o foco de digitação do teclado.</td>
+                <td><code>procedure edtEmailExit(Sender: TVoxObject)</code></td>
+              </tr>
+              <tr>
+                <td><strong>OnKeyDown / OnKeyUp</strong></td>
+                <td>Pressionamento ou liberação de uma tecla física no teclado.</td>
+                <td><code>procedure FormKeyDown(Key: Integer; Shift: TShiftState)</code></td>
+              </tr>
+              <tr>
+                <td><strong>OnCreate / OnShow</strong></td>
+                <td>Instanciação física e exibição do formulário na tela.</td>
+                <td><code>procedure FormCreate(Sender: TVoxObject)</code></td>
+              </tr>
+              <tr>
+                <td><strong>OnClose / OnDestroy</strong></td>
+                <td>Fechamento da janela e destruição dos recursos da memória.</td>
+                <td><code>procedure FormClose(var Action: TCloseAction)</code></td>
+              </tr>
+              <tr>
+                <td><strong>AfterOpen / AfterPost</strong></td>
+                <td>Disparado após abrir uma consulta SQL ou salvar um registro.</td>
+                <td><code>procedure qryClientesAfterPost(DataSet: TDataSet)</code></td>
+              </tr>
+              <tr>
+                <td><strong>OnTimer</strong></td>
+                <td>Disparo periódico em intervalos definidos em milissegundos.</td>
+                <td><code>procedure Timer1Timer(Sender: TVoxObject)</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Exemplo de Código Vox Gerado Automaticamente (Unit1.vox)</span>
+            <button class="btn-copy" onclick="copyCode(this)">Copiar</button>
+          </div>
+          <pre><code><span class="comm">// Unit1.vox — Gerado pelo Vox Studio RAD</span>
+<span class="kw">class</span> <span class="typ">TForm1</span> : <span class="typ">TVoxForm</span> {
+  <span class="kw">public</span> btnBuscar: <span class="typ">TVoxButton</span>;
+  <span class="kw">public</span> edtFiltro: <span class="typ">TVoxEdit</span>;
+  <span class="kw">public</span> dbgClientes: <span class="typ">TVoxDBGrid</span>;
+  <span class="kw">public</span> vox_Query1: <span class="typ">TVoxQuery</span>;
+  <span class="kw">public</span> vox_DataSource1: <span class="typ">TVoxDataSource</span>;
+
+  <span class="comm">// Manipulador de Evento associado via Object Inspector (OnClick)</span>
+  <span class="kw">procedure</span> <span class="fn">btnBuscarClick</span>(Sender: <span class="typ">TVoxObject</span>) {
+    <span class="kw">let</span> termo = Self.edtFiltro.Text;
+    Self.vox_Query1.Close();
+    Self.vox_Query1.SQL = <span class="str">"SELECT id, nome, cidade, saldo FROM clientes WHERE nome LIKE '%"</span> + termo + <span class="str">"%'"</span>;
+    Self.vox_Query1.Open();
+  }
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           CATÁLOGO COMPLETO DE COMPONENTES
+           ==================================================================== -->
+      <section id="catalogo-componentes">
+        <h2 class="section-title">📦 Catálogo Geral de Componentes da Paleta</h2>
+        <p class="section-desc">
+          O Vox Studio RAD possui uma suíte com dezenas de componentes organizados por categorias lógicas. Utilize a barra de filtro instantâneo abaixo para localizar qualquer controle:
+        </p>
+
+        <!-- Barra de Busca Instantânea Interativa -->
+        <div class="filter-bar">
+          <input type="text" class="filter-input" id="compSearch" placeholder="Filtrar por nome, alias Delphi ou função..." onkeyup="filterComponents(this.value)" />
+          <button class="filter-btn active" onclick="setCategoryFilter('all')">Todos</button>
+          <button class="filter-btn" onclick="setCategoryFilter('Standard')">Standard</button>
+          <button class="filter-btn" onclick="setCategoryFilter('Additional')">Additional</button>
+          <button class="filter-btn" onclick="setCategoryFilter('Win32')">Win32</button>
+          <button class="filter-btn" onclick="setCategoryFilter('Data Access')">Data Access</button>
+          <button class="filter-btn" onclick="setCategoryFilter('Data Controls')">Data Controls</button>
+          <button class="filter-btn" onclick="setCategoryFilter('Reports')">Reports & PDF</button>
+          <button class="filter-btn" onclick="setCategoryFilter('REST')">REST</button>
+        </div>
+
+        <div id="componentsList">
+
+          <!-- ==================== STANDARD ==================== -->
+          <div class="comp-card" data-cat="Standard">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🔘</div>
+                <div>
+                  <div class="comp-name">vox_Button</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TButton</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Visual</span>
+                <span class="badge badge-dark">Standard</span>
+              </div>
+            </div>
+            <p>Botão de comando padrão para disparar ações do usuário. Suporta atalhos com tecla aceleradora (ex: <code>&Salvar</code> torna <code>Alt+S</code> o atalho nativo), estados de pressionamento e estilo moderno.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Caption</code>, <code>Enabled</code>, <code>ModalResult</code>, <code>Default</code>, <code>Cancel</code>, <code>Cursor</code>.<br />
+              <strong>Eventos Principais:</strong> <code>OnClick</code>, <code>OnMouseEnter</code>, <code>OnMouseLeave</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Standard">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">📝</div>
+                <div>
+                  <div class="comp-name">vox_Edit</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TEdit</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Visual</span>
+                <span class="badge badge-dark">Standard</span>
+              </div>
+            </div>
+            <p>Caixa de entrada de texto em linha única. Suporta máscaras de digitação, ocultação de senhas com <code>PasswordChar</code> e texto de placeholder descritivo.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Text</code>, <code>MaxLength</code>, <code>ReadOnly</code>, <code>PasswordChar</code>, <code>Placeholder</code>.<br />
+              <strong>Eventos Principais:</strong> <code>OnChange</code>, <code>OnKeyDown</code>, <code>OnEnter</code>, <code>OnExit</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Standard">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🏷️</div>
+                <div>
+                  <div class="comp-name">vox_Label</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TLabel</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Visual</span>
+                <span class="badge badge-dark">Standard</span>
+              </div>
+            </div>
+            <p>Rótulo de texto estático para identificar campos de formulário, títulos de seções ou mensagens de status. Suporta quebra de linha com <code>WordWrap</code> e dimensionamento automático com <code>AutoSize</code>.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Caption</code>, <code>Font</code>, <code>Alignment</code> (<code>taLeftJustify</code>, <code>taCenter</code>, <code>taRightJustify</code>), <code>WordWrap</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Standard">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">☑️</div>
+                <div>
+                  <div class="comp-name">vox_CheckBox</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TCheckBox</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Visual</span>
+                <span class="badge badge-dark">Standard</span>
+              </div>
+            </div>
+            <p>Caixa de seleção booleana para opções que podem ser marcadas ou desmarcadas de forma independente.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Checked</code> (Boolean), <code>Caption</code>, <code>AllowGrayed</code>.<br />
+              <strong>Eventos Principais:</strong> <code>OnClick</code>, <code>OnChange</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Standard">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">📋</div>
+                <div>
+                  <div class="comp-name">vox_Memo</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TMemo</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Visual</span>
+                <span class="badge badge-dark">Standard</span>
+              </div>
+            </div>
+            <p>Editor de texto multilinha para anotações, descrições longas, logs de sistema ou código fonte com suporte a barras de rolagem verticais e horizontais.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Lines</code> (TStrings), <code>ScrollBars</code>, <code>ReadOnly</code>, <code>WordWrap</code>.<br />
+              <strong>Eventos Principais:</strong> <code>OnChange</code>, <code>OnKeyDown</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Standard">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">📑</div>
+                <div>
+                  <div class="comp-name">vox_MainMenu & vox_PopupMenu</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TMainMenu / TPopupMenu</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-green">Barra / Menu</span>
+                <span class="badge badge-dark">Standard</span>
+              </div>
+            </div>
+            <p><code>vox_MainMenu</code> gera a barra de menus no topo da janela com menus suspensos aninhados. <code>vox_PopupMenu</code> cria menus de contexto acionados com o botão direito do mouse sobre qualquer componente.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Items</code> (Lista hierárquica de menus e submenus com atalhos).<br />
+              <strong>Eventos Principais:</strong> <code>OnPopup</code>, disparos <code>OnClick</code> dos itens.
+            </div>
+          </div>
+
+          <!-- ==================== ADDITIONAL ==================== -->
+          <div class="comp-card" data-cat="Additional">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🔲</div>
+                <div>
+                  <div class="comp-name">vox_Panel</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TPanel</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Contêiner</span>
+                <span class="badge badge-dark">Additional</span>
+              </div>
+            </div>
+            <p>Contêiner versátil com bordas biseladas (Bevel) para organizar outros componentes em áreas distintas da tela, como barras de botões no topo (<code>alTop</code>) ou barras de status.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Align</code>, <code>BevelOuter</code>, <code>BevelInner</code>, <code>BorderWidth</code>, <code>Caption</code>, <code>Color</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Additional">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🖼️</div>
+                <div>
+                  <div class="comp-name">vox_Image</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TImage</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Visual</span>
+                <span class="badge badge-dark">Additional</span>
+              </div>
+            </div>
+            <p>Renderizador gráfico para imagens raster e vetoriais (PNG, JPEG, WebP, SVG). Suporta ajuste proporcional automático com <code>Proportional</code> e estiramento com <code>Stretch</code>.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Picture</code> (URL ou base64), <code>Stretch</code>, <code>Proportional</code>, <code>Center</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Additional">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">↔️</div>
+                <div>
+                  <div class="comp-name">vox_Splitter</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TSplitter</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Layout</span>
+                <span class="badge badge-dark">Additional</span>
+              </div>
+            </div>
+            <p>Separador redimensionável em tempo de execução. Permite ao usuário arrastar a divisão entre painéis vizinhos (ex: entre a barra lateral esquerda e a área central do aplicativo).</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Align</code>, <code>MinSize</code>, <code>ResizeStyle</code>, <code>AutoSnap</code>.
+            </div>
+          </div>
+
+          <!-- ==================== WIN32 ==================== -->
+          <div class="comp-card" data-cat="Win32">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🗂️</div>
+                <div>
+                  <div class="comp-name">vox_PageControl & vox_TabSheet</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TPageControl / TTabSheet</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Contêiner Multi-Abas</span>
+                <span class="badge badge-dark">Win32</span>
+              </div>
+            </div>
+            <p>Gerenciador avançado de abas organizadas em páginas. Suporta adição e remoção de páginas via menu de contexto, clique nas guias superiores para navegação e renderização precisa de contêineres filhos.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>ActivePageIndex</code>, <code>Pages</code>, <code>TabPosition</code> (Top, Bottom).<br />
+              <strong>Eventos Principais:</strong> <code>OnChange</code>, <code>OnChanging</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Win32">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">📊</div>
+                <div>
+                  <div class="comp-name">vox_ProgressBar</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TProgressBar</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Visual</span>
+                <span class="badge badge-dark">Win32</span>
+              </div>
+            </div>
+            <p>Barra de progresso percentual para indicar o andamento de operações de carga, laços de repetição (loops <code>while</code> / <code>for</code>) ou processamento de relatórios.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Position</code> (0 a 100), <code>Min</code>, <code>Max</code>, <code>Smooth</code>, <code>Step</code>.
+            </div>
+          </div>
+
+          <!-- ==================== DATA ACCESS (FIREDAC) ==================== -->
+          <div class="comp-card" data-cat="Data Access">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🔌</div>
+                <div>
+                  <div class="comp-name">vox_Connection</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TFDConnection</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-purple">Não-Visual (28px)</span>
+                <span class="badge badge-dark">Data Access</span>
+              </div>
+            </div>
+            <p>Gerencia a conexão com o banco de dados. Suporta drivers nativos para SQLite (arquivo <code>.db</code> local), PostgreSQL e MySQL, com teste de conexão instantâneo no Object Inspector.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>DriverName</code> (SQLite, PG, MySQL), <code>Database</code>, <code>Connected</code> (Boolean), <code>Params</code>.<br />
+              <strong>Eventos Principais:</strong> <code>AfterConnect</code>, <code>BeforeDisconnect</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Data Access">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">⚡</div>
+                <div>
+                  <div class="comp-name">vox_Query</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TFDQuery</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-purple">Não-Visual (28px)</span>
+                <span class="badge badge-dark">Data Access</span>
+              </div>
+            </div>
+            <p>Executor de instruções SQL completas. Permite realizar consultas (<code>SELECT</code>), inserções, atualizações e exclusões. Suporta passagem de parâmetros com a sintaxe <code>:NomeParametro</code> e navegação por registros (<code>First</code>, <code>Next</code>, <code>Prior</code>, <code>Last</code>, <code>Eof</code>).</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>Connection</code>, <code>SQL</code>, <code>Active</code>, <code>Params</code>, <code>Filter</code>, <code>Filtered</code>.<br />
+              <strong>Eventos Principais:</strong> <code>AfterOpen</code>, <code>AfterPost</code>, <code>BeforePost</code>, <code>AfterDelete</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Data Access">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🔗</div>
+                <div>
+                  <div class="comp-name">vox_DataSource</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TDataSource</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-purple">Não-Visual (28px)</span>
+                <span class="badge badge-dark">Data Access</span>
+              </div>
+            </div>
+            <p>O elo intermediário da arquitetura bi-direcional. Faz a ponte de ligação entre um conjunto de dados lógico (<code>vox_Query</code> ou <code>vox_DBTable</code>) e múltiplos controles visuais na tela (<code>vox_DBGrid</code>, <code>vox_DBEdit</code>, etc.).</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>DataSet</code>, <code>AutoEdit</code> (Boolean).<br />
+              <strong>Eventos Principais:</strong> <code>OnDataChange</code>, <code>OnStateChange</code>.
+            </div>
+          </div>
+
+          <!-- ==================== DATA CONTROLS (DB-AWARE) ==================== -->
+          <div class="comp-card" data-cat="Data Controls">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">📊</div>
+                <div>
+                  <div class="comp-name">vox_DBGrid</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TDBGrid</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Data-Aware Visual</span>
+                <span class="badge badge-dark">Data Controls</span>
+              </div>
+            </div>
+            <p>Tabela de dados profissional com renderização de múltiplas linhas e colunas. Suporta seleção de registros, redimensionamento de colunas, ordenação por clique no cabeçalho, formatação numérica/monetária e paginação automática.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>DataSource</code>, <code>Columns</code>, <code>ReadOnly</code>, <code>Options</code> (Linhas de grade, indicador de linha ativa, seleção zebrada).<br />
+              <strong>Eventos Principais:</strong> <code>OnDblClick</code>, <code>OnCellClick</code>, <code>OnColEnter</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Data Controls">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🧭</div>
+                <div>
+                  <div class="comp-name">vox_DBNavigator</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TDBNavigator</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-blue">Data-Aware Visual</span>
+                <span class="badge badge-dark">Data Controls</span>
+              </div>
+            </div>
+            <p>Barra de ferramentas de navegação padrão contendo os clássicos botões do Delphi: <strong>First</strong> (⏮), <strong>Prior</strong> (◀), <strong>Next</strong> (▶), <strong>Last</strong> (⏭), <strong>Insert</strong> (+), <strong>Delete</strong> (-), <strong>Edit</strong> (✏️), <strong>Post</strong> (💾), <strong>Cancel</strong> (✖) e <strong>Refresh</strong> (🔄).</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>DataSource</code>, <code>VisibleButtons</code>, <code>ConfirmDelete</code>.
+            </div>
+          </div>
+
+          <!-- ==================== REPORTS & PDF ==================== -->
+          <div class="comp-card" data-cat="Reports">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">📑</div>
+                <div>
+                  <div class="comp-name">vox_Report & vox_ReportBand</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TQuickRep / TQRBand</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-amber">Relatórios</span>
+                <span class="badge badge-dark">Reports</span>
+              </div>
+            </div>
+            <p>Suíte completa para relatórios baseados em faixas (Bands): <code>rbTitle</code>, <code>rbPageHeader</code>, <code>rbColumnHeader</code>, <code>rbDetail</code>, <code>rbSummary</code> e <code>rbPageFooter</code>. Calcula a paginação física da folha A4 e permite exportação direta para PDF de alta resolução.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>PageOrientation</code> (Portrait/Landscape), <code>PageSize</code> (A4/Letter), <code>BandType</code>, <code>DataSource</code>.
+            </div>
+          </div>
+
+          <div class="comp-card" data-cat="Reports">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">💲</div>
+                <div>
+                  <div class="comp-name">vox_ReportDBText & vox_ReportSysData</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TQRDBText / TQRSysData</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-amber">Relatórios</span>
+                <span class="badge badge-dark">Reports</span>
+              </div>
+            </div>
+            <p><code>vox_ReportDBText</code> vincula campos dinâmicos da consulta com formatação monetária (ex: <code>R$ #,##0.00</code>) ou de data. <code>vox_ReportSysData</code> insere automaticamente números de página atual/total e data/hora do sistema.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>DataField</code>, <code>DisplayFormat</code>, <code>SysDataType</code> (sdPageCount, sdDateTime).
+            </div>
+          </div>
+
+          <!-- ==================== REST ==================== -->
+          <div class="comp-card" data-cat="REST">
+            <div class="comp-card-top">
+              <div class="comp-title-box">
+                <div class="comp-icon-box">🌐</div>
+                <div>
+                  <div class="comp-name">vox_RESTClient & vox_RESTRequest</div>
+                  <div class="comp-delphi-alias">Equivalente Delphi: <strong>TRESTClient / TRESTRequest</strong></div>
+                </div>
+              </div>
+              <div>
+                <span class="badge badge-purple">Não-Visual (28px)</span>
+                <span class="badge badge-dark">REST / Web</span>
+              </div>
+            </div>
+            <p>Consumo de APIs RESTful e Webhooks JSON. Permite disparar requisições <code>GET</code>, <code>POST</code>, <code>PUT</code> e <code>DELETE</code> com autenticação Bearer Token e adaptação de arrays JSON diretamente para um <code>vox_DataSource</code>.</p>
+            <div style="font-size:0.85rem; color:var(--text-dim); margin-top:0.5rem;">
+              <strong>Propriedades Chave:</strong> <code>BaseURL</code>, <code>Method</code>, <code>Resource</code>, <code>Params</code>.<br />
+              <strong>Eventos Principais:</strong> <code>AfterExecute</code>, <code>OnError</code>.
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           COMPILAÇÃO E DEPLOY
+           ==================================================================== -->
+      <section id="compilacao-web">
+        <h2 class="section-title">🚀 Compilação & Geração do Sistema Web</h2>
+        <p class="section-desc">
+          O Vox Studio RAD possui um pipeline de compilação integrado que transforma o projeto visual diretamente em uma aplicação web pronta para produção:
+        </p>
+
+        <div class="card-grid">
+          <div class="info-card">
+            <h3>1. Análise Semântica do Formulário</h3>
+            <p>O compilador analisa a árvore de controles <code>.vxf</code>, resolvendo o alinhamento VCL responsivo e mapeando os tipos para classes web padronizadas.</p>
+          </div>
+          <div class="info-card">
+            <h3>2. Transpilação do Código Vox</h3>
+            <p>Os métodos e regras de negócio da <code>Unit1.vox</code> são validados pela semântica da linguagem Vox e transpilados com tipagem gradual e suporte a SQLite.</p>
+          </div>
+          <div class="info-card">
+            <h3>3. Empacotamento para a Pasta dist/</h3>
+            <p>Gera o <code>index.html</code>, os estilos compilados em CSS e o script da aplicação executável em qualquer servidor web ou nativo via Node/Electron.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-tip" style="margin-top:2rem;">
+          <div class="callout-icon">⭐</div>
+          <div class="callout-content">
+            <h4>Atalho de Compilação Rápida</h4>
+            <p>
+              Basta clicar no botão <strong>Build Web</strong> na barra de ferramentas ou pressionar <strong>F9</strong> para executar a aplicação imediatamente na porta local com abertura automática no navegador!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           RODAPÉ
+           ==================================================================== -->
+      <footer>
+        <p><strong>Vox Studio RAD</strong> — Documentação Oficial & Manual de Referência</p>
+        <p style="margin-top:0.4rem;">Desenvolvido com padrão Delphi RAD Studio para a linguagem moderna <strong>Vox</strong>.</p>
+        <p style="margin-top:0.8rem; font-size:0.75rem; color:var(--text-dim);">Salvo em <code>docs/manual_ide.html</code> • Atualizado em 2026</p>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- ========================================================================
+       SCRIPTS INTERATIVOS: BUSCA, FILTRO E TEMA
+       ======================================================================== -->
+  <script>
+    // Alternância de Tema Claro / Escuro
+    function toggleTheme() {
+      const isLight = document.body.classList.toggle('theme-light');
+      const icon = document.getElementById('themeBtnIcon');
+      const text = document.getElementById('themeBtnText');
+      if (isLight) {
+        icon.textContent = '🌙';
+        text.textContent = 'Tema Escuro';
+      } else {
+        icon.textContent = '☀️';
+        text.textContent = 'Tema Claro';
+      }
+    }
+
+    // Copiar código para a área de transferência
+    function copyCode(btn) {
+      const pre = btn.closest('.code-box').querySelector('pre');
+      navigator.clipboard.writeText(pre.innerText).then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = 'Copiado!';
+        btn.style.background = '#22c55e';
+        btn.style.color = '#fff';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
+    // Filtro da lista de componentes por categoria
+    let currentCategory = 'all';
+    function setCategoryFilter(category) {
+      currentCategory = category;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(category.toLowerCase()) || (category === 'all' && btn.textContent === 'Todos'));
+      });
+      applyComponentFilter();
+    }
+
+    // Filtro por texto digitado
+    function filterComponents(query) {
+      applyComponentFilter();
+    }
+
+    function applyComponentFilter() {
+      const query = document.getElementById('compSearch').value.toLowerCase().trim();
+      const cards = document.querySelectorAll('.comp-card');
+
+      cards.forEach(card => {
+        const cat = card.getAttribute('data-cat');
+        const text = card.textContent.toLowerCase();
+        const matchesCat = (currentCategory === 'all') || (cat === currentCategory);
+        const matchesQuery = query === '' || text.includes(query);
+
+        if (matchesCat && matchesQuery) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // Busca global nos menus e seções
+    function filterContent(term) {
+      const lower = term.toLowerCase().trim();
+      if (!lower) return;
+
+      const links = document.querySelectorAll('#sidebar .nav-link');
+      links.forEach(link => {
+        const text = link.textContent.toLowerCase();
+        if (text.includes(lower)) {
+          link.style.background = 'rgba(124, 111, 247, 0.35)';
+        } else {
+          link.style.background = '';
+        }
+      });
+    }
+
+    // Scrollspy simples para a sidebar
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('section');
+      const scrollPos = window.scrollY + 120;
+
+      sections.forEach(section => {
+        const top = section.offsetTop;
+        const height = section.offsetHeight;
+        const id = section.getAttribute('id');
+        if (scrollPos >= top && scrollPos < top + height) {
+          document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + id) {
+              link.classList.add('active');
+            }
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
