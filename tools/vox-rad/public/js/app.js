@@ -9,11 +9,7 @@ class VoxStudioApp {
     this.currentTheme = localStorage.getItem('vox_rad_theme') || 'dark';
 
     // Gerenciador de Projetos e Grupo de Projetos (Delphi 12 Standard)
-    this.currentProjectGroup = {
-      name: 'ProjectGroup1',
-      file: 'ProjectGroup1.groupproj',
-      projects: ['VoxERP_Comercial.dproj', 'Projeto_Clientes.dproj']
-    };
+    this.currentProjectGroup = null;
     this.currentProject = {
       name: 'Project1',
       file: 'Project1.dproj',
@@ -26,6 +22,8 @@ class VoxStudioApp {
       path: 'forms/Form1.vox',
       type: 'vox'
     };
+    this.openTabs = [];
+    this.activeTabId = null;
     this.workspaceFiles = { units: [], projects: [], groups: [] };
     this.selectedOpenFile = null;
     this.selectedOpenProject = null;
@@ -60,6 +58,8 @@ class VoxStudioApp {
     this.initComponentFactory();
     this.initSaveDialogEvents();
     this.initProjectManager();
+    this.initMenuBarEvents();
+    this.initTabs();
     this.checkServerStatus();
 
     // Tentar carregar Form1.vxf existente do projeto; se não existir, inicia formulário limpo
@@ -80,6 +80,274 @@ class VoxStudioApp {
         this.syncCodeFromDesigner();
       }
     });
+  }
+
+  // --------------------------------------------------------------------------
+  // Menu Bar Interativo (Delphi Standard)
+  // --------------------------------------------------------------------------
+  initMenuBarEvents() {
+    const menuItems = document.querySelectorAll('.delphi-menubar .delphi-menu-item');
+    if (!menuItems.length) return;
+
+    menuItems.forEach(item => {
+      const span = item.querySelector(':scope > span');
+      if (span) {
+        span.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasOpen = item.classList.contains('open');
+          menuItems.forEach(m => m.classList.remove('open'));
+          if (!wasOpen) {
+            item.classList.add('open');
+          }
+        });
+      }
+
+      item.addEventListener('mouseenter', () => {
+        const anyOpen = Array.from(menuItems).some(m => m.classList.contains('open'));
+        if (anyOpen) {
+          menuItems.forEach(m => m.classList.remove('open'));
+          item.classList.add('open');
+        }
+      });
+    });
+
+    const dropdownItems = document.querySelectorAll('.delphi-menubar .delphi-menu-dropdown-item');
+    dropdownItems.forEach(dItem => {
+      dItem.addEventListener('click', () => {
+        menuItems.forEach(m => m.classList.remove('open'));
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.delphi-menubar')) {
+        menuItems.forEach(m => m.classList.remove('open'));
+      }
+    });
+  }
+
+  get editorTabs() {
+    return this;
+  }
+
+  // --------------------------------------------------------------------------
+  // Gerenciador de Abas de Documentos (EditorTabsStore)
+  // --------------------------------------------------------------------------
+  initTabs() {
+    this.openTabs = [
+      this.createTabObject({
+        id: 'tab_form1',
+        name: 'Form1.vxf',
+        path: 'forms/Form1.vxf',
+        type: 'form',
+        isForm: true,
+        isDirty: false
+      }),
+      this.createTabObject({
+        id: 'tab_unit1',
+        name: 'Unit1.vox',
+        path: 'forms/Form1.vox',
+        type: 'unit',
+        isForm: false,
+        isDirty: false
+      })
+    ];
+    this.activeTabId = 'tab_form1';
+    this.renderTabs();
+  }
+
+  createTabObject(cfg) {
+    const tab = {
+      id: cfg.id || ('tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+      name: cfg.name || cfg.title || 'NovaUnit.vox',
+      path: cfg.path || cfg.name || '',
+      type: cfg.type || (cfg.name && cfg.name.split('.').pop()) || 'vox',
+      isForm: !!(cfg.isForm || (cfg.name && (cfg.name.endsWith('.vxf') || cfg.name.endsWith('.dfm')))),
+      isDirty: !!(cfg.isDirty || cfg.dirty),
+      content: cfg.content || '',
+      formState: cfg.formState || null
+    };
+
+    Object.defineProperty(tab, 'title', {
+      get() { return this.name; },
+      set(v) { this.name = v; },
+      configurable: true,
+      enumerable: true
+    });
+
+    Object.defineProperty(tab, 'dirty', {
+      get() { return this.isDirty; },
+      set(v) { this.isDirty = v; },
+      configurable: true,
+      enumerable: true
+    });
+
+    return tab;
+  }
+
+  renderTabs() {
+    const container = document.getElementById('documentTabBar');
+    if (!container) return;
+
+    if (!this.openTabs || this.openTabs.length === 0) {
+      container.innerHTML = `
+        <div class="doc-tab active" style="font-style: italic; color: #64748b;">
+          <span>(Nenhum arquivo aberto)</span>
+        </div>
+      `;
+      const docTab = document.getElementById('docTabTitle');
+      if (docTab) docTab.innerText = '(Nenhum arquivo)';
+      return;
+    }
+
+    container.innerHTML = this.openTabs.map(tab => {
+      const isActive = tab.id === this.activeTabId;
+      const isDirty = !!tab.isDirty;
+      const icon = tab.isForm || tab.name.endsWith('.vxf') || tab.name.endsWith('.dfm') ? '🎨' :
+                   (tab.name.endsWith('.pas') ? '⚡' :
+                   (tab.name.endsWith('.js') || tab.name.endsWith('.ts') ? '📜' : '📄'));
+      return `
+        <div class="doc-tab ${isActive ? 'active' : ''} ${isDirty ? 'dirty' : ''}" 
+             data-tab-id="${tab.id}" 
+             onclick="window.app.switchTab('${tab.id}')"
+             title="${tab.path || tab.name}">
+          <span style="font-size: 11px;">${icon}</span>
+          <div class="doc-tab-dot"></div>
+          <span>${tab.name}</span>
+          <span class="doc-tab-close" onclick="event.stopPropagation(); window.app.closeTab('${tab.id}')" title="Fechar aba">✕</span>
+        </div>
+      `;
+    }).join('');
+
+    const activeTab = this.getActiveTab();
+    const docTab = document.getElementById('docTabTitle');
+    if (docTab && activeTab) {
+      docTab.innerText = activeTab.name + (activeTab.isDirty ? ' ●' : '');
+    }
+  }
+
+  getActiveTab() {
+    return (this.openTabs || []).find(t => t.id === this.activeTabId) || null;
+  }
+
+  openTab(fileInfo) {
+    if (!this.openTabs) this.openTabs = [];
+    
+    let existing = this.openTabs.find(t => (fileInfo.path && t.path === fileInfo.path) || t.name === fileInfo.name);
+    if (existing) {
+      if (fileInfo.content !== undefined) existing.content = fileInfo.content;
+      this.activeTabId = existing.id;
+      this.renderTabs();
+      this.applyTabToView(existing);
+      return existing;
+    }
+
+    const newTab = this.createTabObject(fileInfo);
+    this.openTabs.push(newTab);
+    this.activeTabId = newTab.id;
+    this.renderTabs();
+    this.applyTabToView(newTab);
+    return newTab;
+  }
+
+  switchTab(tabId) {
+    if (tabId === this.activeTabId) return;
+
+    const curTab = this.getActiveTab();
+    if (curTab) {
+      if (this.currentView === 'code' && this.editor) {
+        curTab.content = this.editor.getCode();
+      } else if (this.currentView === 'designer' && this.designer && curTab.isForm) {
+        curTab.formState = JSON.parse(JSON.stringify(this.designer.form));
+      }
+    }
+
+    const nextTab = (this.openTabs || []).find(t => t.id === tabId);
+    if (!nextTab) return;
+
+    this.activeTabId = tabId;
+    this.renderTabs();
+    this.applyTabToView(nextTab);
+  }
+
+  applyTabToView(tab) {
+    this.currentFile = {
+      name: tab.name,
+      path: tab.path,
+      type: tab.type
+    };
+
+    if (tab.isForm) {
+      if (tab.formState) {
+        this.designer.form = tab.formState;
+        this.designer.syncIdCounter();
+        this.designer.renderForm();
+        this.syncCodeFromDesigner();
+      } else if (tab.content) {
+        try {
+          this.designer.form = JSON.parse(tab.content);
+          this.designer.syncIdCounter();
+          this.designer.renderForm();
+          this.syncCodeFromDesigner();
+        } catch (_) {}
+      }
+      this.switchView('designer');
+    } else {
+      if (tab.content !== undefined && this.editor) {
+        this.editor.setCode(tab.content);
+      }
+      this.switchView('code');
+    }
+
+    this.updateProjectsTree();
+  }
+
+  closeTab(tabId) {
+    if (!this.openTabs) return;
+    const idx = this.openTabs.findIndex(t => t.id === tabId);
+    if (idx === -1) return;
+
+    const tab = this.openTabs[idx];
+    if (tab.isDirty) {
+      if (!confirm(`O arquivo "${tab.name}" possui alterações não salvas. Deseja fechar mesmo assim?`)) {
+        return;
+      }
+    }
+
+    this.openTabs.splice(idx, 1);
+
+    if (this.activeTabId === tabId) {
+      if (this.openTabs.length > 0) {
+        const nextIdx = Math.max(0, idx - 1);
+        this.activeTabId = this.openTabs[nextIdx].id;
+        this.applyTabToView(this.openTabs[nextIdx]);
+      } else {
+        this.activeTabId = null;
+        this.currentFile = null;
+        if (this.editor) this.editor.setCode('// Nenhum arquivo aberto.\n// Abra um arquivo pelo menu File > Abrir Arquivo (Ctrl+O).');
+        this.switchView('code');
+      }
+    }
+
+    this.renderTabs();
+    this.updateProjectsTree();
+    this.showToast(`Aba "${tab.name}" fechada.`);
+  }
+
+  closeAllFiles() {
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    if (dirty.length > 0) {
+      if (!confirm(`Existem ${dirty.length} arquivos com alterações não salvas. Deseja fechar todos mesmo assim?`)) {
+        return;
+      }
+    }
+
+    this.openTabs = [];
+    this.activeTabId = null;
+    this.currentFile = null;
+    if (this.editor) this.editor.setCode('// Nenhum arquivo aberto.\n// Abra um arquivo pelo menu File > Abrir Arquivo (Ctrl+O).');
+    this.renderTabs();
+    this.updateProjectsTree();
+    this.showToast('❌ Todos os arquivos foram fechados.');
   }
 
   // --------------------------------------------------------------------------
@@ -434,6 +702,9 @@ class VoxStudioApp {
       } else if (e.ctrlKey && e.key === 'F5') {
         e.preventDefault();
         this.openAddWatchModal();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        this.saveAll();
       } else if (e.ctrlKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
         this.saveForm();
@@ -443,9 +714,15 @@ class VoxStudioApp {
       } else if (e.ctrlKey && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         this.openFileDialog();
+      } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        this.newUnit();
       } else if (e.ctrlKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         this.newForm();
+      } else if (e.altKey && e.key === 'F4') {
+        e.preventDefault();
+        this.exitApp();
       } else if (e.ctrlKey && e.key === 'F4') {
         e.preventDefault();
         this.closeActiveFile();
@@ -1238,7 +1515,108 @@ class VoxStudioApp {
   }
 
   newForm() {
-    this.openNewProjectModal();
+    let idx = 1;
+    const existingForms = (this.currentProject && this.currentProject.units) ? this.currentProject.units : [];
+    while (existingForms.some(u => u.toLowerCase() === `form${idx}.vxf` || u.toLowerCase() === `form${idx}.vox`)) {
+      idx++;
+    }
+    const formName = `Form${idx}`;
+    const vxfName = `${formName}.vxf`;
+    const voxName = `${formName}.vox`;
+
+    this.designer.form = {
+      name: formName,
+      title: formName,
+      width: 720,
+      height: 480,
+      components: []
+    };
+    this.designer.syncIdCounter();
+    this.designer.selectedComponent = null;
+    this.designer.renderForm();
+    if (this.inspector) this.inspector.update(null);
+    this.updateStructureTree();
+    this.syncCodeFromDesigner();
+
+    if (!this.currentProject) {
+      this.currentProject = {
+        name: 'Project1',
+        file: 'Project1.dproj',
+        folder: '.',
+        mainForm: formName,
+        units: []
+      };
+    }
+    if (!this.currentProject.units) this.currentProject.units = [];
+    if (!this.currentProject.units.includes(voxName)) this.currentProject.units.push(voxName);
+    if (!this.currentProject.units.includes(vxfName)) this.currentProject.units.push(vxfName);
+
+    this.openTab({
+      name: vxfName,
+      title: vxfName,
+      path: `forms/${vxfName}`,
+      type: 'form',
+      isForm: true,
+      isDirty: true,
+      formState: JSON.parse(JSON.stringify(this.designer.form))
+    });
+
+    this.switchView('designer');
+    this.updateProjectsTree();
+    this.showToast(`📄 Novo Formulário "${formName}" criado com sucesso!`);
+  }
+
+  newUnit() {
+    let idx = 1;
+    const existingUnits = (this.currentProject && this.currentProject.units) ? this.currentProject.units : [];
+    while (existingUnits.some(u => u.toLowerCase() === `unit${idx}.vox`)) {
+      idx++;
+    }
+    const unitName = `Unit${idx}.vox`;
+    const baseName = `Unit${idx}`;
+
+    const starterCode = `// ==============================================================================
+// Unit: ${baseName}
+// Projeto: ${this.currentProject ? this.currentProject.name : 'Project1'}
+// ==============================================================================
+
+class ${baseName} {
+  constructor() {
+    // Inicialização da Unit
+  }
+
+  executar() {
+    println("${baseName} executada com sucesso!");
+  }
+}
+`;
+
+    if (!this.currentProject) {
+      this.currentProject = {
+        name: 'Project1',
+        file: 'Project1.dproj',
+        folder: '.',
+        mainForm: 'Form1',
+        units: []
+      };
+    }
+    if (!this.currentProject.units) this.currentProject.units = [];
+    if (!this.currentProject.units.includes(unitName)) this.currentProject.units.push(unitName);
+
+    this.openTab({
+      name: unitName,
+      title: unitName,
+      path: `units/${unitName}`,
+      type: 'unit',
+      isForm: false,
+      isDirty: true,
+      content: starterCode
+    });
+
+    if (this.editor) this.editor.setCode(starterCode);
+    this.switchView('code');
+    this.updateProjectsTree();
+    this.showToast(`📝 Nova Unit "${unitName}" criada com sucesso!`);
   }
 
   newProject() {
@@ -1248,6 +1626,15 @@ class VoxStudioApp {
   openNewProjectModal() {
     const modal = document.getElementById('newProjectModal');
     if (!modal) return;
+
+    let idx = 1;
+    const existing = (this.workspaceFiles && this.workspaceFiles.projects) || [];
+    while (existing.some(p => p.name.toLowerCase() === `project${idx}`.toLowerCase())) {
+      idx++;
+    }
+    const nameInput = document.getElementById('newProjectNameInput');
+    if (nameInput) nameInput.value = `Project${idx}`;
+
     this.selectedNewProjMenu = 'Top';
     this.selectNewProjOption('Top');
     modal.style.display = 'flex';
@@ -1279,6 +1666,17 @@ class VoxStudioApp {
 
   createNewFormWithMenu(menuType) {
     this.closeNewProjectModal();
+
+    const nameInput = document.getElementById('newProjectNameInput');
+    let projName = (nameInput && nameInput.value.trim()) || '';
+    if (!projName) {
+      let idx = 1;
+      const existing = (this.workspaceFiles && this.workspaceFiles.projects) || [];
+      while (existing.some(p => p.name.toLowerCase() === `project${idx}`.toLowerCase())) {
+        idx++;
+      }
+      projName = `Project${idx}`;
+    }
 
     const formWidth = 720;
     const formHeight = 500;
@@ -1324,18 +1722,131 @@ class VoxStudioApp {
       components: components
     };
 
+    this.designer.syncIdCounter();
     this.designer.selectedComponent = components.length > 0 ? components[0] : null;
     this.designer.renderForm();
-    this.inspector.update(this.designer.selectedComponent);
+    if (this.inspector) this.inspector.update(this.designer.selectedComponent);
     this.updateStructureTree();
     this.syncCodeFromDesigner();
 
+    // 1. Configurar estado do projeto ativo
+    this.currentProjectGroup = null;
+    this.currentProject = {
+      name: projName,
+      file: `${projName}.dproj`,
+      folder: '.',
+      mainForm: 'Form1',
+      units: ['Form1.vox', 'Form1.vxf']
+    };
+    this.currentFile = {
+      name: 'Form1.vxf',
+      path: 'forms/Form1.vxf',
+      type: 'vxf'
+    };
+
+    // 2. Inicializar abas de documentos
+    this.openTabs = [
+      this.createTabObject({
+        id: 'tab_form1',
+        name: 'Form1.vxf',
+        title: 'Form1.vxf',
+        path: 'forms/Form1.vxf',
+        type: 'form',
+        isForm: true,
+        isDirty: true,
+        formState: JSON.parse(JSON.stringify(this.designer.form))
+      }),
+      this.createTabObject({
+        id: 'tab_unit1',
+        name: 'Form1.vox',
+        title: 'Form1.vox',
+        path: 'forms/Form1.vox',
+        type: 'unit',
+        isForm: false,
+        isDirty: true,
+        content: window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : ''
+      })
+    ];
+    this.activeTabId = 'tab_form1';
+    this.renderTabs();
+
+    // 3. Atualizar Project Explorer e cabeçalho
+    this.updateProjectsTree();
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = `${this.currentProject.name}.dproj - Projects`;
+
+    // 4. Mudar para o Designer
+    this.switchView('designer');
+
     const desc = menuType === 'Top' ? 'Menu Horizontal no Topo' : (menuType === 'Left' ? 'Menu Lateral à Esquerda' : 'em Branco');
-    this.showToast(`✨ Novo Projeto criado com ${desc}!`);
+    this.showToast(`✨ Novo Projeto "${projName}" criado com ${desc}!`);
   }
 
-  saveAll() {
-    this.saveForm();
+  async saveAll() {
+    try {
+      this.showToast('📁💾 Salvando todos os arquivos e projeto...');
+      let savedCount = 0;
+
+      // 1. Salvar formulário visual corrente se estiver aberto
+      if (this.designer && this.designer.form && this.designer.form.name) {
+        const vxfContent = JSON.stringify(this.designer.form, null, 2);
+        const curName = this.designer.form.name;
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${curName}.vxf`, content: vxfContent })
+        });
+
+        const voxCode = window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : (this.editor ? this.editor.getCode() : '');
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: `forms/${curName}.vox`, content: voxCode })
+        });
+        savedCount++;
+      }
+
+      // 2. Salvar todas as abas abertas que possuem caminho
+      if (this.openTabs && this.openTabs.length > 0) {
+        for (const tab of this.openTabs) {
+          if (tab.path && !tab.isForm) {
+            const code = (tab.id === this.activeTabId && this.editor) ? this.editor.getCode() : (tab.content || '');
+            await fetch('/api/file/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ filePath: tab.path, content: code })
+            });
+            tab.isDirty = false;
+            savedCount++;
+          } else if (tab.isForm) {
+            tab.isDirty = false;
+          }
+        }
+      }
+
+      // 3. Salvar manifesto do projeto atual se configurado
+      if (this.currentProject && this.currentProject.file) {
+        await fetch('/api/project/save-as', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectName: this.currentProject.name,
+            folder: this.currentProject.folder || '.',
+            content: JSON.stringify({
+              ProjectName: this.currentProject.name,
+              MainForm: this.currentProject.mainForm || 'Form1',
+              Units: this.currentProject.units || [],
+              Updated: new Date().toISOString()
+            }, null, 2)
+          })
+        });
+      }
+
+      this.renderTabs();
+      this.showToast(`📁💾 Salvar Tudo concluído com sucesso (${savedCount} itens salvos)!`);
+    } catch (err) {
+      alert('Erro ao executar Salvar Tudo: ' + err.message);
+    }
   }
 
   closeFormWindow() {
@@ -1432,26 +1943,101 @@ class VoxStudioApp {
     // 5. Sincronizar código Vox no editor Monaco
     this.syncCodeFromDesigner();
 
-    // 6. Atualizar abas e árvore de projeto
+    // 6. Atualizar estado do projeto atual
+    const tmplConfigs = {
+      erpCompleto: {
+        name: 'VoxERP_Comercial',
+        file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
+        folder: 'projetos/VoxERP_Comercial',
+        mainForm: 'FormERP',
+        units: ['FormERP.vox', 'FormERP.vxf', 'cliente_controller.vox', 'produto_controller.vox']
+      },
+      crudClientes: {
+        name: 'Projeto_Clientes',
+        file: 'clientes/Projeto_Clientes.dproj',
+        folder: 'clientes',
+        mainForm: 'Form1',
+        units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox', 'Form1.vox', 'Form1.vxf']
+      },
+      sistemaSidebar: {
+        name: 'Sistema_Sidebar',
+        file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
+        folder: 'projetos/Sistema_Sidebar',
+        mainForm: 'Form1',
+        units: ['Form1.vox', 'Form1.vxf']
+      },
+      pdv: {
+        name: 'PDV_FrenteDeCaixa',
+        file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
+        folder: 'projetos/PDV_FrenteDeCaixa',
+        mainForm: 'Form1',
+        units: ['pdv_controller.vox', 'pdv_model.vox', 'Form1.vox', 'Form1.vxf']
+      },
+      calculadora: {
+        name: 'Calculadora_RAD',
+        file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
+        folder: 'projetos/Calculadora_RAD',
+        mainForm: 'Form1',
+        units: ['Form1.vox', 'Form1.vxf']
+      }
+    };
+
     const formName = this.designer.form.name || 'Form1';
-    const docTab = document.getElementById('docTabTitle');
-    if (docTab) docTab.innerText = `${formName}.vox`;
-    const projUnit = document.getElementById('projTreeUnitName');
-    if (projUnit) projUnit.innerText = `${formName}.vox`;
-    const projVxf = document.getElementById('projTreeVxfName');
-    if (projVxf) projVxf.innerText = `${formName}.vxf`;
+    this.currentProjectGroup = null;
+    this.currentProject = tmplConfigs[templateKey] || {
+      name: formName,
+      file: `${formName}.dproj`,
+      folder: '.',
+      mainForm: formName,
+      units: [`${formName}.vox`, `${formName}.vxf`]
+    };
 
-    // 7. Atualizar título do projeto no dock lateral
-    const projTitle = document.querySelector('.project-header span');
-    if (projTitle) projTitle.textContent = `${formName}.dproj - Projects`;
+    const vxfName = `${formName}.vxf`;
+    const voxName = `${formName}.vox`;
+    this.currentFile = {
+      name: vxfName,
+      path: `forms/${vxfName}`,
+      type: 'vxf'
+    };
 
-    // 8. Sincronizar selects na toolbar e no modal
+    // 7. Atualizar abas de documentos
+    this.openTabs = [
+      this.createTabObject({
+        id: 'tab_' + formName + '_vxf',
+        name: vxfName,
+        title: vxfName,
+        path: `forms/${vxfName}`,
+        type: 'form',
+        isForm: true,
+        isDirty: false,
+        formState: JSON.parse(JSON.stringify(this.designer.form))
+      }),
+      this.createTabObject({
+        id: 'tab_' + formName + '_vox',
+        name: voxName,
+        title: voxName,
+        path: `forms/${voxName}`,
+        type: 'unit',
+        isForm: false,
+        isDirty: false,
+        content: window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : ''
+      })
+    ];
+    this.activeTabId = 'tab_' + formName + '_vxf';
+    this.renderTabs();
+
+    // 8. Atualizar Project Explorer e cabeçalho
+    this.updateProjectsTree();
+    const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
+    if (headerTitle) headerTitle.textContent = `${this.currentProject.name}.dproj - Projects`;
+
+    // 9. Sincronizar selects na toolbar e no modal
     const tbSelect = document.getElementById('toolbarTemplateSelect');
     if (tbSelect) tbSelect.value = templateKey;
     const cfeSelect = document.getElementById('cfeTemplateSelect');
     if (cfeSelect) cfeSelect.value = templateKey;
 
-    // 9. Notificação toast
+    // 10. Notificação toast
     this.showToast(`✨ Projeto exemplo "${tmpl.title || formName}" carregado no Designer (${this.designer.form.components.length} componentes)!`);
   }
 
@@ -1670,13 +2256,17 @@ class VoxStudioApp {
     const all = this.workspaceFiles.units || [];
 
     const filtered = all.filter(u => {
-      const matchesCat = (cat === 'all')
-        || (cat === 'Unit' && u.ext === '.vox' && !u.category.includes('Controller') && !u.category.includes('Model'))
-        || (cat === 'Controller' && (u.category.includes('Controller') || u.category.includes('Model')))
-        || (cat === 'View / Form' && (u.ext === '.vxf' || u.category.includes('Form') || u.category.includes('View')))
-        || (cat === 'Exemplo' && (u.category.includes('Exemplo') || u.relPath.includes('example')));
+      const ext = (u.ext || '').toLowerCase();
+      const catLower = (u.category || '').toLowerCase();
 
-      const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.relPath.toLowerCase().includes(q) || u.category.toLowerCase().includes(q);
+      const matchesCat = (cat === 'all')
+        || (cat === 'Unit' && (ext === '.vox' || ext === '.pas') && !catLower.includes('controller') && !catLower.includes('model'))
+        || (cat === 'Controller' && (catLower.includes('controller') || catLower.includes('model')))
+        || (cat === 'View / Form' && (ext === '.vxf' || ext === '.dfm' || catLower.includes('form') || catLower.includes('view')))
+        || (cat === 'Script' && (ext === '.js' || ext === '.ts' || ext === '.json' || ext === '.sql' || ext === '.html' || ext === '.css'))
+        || (cat === 'Exemplo' && (catLower.includes('exemplo') || u.relPath.includes('example')));
+
+      const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.relPath.toLowerCase().includes(q) || catLower.includes(q);
 
       return matchesCat && matchesSearch;
     });
@@ -1697,7 +2287,14 @@ class VoxStudioApp {
 
     tbody.innerHTML = items.map((u, i) => {
       const isSelected = this.selectedOpenFile === u.relPath;
-      const icon = u.ext === '.vxf' ? '🎨' : (u.category.includes('Controller') ? '⚡' : (u.category.includes('Model') ? '🏛️' : '📄'));
+      const ext = (u.ext || '').toLowerCase();
+      const icon = (ext === '.vxf' || ext === '.dfm') ? '🎨' :
+                   (ext === '.pas' ? '⚡' :
+                   (ext === '.js' || ext === '.ts' ? '📜' :
+                   (ext === '.sql' ? '🗄️' :
+                   (ext === '.json' ? '⚙️' :
+                   (u.category.includes('Controller') ? '⚡' :
+                   (u.category.includes('Model') ? '🏛️' : '📄'))))));
       const sizeStr = u.size ? (u.size < 1024 ? `${u.size} B` : `${(u.size / 1024).toFixed(1)} KB`) : '-';
 
       return `
@@ -1735,13 +2332,26 @@ class VoxStudioApp {
   async openFile(relPath) {
     try {
       if (!relPath) return;
-      if (relPath.endsWith('.vxf')) {
+      this.showToast(`⏳ Abrindo arquivo ${relPath}...`);
+
+      const fileName = relPath.split(/[\/\\]/).pop();
+      const ext = '.' + fileName.split('.').pop().toLowerCase();
+      const isVxf = ext === '.vxf';
+
+      if (isVxf) {
         await this.loadForm(relPath);
+        this.openTab({
+          name: fileName,
+          path: relPath,
+          type: 'vxf',
+          isForm: true,
+          formState: JSON.parse(JSON.stringify(this.designer.form))
+        });
         this.switchView('designer');
+        this.showToast(`🎨 Formulário "${fileName}" carregado no Designer!`);
         return;
       }
 
-      this.showToast(`⏳ Abrindo arquivo ${relPath}...`);
       const res = await fetch(`/api/file/read?file=${encodeURIComponent(relPath)}`);
       const data = await res.json();
       if (!data.success) {
@@ -1751,13 +2361,26 @@ class VoxStudioApp {
       this.currentFile = {
         name: data.fileName,
         path: data.filePath,
-        type: data.ext === '.vox' ? 'vox' : 'text'
+        type: data.ext ? data.ext.slice(1) : 'vox'
       };
 
       if (this.editor) {
         this.editor.setCode(data.content);
       }
+
+      this.openTab({
+        name: data.fileName,
+        path: data.filePath,
+        type: data.ext ? data.ext.slice(1) : 'vox',
+        isForm: false,
+        content: data.content
+      });
+
       this.switchView('code');
+
+      if (this.currentProject && this.currentProject.units && !this.currentProject.units.includes(data.fileName)) {
+        this.currentProject.units.push(data.fileName);
+      }
 
       const docTab = document.getElementById('docTabTitle');
       if (docTab) docTab.innerText = data.fileName;
@@ -1768,8 +2391,38 @@ class VoxStudioApp {
       this.showToast(`📂 Arquivo "${data.fileName}" aberto com sucesso!`);
       this.updateProjectsTree();
     } catch (err) {
-      alert('Erro ao abrir arquivo: ' + err.message);
+      console.error('Erro ao abrir arquivo:', err);
+      this.showToast(`❌ Erro ao abrir arquivo: ${err.message}`);
     }
+  }
+
+  async openLocalOsFile() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [
+            {
+              description: 'Units, Formulários e Códigos (.vox, .vxf, .pas, .dfm, .js, .ts, .json, .txt, .sql)',
+              accept: {
+                'text/plain': ['.vox', '.pas', '.js', '.ts', '.txt', '.sql', '.html', '.css'],
+                'application/json': ['.vxf', '.dfm', '.json']
+              }
+            }
+          ],
+          multiple: false
+        });
+        const file = await handle.getFile();
+        const content = await file.text();
+        this.closeOpenFileModal();
+        this.loadOpenedFileContent(file.name, file.name, content);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('showOpenFilePicker error, falling back to input:', err);
+      }
+    }
+    const input = document.getElementById('localOsFileInput');
+    if (input) input.click();
   }
 
   handleLocalFileOpen(e) {
@@ -1780,32 +2433,50 @@ class VoxStudioApp {
     reader.onload = (ev) => {
       const content = ev.target.result;
       this.closeOpenFileModal();
-
-      if (file.name.endsWith('.vxf')) {
-        try {
-          this.designer.form = JSON.parse(content);
-          if (!this.designer.form.components) {
-            this.designer.form.components = [];
-          }
-          this.designer.syncIdCounter();
-          this.designer.renderForm();
-          this.syncCodeFromDesigner();
-          this.switchView('designer');
-        } catch (e) {
-          alert('Arquivo .vxf inválido.');
-        }
-      } else {
-        if (this.editor) this.editor.setCode(content);
-        this.switchView('code');
-      }
-
-      const docTab = document.getElementById('docTabTitle');
-      if (docTab) docTab.innerText = file.name;
-      this.currentFile = { name: file.name, path: file.name, type: 'vox' };
-      this.showToast(`💻 Arquivo "${file.name}" carregado do computador!`);
-      this.updateProjectsTree();
+      this.loadOpenedFileContent(file.name, file.name, content);
     };
     reader.readAsText(file);
+  }
+
+  loadOpenedFileContent(fileName, filePath, content) {
+    const ext = '.' + fileName.split('.').pop().toLowerCase();
+    const isVxf = ext === '.vxf';
+
+    if (isVxf) {
+      try {
+        const formObj = JSON.parse(content);
+        this.designer.form = formObj;
+        if (!this.designer.form.components) this.designer.form.components = [];
+        this.designer.syncIdCounter();
+        this.designer.renderForm();
+        this.syncCodeFromDesigner();
+        this.switchView('designer');
+      } catch (e) {
+        alert('Arquivo de formulário .vxf inválido: ' + e.message);
+        return;
+      }
+    } else {
+      if (this.editor) this.editor.setCode(content);
+      this.switchView('code');
+    }
+
+    if (this.currentProject && this.currentProject.units && !this.currentProject.units.includes(fileName)) {
+      this.currentProject.units.push(fileName);
+    }
+
+    this.openTab({
+      name: fileName,
+      path: filePath || fileName,
+      type: ext.slice(1),
+      isForm: isVxf,
+      content: content,
+      formState: isVxf ? JSON.parse(JSON.stringify(this.designer.form)) : null
+    });
+
+    const docTab = document.getElementById('docTabTitle');
+    if (docTab) docTab.innerText = fileName;
+    this.showToast(`💻 Arquivo "${fileName}" carregado do computador!`);
+    this.updateProjectsTree();
   }
 
   async openFormDialog() {
@@ -1853,7 +2524,7 @@ class VoxStudioApp {
     container.innerHTML = items.map((p) => {
       const isSelected = this.selectedOpenProject === p.name || this.selectedOpenProject === p.file;
       return `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#1e3a5f' : '#141820'}; border: 1px solid ${isSelected ? '#38bdf8' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
+        <div class="workspace-project-card" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#1e3a5f' : '#141820'}; border: 1px solid ${isSelected ? '#38bdf8' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
              onclick="window.app.selectOpenProjectCard('${p.file || p.name}')"
              ondblclick="window.app.selectOpenProjectCard('${p.file || p.name}'); window.app.confirmOpenProject();">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -1889,75 +2560,158 @@ class VoxStudioApp {
   }
 
   async openProject(projNameOrPath) {
-    const rawName = (typeof projNameOrPath === 'string') ? projNameOrPath.replace(/\.(dproj|vproj)$/, '').split(/[\/\\]/).pop() : (projNameOrPath.name || 'Projeto');
+    try {
+      this.showToast(`⏳ Carregando projeto ${projNameOrPath}...`);
+      const rawName = (typeof projNameOrPath === 'string') ? projNameOrPath.replace(/\.(dproj|vproj|dpr|vpr|json)$/i, '').split(/[\/\\]/).pop() : (projNameOrPath.name || 'Projeto');
 
-    // Se corresponder a um dos modelos principais, carrega seu conjunto
-    if (rawName.includes('ERP') || rawName === 'VoxERP_Comercial') {
-      this.currentProject = {
-        name: 'VoxERP_Comercial',
-        file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
-        folder: 'projetos/VoxERP_Comercial',
-        mainForm: 'FormERP',
-        units: ['FormERP.vox', 'FormERP.vxf', 'cliente_controller.vox', 'produto_controller.vox']
-      };
-      this.loadExampleTemplate('erpCompleto');
-    } else if (rawName.includes('Clientes') || rawName === 'Projeto_Clientes') {
-      this.currentProject = {
-        name: 'Projeto_Clientes',
-        file: 'clientes/Projeto_Clientes.dproj',
-        folder: 'clientes',
-        mainForm: 'Form1',
-        units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox', 'Form1.vox', 'Form1.vxf']
-      };
-      this.loadExampleTemplate('crudClientes');
-    } else if (rawName.includes('Sidebar') || rawName === 'Sistema_Sidebar') {
-      this.currentProject = {
-        name: 'Sistema_Sidebar',
-        file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
-        folder: 'projetos/Sistema_Sidebar',
-        mainForm: 'Form1',
-        units: ['Form1.vox', 'Form1.vxf']
-      };
-      this.loadExampleTemplate('sistemaSidebar');
-    } else if (rawName.includes('PDV') || rawName === 'PDV_FrenteDeCaixa') {
-      this.currentProject = {
-        name: 'PDV_FrenteDeCaixa',
-        file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
-        folder: 'projetos/PDV_FrenteDeCaixa',
-        mainForm: 'Form1',
-        units: ['pdv_controller.vox', 'pdv_model.vox', 'Form1.vox', 'Form1.vxf']
-      };
-      this.loadExampleTemplate('pdv');
-    } else if (rawName.includes('Calculadora') || rawName === 'Calculadora_RAD') {
-      this.currentProject = {
-        name: 'Calculadora_RAD',
-        file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
-        folder: 'projetos/Calculadora_RAD',
-        mainForm: 'Form1',
-        units: ['Form1.vox', 'Form1.vxf']
-      };
-      this.loadExampleTemplate('calculadora');
-    } else {
-      this.currentProject = {
-        name: rawName,
-        file: `${rawName}.dproj`,
-        folder: '.',
-        mainForm: 'Form1',
-        units: ['Form1.vox', 'Form1.vxf']
-      };
-      this.showToast(`📁 Projeto "${rawName}" aberto.`);
+      // Se corresponder a um dos modelos principais, carrega seu conjunto
+      if (rawName.includes('ERP') || rawName === 'VoxERP_Comercial') {
+        this.currentProject = {
+          name: 'VoxERP_Comercial',
+          file: 'projetos/VoxERP_Comercial/VoxERP_Comercial.dproj',
+          folder: 'projetos/VoxERP_Comercial',
+          mainForm: 'FormERP',
+          units: ['FormERP.vox', 'FormERP.vxf', 'cliente_controller.vox', 'produto_controller.vox']
+        };
+        this.loadExampleTemplate('erpCompleto');
+      } else if (rawName.includes('Clientes') || rawName === 'Projeto_Clientes') {
+        this.currentProject = {
+          name: 'Projeto_Clientes',
+          file: 'clientes/Projeto_Clientes.dproj',
+          folder: 'clientes',
+          mainForm: 'Form1',
+          units: ['cliente_controller.vox', 'cliente_model.vox', 'cliente_view.vox', 'Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('crudClientes');
+      } else if (rawName.includes('Sidebar') || rawName === 'Sistema_Sidebar') {
+        this.currentProject = {
+          name: 'Sistema_Sidebar',
+          file: 'projetos/Sistema_Sidebar/Sistema_Sidebar.dproj',
+          folder: 'projetos/Sistema_Sidebar',
+          mainForm: 'Form1',
+          units: ['Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('sistemaSidebar');
+      } else if (rawName.includes('PDV') || rawName === 'PDV_FrenteDeCaixa') {
+        this.currentProject = {
+          name: 'PDV_FrenteDeCaixa',
+          file: 'projetos/PDV_FrenteDeCaixa/PDV_FrenteDeCaixa.dproj',
+          folder: 'projetos/PDV_FrenteDeCaixa',
+          mainForm: 'Form1',
+          units: ['pdv_controller.vox', 'pdv_model.vox', 'Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('pdv');
+      } else if (rawName.includes('Calculadora') || rawName === 'Calculadora_RAD') {
+        this.currentProject = {
+          name: 'Calculadora_RAD',
+          file: 'projetos/Calculadora_RAD/Calculadora_RAD.dproj',
+          folder: 'projetos/Calculadora_RAD',
+          mainForm: 'Form1',
+          units: ['Form1.vox', 'Form1.vxf']
+        };
+        this.loadExampleTemplate('calculadora');
+      } else {
+        const projFilePath = (typeof projNameOrPath === 'string') ? projNameOrPath : (projNameOrPath.file || `${rawName}.dproj`);
+        const res = await fetch(`/api/project/read?file=${encodeURIComponent(projFilePath)}`);
+        const data = await res.json();
+        if (data.success && data.project) {
+          this.currentProject = data.project;
+        } else {
+          this.currentProject = {
+            name: rawName,
+            file: projFilePath,
+            folder: '.',
+            mainForm: 'Form1',
+            units: ['Form1.vox', 'Form1.vxf']
+          };
+        }
+
+        const mainVxf = (this.currentProject.units || []).find(u => u.endsWith('.vxf')) || `${this.currentProject.mainForm || 'Form1'}.vxf`;
+        const vxfPath = mainVxf.includes('/') ? mainVxf : `${this.currentProject.folder || 'forms'}/${mainVxf}`;
+        const loaded = await this.loadForm(vxfPath);
+        if (loaded) {
+          this.openTab({
+            name: mainVxf.split('/').pop(),
+            path: vxfPath,
+            type: 'vxf',
+            isForm: true
+          });
+        } else if (this.currentProject.units && this.currentProject.units.length > 0) {
+          const firstUnit = this.currentProject.units[0];
+          const unitPath = firstUnit.includes('/') ? firstUnit : `${this.currentProject.folder || '.'}/${firstUnit}`;
+          await this.openFile(unitPath);
+        }
+      }
+
+      this.updateProjectsTree();
+      this.showToast(`📁 Projeto "${this.currentProject.name}" carregado com sucesso!`);
+    } catch (err) {
+      console.error('Erro ao abrir projeto:', err);
+      this.showToast(`❌ Erro ao abrir projeto: ${err.message}`);
     }
+  }
 
-    this.updateProjectsTree();
-    this.showToast(`📁 Projeto "${this.currentProject.name}" carregado com sucesso!`);
+  async openLocalOsProject() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [
+            {
+              description: 'Projetos Delphi e Vox (.dproj, .vproj, .dpr, .vpr, .json)',
+              accept: {
+                'text/plain': ['.dproj', '.vproj', '.dpr', '.vpr'],
+                'application/json': ['.json']
+              }
+            }
+          ],
+          multiple: false
+        });
+        const file = await handle.getFile();
+        this.closeOpenProjectModal();
+        await this.openProject(file.name);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('showOpenFilePicker error, falling back to input:', err);
+      }
+    }
+    const input = document.getElementById('localOsProjectInput');
+    if (input) input.click();
   }
 
   handleLocalProjectOpen(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     this.closeOpenProjectModal();
-    const projName = file.name.replace(/\.(dproj|vproj|json)$/i, '');
-    this.openProject(projName);
+    const projName = file.name.replace(/\.(dproj|vproj|dpr|vpr|json)$/i, '');
+    this.openProject(file.name);
+  }
+
+  async openLocalOsGroup() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [
+            {
+              description: 'Grupos de Projetos (.groupproj, .vpg, .vgroup)',
+              accept: {
+                'text/plain': ['.groupproj', '.vpg', '.vgroup']
+              }
+            }
+          ],
+          multiple: false
+        });
+        const file = await handle.getFile();
+        this.closeOpenProjectGroupModal();
+        await this.openProjectGroup(file.name);
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('showOpenFilePicker error, falling back to input:', err);
+      }
+    }
+    const input = document.getElementById('localOsGroupInput');
+    if (input) input.click();
   }
 
   // --- 3. ABRIR GRUPO DE PROJETOS (.GROUPPROJ) ---
@@ -1987,7 +2741,7 @@ class VoxStudioApp {
       const isSelected = this.selectedOpenGroup === g.name || this.selectedOpenGroup === g.file;
       const projCount = g.projects ? g.projects.length : 2;
       return `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#2e1065' : '#141820'}; border: 1px solid ${isSelected ? '#c084fc' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
+        <div class="workspace-group-card" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: ${isSelected ? '#2e1065' : '#141820'}; border: 1px solid ${isSelected ? '#c084fc' : '#282f3a'}; border-radius: 4px; cursor: pointer;"
              onclick="window.app.selectOpenGroupCard('${g.file || g.name}')"
              ondblclick="window.app.selectOpenGroupCard('${g.file || g.name}'); window.app.confirmOpenProjectGroup();">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -2116,34 +2870,13 @@ class VoxStudioApp {
     }
   }
 
-  // --- 5. FECHAR (ARQUIVO / PROJETO / GRUPO DE PROJETOS) ---
+  // --- 5. FECHAR (ARQUIVO / PROJETO / GRUPO DE PROJETOS / SAIR) ---
   closeActiveFile() {
-    this.currentFile = null;
-
-    // Reseta editor para estado neutro
-    if (this.editor) {
-      this.editor.setCode('// Nenhum arquivo aberto.\n// Abra um arquivo pelo menu File > Abrir Arquivo (Ctrl+O) ou clique duas vezes em uma Unit no Gerenciador de Projetos.');
+    if (this.activeTabId) {
+      this.closeTab(this.activeTabId);
+    } else {
+      this.showToast('ℹ️ Nenhum arquivo ativo para fechar.');
     }
-
-    // Reseta designer
-    this.designer.form = {
-      name: 'SemForm',
-      title: 'Nenhum Formulário Aberto',
-      width: 680,
-      height: 440,
-      components: []
-    };
-    this.designer.syncIdCounter();
-    this.designer.renderForm();
-
-    const docTab = document.getElementById('docTabTitle');
-    if (docTab) docTab.innerText = '(Nenhum arquivo)';
-
-    if (this.inspector) this.inspector.update(null);
-    this.updateStructureTree();
-    this.updateProjectsTree();
-
-    this.showToast('❌ Arquivo/Unit fechado com sucesso.');
   }
 
   closeFormWindow() {
@@ -2152,8 +2885,16 @@ class VoxStudioApp {
 
   closeCurrentProject() {
     const projName = this.currentProject ? this.currentProject.name : 'Projeto';
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    if (dirty.length > 0) {
+      if (!confirm(`Existem ${dirty.length} arquivos com alterações não salvas. Deseja fechar o projeto mesmo assim?`)) {
+        return;
+      }
+    }
+
     this.currentProject = null;
-    this.closeActiveFile();
+    this.currentProjectGroup = null;
+    this.closeAllFiles();
 
     const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
     if (headerTitle) headerTitle.textContent = 'Projects - Nenhum Projeto Aberto';
@@ -2164,15 +2905,43 @@ class VoxStudioApp {
 
   closeProjectGroup() {
     const groupName = this.currentProjectGroup ? this.currentProjectGroup.name : 'Grupo de Projetos';
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    if (dirty.length > 0) {
+      if (!confirm(`Existem ${dirty.length} arquivos com alterações não salvas. Deseja fechar o grupo mesmo assim?`)) {
+        return;
+      }
+    }
+
     this.currentProjectGroup = null;
     this.currentProject = null;
-    this.closeActiveFile();
+    this.closeAllFiles();
 
     const headerTitle = document.getElementById('projHeaderTitle') || document.querySelector('.projects-panel .panel-header span');
     if (headerTitle) headerTitle.textContent = 'Projects - Vazio';
 
     this.updateProjectsTree();
     this.showToast(`📦❌ Grupo de Projetos "${groupName}" fechado com sucesso.`);
+  }
+
+  exitApp() {
+    const dirty = (this.openTabs || []).filter(t => t.isDirty);
+    const msg = dirty.length > 0
+      ? `Existem ${dirty.length} arquivos com alterações não salvas. Deseja realmente sair do Vox Studio?`
+      : 'Deseja realmente encerrar a sessão do Vox Studio RAD IDE?';
+
+    if (confirm(msg)) {
+      this.showToast('👋 Encerrando Vox Studio RAD IDE...');
+      setTimeout(() => {
+        window.close();
+        document.body.innerHTML = `
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0f172a; color:#f8fafc; font-family:sans-serif; text-align:center;">
+            <div style="font-size:48px; margin-bottom:16px;">⚡ Vox Studio RAD IDE</div>
+            <p style="color:#94a3b8; font-size:16px;">Sessão encerrada com sucesso.</p>
+            <button onclick="location.reload()" style="margin-top:20px; padding:10px 24px; background:#0284c7; color:#fff; border:none; border-radius:4px; font-weight:600; cursor:pointer;">Reiniciar Vox Studio</button>
+          </div>
+        `;
+      }, 400);
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -2212,8 +2981,54 @@ class VoxStudioApp {
     }
   }
 
-  saveForm() {
-    this.openSaveDialog();
+  async saveForm() {
+    const curTab = this.getActiveTab();
+    if (!curTab || !curTab.path || (curTab.path.startsWith('forms/Form1') && !this.lastSavedFolder)) {
+      return this.openSaveDialog();
+    }
+
+    try {
+      this.showToast(`💾 Salvando "${curTab.name}"...`);
+      if (curTab.isForm) {
+        const vxfContent = JSON.stringify(this.designer.form, null, 2);
+        const vxfPath = curTab.path.endsWith('.vxf') ? curTab.path : curTab.path.replace(/\.[^.]+$/, '.vxf');
+        const resVxf = await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: vxfPath, content: vxfContent })
+        });
+        const dVxf = await resVxf.json();
+        if (!dVxf.success) throw new Error(dVxf.error || 'Erro ao salvar formulário');
+
+        const voxCode = window.VoxCodeGen ? window.VoxCodeGen.generateVoxCode(this.designer.form) : (this.editor ? this.editor.getCode() : '');
+        const voxPath = vxfPath.replace(/\.vxf$/, '.vox');
+        await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: voxPath, content: voxCode })
+        });
+
+        curTab.isDirty = false;
+        this.renderTabs();
+        this.showToast(`💾 Formulário "${this.designer.form.name}" e Unit salvos com sucesso!`);
+      } else {
+        const content = this.editor ? this.editor.getCode() : curTab.content;
+        const res = await fetch('/api/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: curTab.path, content })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Erro ao salvar arquivo');
+
+        curTab.isDirty = false;
+        curTab.content = content;
+        this.renderTabs();
+        this.showToast(`💾 Arquivo "${curTab.name}" salvo com sucesso!`);
+      }
+    } catch (err) {
+      alert('Falha ao salvar: ' + err.message);
+    }
   }
 
   async openSaveDialog() {
@@ -2336,6 +3151,23 @@ class VoxStudioApp {
         this.designer.form.title = data.formName;
         const titleEl = document.getElementById('formTitleText');
         if (titleEl) titleEl.innerText = data.formName;
+
+        // Atualizar aba no gerenciador de abas
+        const curTab = this.getActiveTab();
+        if (curTab) {
+          curTab.name = `${data.formName}.vxf`;
+          curTab.path = data.vxfRel || `${data.folder}/${data.formName}.vxf`;
+          curTab.isDirty = false;
+        } else {
+          this.openTab({
+            name: `${data.formName}.vxf`,
+            path: data.vxfRel || `${data.folder}/${data.formName}.vxf`,
+            type: 'vxf',
+            isForm: true,
+            isDirty: false
+          });
+        }
+        this.renderTabs();
 
         // Atualizar título da aba superior
         const docTab = document.getElementById('docTabTitle');

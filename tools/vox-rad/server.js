@@ -306,11 +306,20 @@ const server = http.createServer(async (req, res) => {
           const ext = path.extname(ent.name).toLowerCase();
           const base = path.basename(ent.name, ext);
 
-          if (ext === '.vox' || ext === '.vxf') {
+          const codeExtensions = new Set(['.vox', '.vxf', '.pas', '.dfm', '.js', '.ts', '.json', '.sql', '.txt', '.html', '.css']);
+          const projectExtensions = new Set(['.dproj', '.vproj', '.dpr', '.vpr']);
+          const groupExtensions = new Set(['.groupproj', '.vpg', '.vgroup']);
+
+          if (codeExtensions.has(ext)) {
             let category = 'Unit';
-            if (relPath.includes('controller') || ent.name.endsWith('_controller.vox')) category = 'Controller';
+            if (ext === '.pas') category = 'Pascal Unit (.pas)';
+            else if (ext === '.dfm') category = 'Delphi Form (.dfm)';
+            else if (relPath.includes('controller') || ent.name.endsWith('_controller.vox')) category = 'Controller';
             else if (relPath.includes('model') || ent.name.endsWith('_model.vox')) category = 'Model';
             else if (relPath.includes('view') || ent.name.endsWith('_view.vox') || ext === '.vxf') category = 'View / Form';
+            else if (ext === '.js' || ext === '.ts') category = 'Script (' + ext + ')';
+            else if (ext === '.sql') category = 'Banco / SQL';
+            else if (ext === '.json') category = 'JSON Config';
             else if (relPath.includes('example')) category = 'Exemplo';
             else if (base.startsWith('Form') || fs.existsSync(fullPath.replace(/\.vox$/, '.vxf'))) category = 'Form Unit';
 
@@ -325,7 +334,7 @@ const server = http.createServer(async (req, res) => {
               category,
               size
             });
-          } else if (ext === '.dproj' || ext === '.vproj') {
+          } else if (projectExtensions.has(ext) || (ext === '.json' && (base.toLowerCase().includes('project') || base.toLowerCase().includes('proj')))) {
             projects.push({
               name: base,
               folder: path.dirname(relPath),
@@ -333,11 +342,12 @@ const server = http.createServer(async (req, res) => {
               type: ext.slice(1),
               description: `Projeto ${base}`
             });
-          } else if (ext === '.groupproj' || ext === '.vgroup') {
+          } else if (groupExtensions.has(ext)) {
             groups.push({
               name: base,
               file: relPath,
-              type: ext.slice(1)
+              type: ext.slice(1),
+              description: `Grupo de Projetos ${base}`
             });
           }
         }
@@ -491,6 +501,76 @@ const server = http.createServer(async (req, res) => {
         success: true,
         filePath: path.relative(WORKSPACE_DIR, targetPath).replace(/\\/g, '/'),
         message: `Arquivo salvo com sucesso!`
+      });
+    } catch (err) {
+      return sendJson(res, 500, { success: false, error: err.message });
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API: Ler e Estruturar Projeto (.dproj, .vproj, .dpr, .vpr, .json)
+  // --------------------------------------------------------------------------
+  if (pathname === '/api/project/read' && req.method === 'GET') {
+    try {
+      const relFile = urlObj.searchParams.get('file') || '';
+      if (!relFile) {
+        return sendJson(res, 400, { success: false, error: 'Parâmetro file é obrigatório' });
+      }
+      const targetPath = path.resolve(WORKSPACE_DIR, relFile);
+      if (!targetPath.startsWith(path.resolve(WORKSPACE_DIR))) {
+        return sendJson(res, 400, { success: false, error: 'Acesso negado fora do workspace' });
+      }
+
+      let projFolder = targetPath;
+      let projFile = targetPath;
+      if (path.extname(targetPath)) {
+        projFolder = path.dirname(targetPath);
+      } else if (fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()) {
+        projFolder = targetPath;
+        const potentialProjs = fs.readdirSync(projFolder).filter(f => /\.(dproj|vproj|dpr|vpr)$/i.test(f));
+        if (potentialProjs.length > 0) projFile = path.join(projFolder, potentialProjs[0]);
+      }
+
+      const ext = path.extname(projFile).toLowerCase();
+      const projName = path.basename(projFile, ext) || path.basename(projFolder);
+      const units = [];
+      let mainForm = 'Form1';
+
+      // Escanear pasta do projeto em busca de units e formulários
+      if (fs.existsSync(projFolder)) {
+        try {
+          const files = fs.readdirSync(projFolder);
+          for (const f of files) {
+            const fExt = path.extname(f).toLowerCase();
+            if (['.vox', '.vxf', '.pas', '.dfm', '.js', '.ts'].includes(fExt)) {
+              units.push(f);
+              if (fExt === '.vxf' && !mainForm) {
+                mainForm = path.basename(f, fExt);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Se nenhum form foi achado na pasta, tenta achar nas units
+      const vxfFound = units.find(u => u.endsWith('.vxf'));
+      if (vxfFound) {
+        mainForm = path.basename(vxfFound, '.vxf');
+      }
+
+      if (units.length === 0) {
+        units.push(`${mainForm}.vox`, `${mainForm}.vxf`);
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        project: {
+          name: projName,
+          file: path.relative(WORKSPACE_DIR, projFile).replace(/\\/g, '/'),
+          folder: path.relative(WORKSPACE_DIR, projFolder).replace(/\\/g, '/'),
+          mainForm,
+          units
+        }
       });
     } catch (err) {
       return sendJson(res, 500, { success: false, error: err.message });

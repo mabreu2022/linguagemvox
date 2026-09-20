@@ -424,37 +424,87 @@ body {
   overflow: hidden;
 }
 
-/* Aba superior do Documento: Unit1 ● */
+/* Aba superior do Documento: Multi-Tabs Delphi Style */
 .document-tab-bar {
   height: 28px;
   background: var(--delphi-bg-darkest);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   border-bottom: 1px solid var(--delphi-border-dark);
   padding: 0 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 2px;
+}
+.document-tab-bar::-webkit-scrollbar {
+  height: 2px;
+}
+.document-tab-bar::-webkit-scrollbar-thumb {
+  background: #334155;
 }
 
 .doc-tab {
-  height: 27px;
-  background: var(--delphi-bg-dark);
+  height: 26px;
+  background: #161a22;
   border: 1px solid var(--delphi-border-dark);
   border-bottom: none;
-  border-top: 2px solid var(--delphi-blue);
-  color: #ffffff;
-  padding: 0 12px;
+  border-top: 2px solid transparent;
+  color: #94a3b8;
+  padding: 0 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: all 0.12s ease;
+}
+
+.doc-tab:hover {
+  background: #1e2430;
+  color: #f1f5f9;
+}
+
+.doc-tab.active {
+  background: var(--delphi-bg-dark);
+  border-color: var(--delphi-border-dark);
+  border-top: 2px solid var(--delphi-blue);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .doc-tab-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--delphi-blue-light);
+  background: transparent;
+  display: none;
+}
+
+.doc-tab.dirty .doc-tab-dot {
+  display: inline-block;
+  background: #f59e0b;
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.6);
+}
+
+.doc-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  color: #64748b;
+  border-radius: 2px;
+  margin-left: 2px;
+  transition: all 0.15s ease;
+}
+
+.doc-tab-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 /* Área do Designer */
@@ -1659,8 +1709,15 @@ body:not(.theme-light) .vcl-checklist-item {
 }
 
 .delphi-menu-item:hover .delphi-menu-dropdown,
-.delphi-menu-item.active .delphi-menu-dropdown {
+.delphi-menu-item.active .delphi-menu-dropdown,
+.delphi-menu-item.open .delphi-menu-dropdown {
   display: flex;
+}
+
+.delphi-menu-item.open,
+.delphi-menu-item.active {
+  background: var(--delphi-bg-panel-hover);
+  color: #ffffff;
 }
 
 .delphi-menu-dropdown-item {

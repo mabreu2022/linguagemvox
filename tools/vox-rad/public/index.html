@@ -18,26 +18,30 @@
   <div class="delphi-menubar">
     <!-- File Menu -->
     <!-- File Menu (Delphi Standard) -->
-    <div class="delphi-menu-item">
+    <div class="delphi-menu-item" id="menuItemFile">
       <span>File</span>
       <div class="delphi-menu-dropdown">
-        <div class="delphi-menu-dropdown-item" onclick="window.app.newForm()"><span>📄 Novo Formulário</span><span class="shortcut">Ctrl+N</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.newForm()"><span>📄 Novo Formulário (New Form)</span><span class="shortcut">Ctrl+N</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.newUnit()"><span>📝 Nova Unit / Código Fonte...</span><span class="shortcut">Ctrl+Shift+N</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openNewClassModal()"><span>🏛️ Nova Classe / Unit...</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openCreateFromExampleModal()"><span>📦 Novo Projeto a partir de Exemplo...</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.newProject()"><span>📦 Novo Projeto em Branco</span></div>
         <div class="menu-sep"></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openFileDialog()"><span>📂 Abrir Arquivo (Unit, Classe, Form)...</span><span class="shortcut">Ctrl+O</span></div>
-        <div class="delphi-menu-dropdown-item" onclick="window.app.openProjectDialog()"><span>📁 Abrir Projeto... (.dproj / .vproj)</span><span class="shortcut">Ctrl+Shift+O</span></div>
-        <div class="delphi-menu-dropdown-item" onclick="window.app.openProjectGroupDialog()"><span>📦 Abrir Grupo de Projetos... (.groupproj)</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openProjectDialog()"><span>📁 Abrir Projeto... (.dproj / .vproj / .dpr)</span><span class="shortcut">Ctrl+Shift+O</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openProjectGroupDialog()"><span>📦 Abrir Grupo de Projetos... (.groupproj / .vpg)</span></div>
         <div class="menu-sep"></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.saveForm()"><span>💾 Salvar (Save)</span><span class="shortcut">Ctrl+S</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openSaveDialog()"><span>💾 Salvar Como... (Save As)</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.openSaveProjectAsModal()"><span>📁💾 Salvar Projeto Como...</span></div>
-        <div class="delphi-menu-dropdown-item" onclick="window.app.saveAll()"><span>📁💾 Salvar Tudo</span><span class="shortcut">Ctrl+Shift+S</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.saveAll()"><span>📁💾 Salvar Tudo (Save All)</span><span class="shortcut">Ctrl+Shift+S</span></div>
         <div class="menu-sep"></div>
-        <div class="delphi-menu-dropdown-item" onclick="window.app.closeActiveFile()"><span>❌ Fechar Arquivo / Formulário</span><span class="shortcut">Ctrl+F4</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.closeActiveFile()"><span>❌ Fechar Arquivo / Aba</span><span class="shortcut">Ctrl+F4</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.closeAllFiles()"><span>❌ Fechar Todos os Arquivos (Close All)</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.closeCurrentProject()"><span>🚪 Fechar Projeto</span></div>
         <div class="delphi-menu-dropdown-item" onclick="window.app.closeProjectGroup()"><span>📦❌ Fechar Grupo de Projetos</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.exitApp()"><span>🚪 Sair do Vox Studio (Exit)</span><span class="shortcut">Alt+F4</span></div>
       </div>
     </div>
 
@@ -360,12 +364,12 @@
     <!-- ── COLUNA CENTRAL: FORM DESIGNER / CODE VIEW ──────────────────────── -->
     <div class="center-dock-column">
 
-      <!-- Aba do Documento no Topo: Unit1 ● -->
-      <div class="document-tab-bar">
-        <div class="doc-tab">
+      <!-- Abas dos Documentos no Topo: Multi-Tabs Delphi Style -->
+      <div class="document-tab-bar" id="documentTabBar">
+        <div class="doc-tab active" data-tab-id="tab_default" onclick="window.app.switchTab('tab_default')">
           <div class="doc-tab-dot"></div>
           <span id="docTabTitle">Unit1.vox</span>
-          <span style="font-size: 10px; color: #9aa7b8;">✕</span>
+          <span class="doc-tab-close" onclick="event.stopPropagation(); window.app.closeTab('tab_default')">✕</span>
         </div>
       </div>
 
@@ -855,7 +859,12 @@ classe vox_CardDestaque herda vox_Panel {
         </div>
         <button class="tool-btn" onclick="window.app.closeNewProjectModal()" style="height: 22px; padding: 0 8px;">✕</button>
       </div>
-      <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #cbd5e1;">Nome do Projeto:</label>
+          <input type="text" id="newProjectNameInput" value="Project1" style="width: 100%; box-sizing: border-box; background: #141820; border: 1px solid #282f3a; color: #f8fafc; padding: 6px 10px; border-radius: 4px; font-size: 12px; outline: none;" placeholder="Ex: Project1">
+        </div>
+
         <div class="save-path-banner">
           <span>🎯 Escolha o layout inicial do menu para o seu projeto:</span>
         </div>
@@ -1407,11 +1416,12 @@ classe vox_CardDestaque herda vox_Panel {
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px; padding: 14px;">
         <!-- Filtros e Busca -->
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <div style="display: flex; gap: 4px;" id="openFileFilterTabs">
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="openFileFilterTabs">
             <button class="tool-btn active" id="btnFilterAll" onclick="window.app.filterOpenFileCategory('all', this)" style="padding: 3px 10px; font-size: 11px;">Todos</button>
-            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Unit', this)" style="padding: 3px 10px; font-size: 11px;">Units (.vox)</button>
+            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Unit', this)" style="padding: 3px 10px; font-size: 11px;">Units (.vox, .pas)</button>
+            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('View / Form', this)" style="padding: 3px 10px; font-size: 11px;">Formulários (.vxf, .dfm)</button>
             <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Controller', this)" style="padding: 3px 10px; font-size: 11px;">Controllers & Models</button>
-            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('View / Form', this)" style="padding: 3px 10px; font-size: 11px;">Formulários (.vxf)</button>
+            <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Script', this)" style="padding: 3px 10px; font-size: 11px;">Scripts (.js, .ts)</button>
             <button class="tool-btn" onclick="window.app.filterOpenFileCategory('Exemplo', this)" style="padding: 3px 10px; font-size: 11px;">Exemplos</button>
           </div>
           <div style="flex: 1; max-width: 260px; position: relative;">
@@ -1426,7 +1436,7 @@ classe vox_CardDestaque herda vox_Panel {
               <tr style="background: #1a1e27; border-bottom: 1px solid #282f3a; color: #94a3b8; font-weight: 600; position: sticky; top: 0; z-index: 2;">
                 <th style="padding: 6px 10px; width: 30px;"></th>
                 <th style="padding: 6px 10px;">Nome do Arquivo</th>
-                <th style="padding: 6px 10px; width: 130px;">Categoria</th>
+                <th style="padding: 6px 10px; width: 140px;">Categoria</th>
                 <th style="padding: 6px 10px;">Caminho no Workspace</th>
                 <th style="padding: 6px 10px; width: 80px; text-align: right;">Tamanho</th>
               </tr>
@@ -1444,8 +1454,8 @@ classe vox_CardDestaque herda vox_Panel {
             <input type="text" id="selectedOpenFilePath" class="delphi-prop-input" placeholder="Selecione na lista ou digite o caminho..." style="flex: 1; height: 26px; font-family: monospace;">
           </div>
           <div>
-            <input type="file" id="localOsFileInput" accept=".vox,.vxf,.pas,.txt" style="display: none;" onchange="window.app.handleLocalFileOpen(event)">
-            <button class="tool-btn" onclick="document.getElementById('localOsFileInput').click()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Do Computador...</button>
+            <input type="file" id="localOsFileInput" accept=".vox,.vxf,.pas,.dfm,.js,.ts,.json,.txt,.sql,.html,.css" style="display: none;" onchange="window.app.handleLocalFileOpen(event)">
+            <button class="tool-btn" onclick="window.app.openLocalOsFile()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Do Computador...</button>
           </div>
         </div>
 
@@ -1467,7 +1477,7 @@ classe vox_CardDestaque herda vox_Panel {
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="color: #38bdf8; font-size: 16px;">📁</span>
-          <span style="font-weight: 700;">Abrir Projeto Delphi / Vox (.dproj / .vproj)</span>
+          <span style="font-weight: 700;">Abrir Projeto Delphi / Vox (.dproj / .vproj / .dpr / .json)</span>
         </div>
         <button class="tool-btn" onclick="window.app.closeOpenProjectModal()" style="height: 22px; padding: 0 8px;">✕</button>
       </div>
@@ -1487,13 +1497,13 @@ classe vox_CardDestaque herda vox_Panel {
             <input type="text" id="selectedOpenProjPath" class="delphi-prop-input" placeholder="Caminho do arquivo .dproj..." style="flex: 1; height: 26px; font-family: monospace;">
           </div>
           <div>
-            <input type="file" id="localOsProjectInput" accept=".dproj,.vproj,.json" style="display: none;" onchange="window.app.handleLocalProjectOpen(event)">
-            <button class="tool-btn" onclick="document.getElementById('localOsProjectInput').click()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Buscar no Disco...</button>
+            <input type="file" id="localOsProjectInput" accept=".dproj,.vproj,.vpr,.dpr,.json" style="display: none;" onchange="window.app.handleLocalProjectOpen(event)">
+            <button class="tool-btn" onclick="window.app.openLocalOsProject()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Buscar no Disco...</button>
           </div>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #282f3a;">
-          <span style="font-size: 10.5px; color: #64748b;">Formatos: .dproj, .vproj, projetos com formulários Vox</span>
+          <span style="font-size: 10.5px; color: #64748b;">Formatos: .dproj, .vproj, .vpr, .dpr, .json</span>
           <div style="display: flex; gap: 8px;">
             <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeOpenProjectModal()">Cancelar</button>
             <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmOpenProject()">📁 Abrir Projeto</button>
@@ -1509,7 +1519,7 @@ classe vox_CardDestaque herda vox_Panel {
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="color: #c084fc; font-size: 16px;">📦</span>
-          <span style="font-weight: 700;">Abrir Grupo de Projetos (.groupproj / .vgroup)</span>
+          <span style="font-weight: 700;">Abrir Grupo de Projetos (.groupproj / .vpg / .vgroup)</span>
         </div>
         <button class="tool-btn" onclick="window.app.closeOpenProjectGroupModal()" style="height: 22px; padding: 0 8px;">✕</button>
       </div>
@@ -1528,8 +1538,8 @@ classe vox_CardDestaque herda vox_Panel {
             <input type="text" id="selectedOpenGroupPath" class="delphi-prop-input" placeholder="Caminho do arquivo .groupproj..." style="flex: 1; height: 26px; font-family: monospace;">
           </div>
           <div>
-            <input type="file" id="localOsGroupInput" accept=".groupproj,.vgroup" style="display: none;" onchange="window.app.handleLocalGroupOpen(event)">
-            <button class="tool-btn" onclick="document.getElementById('localOsGroupInput').click()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Buscar no Disco...</button>
+            <input type="file" id="localOsGroupInput" accept=".groupproj,.vpg,.vgroup" style="display: none;" onchange="window.app.handleLocalGroupOpen(event)">
+            <button class="tool-btn" onclick="window.app.openLocalOsGroup()" style="height: 26px; padding: 0 10px; font-size: 11px;">💻 Buscar no Disco...</button>
           </div>
         </div>
 
