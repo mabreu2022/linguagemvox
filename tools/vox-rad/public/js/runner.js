@@ -45,6 +45,54 @@ class VoxFormRunner {
     this.renderLiveForm(formState);
   }
 
+  computeAlignments(components, width, height) {
+    const nonVisual = [
+      'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
+      'TDataSource', 'TFDConnection', 'TFDQuery'
+    ];
+    let clientRect = { left: 0, top: 0, right: width, bottom: height - 28 };
+    const visual = (components || []).filter(c => !nonVisual.includes(c.type));
+
+    const mainMenu = visual.find(c => c.type === 'vox_MainMenu');
+    if (mainMenu) {
+      if (mainMenu.props && mainMenu.props.Layout === 'Left') {
+        mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = 180; mainMenu.height = clientRect.bottom;
+        clientRect.left = 180;
+      } else {
+        mainMenu.left = 0; mainMenu.top = 0; mainMenu.width = width; mainMenu.height = 38;
+        clientRect.top = 38;
+      }
+    }
+
+    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alTop').forEach(c => {
+      c.left = clientRect.left; c.top = clientRect.top; c.width = Math.max(20, clientRect.right - clientRect.left);
+      clientRect.top += (parseInt(c.height, 10) || 30);
+    });
+
+    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alBottom').forEach(c => {
+      c.left = clientRect.left; c.width = Math.max(20, clientRect.right - clientRect.left);
+      const h = parseInt(c.height, 10) || 30; clientRect.bottom -= h;
+      c.top = Math.max(clientRect.top, clientRect.bottom);
+    });
+
+    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alLeft').forEach(c => {
+      c.left = clientRect.left; c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
+      const w = parseInt(c.width, 10) || 120; clientRect.left += w;
+    });
+
+    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alRight').forEach(c => {
+      c.top = clientRect.top; c.height = Math.max(20, clientRect.bottom - clientRect.top);
+      const w = parseInt(c.width, 10) || 120; clientRect.right -= w;
+      c.left = Math.max(clientRect.left, clientRect.right);
+    });
+
+    visual.filter(c => c !== mainMenu && c.props && c.props.Align === 'alClient').forEach(c => {
+      c.left = clientRect.left; c.top = clientRect.top;
+      c.width = Math.max(20, clientRect.right - clientRect.left);
+      c.height = Math.max(20, clientRect.bottom - clientRect.top);
+    });
+  }
+
   renderLiveForm(formState) {
     const width = formState.width || 680;
     const height = formState.height || 480;
@@ -87,6 +135,9 @@ class VoxFormRunner {
       'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
       'TDataSource', 'TFDConnection', 'TFDQuery'
     ];
+
+    // Recalcular posições alinhadas (alTop, alBottom, alLeft, alRight, alClient)
+    this.computeAlignments(formState.components, width, height);
 
     formState.components.forEach(comp => {
       // Ignorar componentes não-visuais

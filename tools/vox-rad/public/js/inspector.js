@@ -350,14 +350,27 @@ class VoxObjectInspector {
         window.app.designer.form.title = value;
       }
       window.app.designer.renderForm();
+      if (window.app) window.app.onFormChanged();
     } else if (type === 'comp') {
       if (this.target) {
         this.target[key] = value;
         window.app.designer.updateComponentElement(this.target);
+        if (['left', 'top', 'width', 'height'].includes(key)) {
+          window.app.designer.recalculateAlignments(false);
+          if (window.app) window.app.onFormChanged();
+        }
       }
     } else if (type === 'custom') {
       if (this.target) {
         this.target.props[key] = value;
+        if (key === 'Align') {
+          if (window.app && window.app.designer) {
+            window.app.designer.recalculateAlignments(false);
+            window.app.onFormChanged();
+          }
+          this.render();
+          return;
+        }
         if (this.target.type === 'vox_MainMenu' && key === 'Layout') {
           const form = window.app.designer.form;
           if (value === 'Left') {

@@ -36,9 +36,19 @@ class VoxStudioApp {
     this.initSaveDialogEvents();
     this.checkServerStatus();
 
-    // Carregar template inicial
-    this.loadTemplate('crudClientes');
+    // Iniciar com Formulário Vazio padrão Delphi (com espaço visível de 700x480)
+    this.designer.form = {
+      name: 'Form1',
+      title: 'Form1',
+      width: 700,
+      height: 480,
+      components: []
+    };
+    this.designer.selectedComponent = null;
+    this.designer.renderForm();
+    this.inspector.update(null);
     this.updateStructureTree();
+    this.syncCodeFromDesigner();
   }
 
   // --------------------------------------------------------------------------
@@ -47,7 +57,13 @@ class VoxStudioApp {
   initPalette() {
     const accordion = document.getElementById('paletteAccordion');
     const searchInput = document.getElementById('paletteSearchInput');
+    const clearBtn = document.getElementById('paletteSearchClear');
     if (!accordion) return;
+
+    // Limpar qualquer preenchimento automático indevido do navegador
+    if (searchInput) {
+      searchInput.value = '';
+    }
 
     // Categorias padrão com ordenação fixa e suporte a categorias dinâmicas (Custom, Dialogs, etc.)
     const defaultOrder = ['Standard', 'Additional', 'Win32', 'Data Access', 'Data Controls', 'Dialogs', 'Custom'];
@@ -63,15 +79,25 @@ class VoxStudioApp {
 
     const renderPalette = (filter = '') => {
       accordion.innerHTML = '';
+      const filterTrim = (filter || '').trim().toLowerCase();
+
+      if (clearBtn) {
+        clearBtn.style.display = filterTrim ? 'block' : 'none';
+      }
+
+      let totalMatched = 0;
+
       allCats.forEach(cat => {
         const comps = Object.values(window.VOX_COMPONENTS).filter(c => {
           const matchCat = (c.category || 'Standard') === cat;
-          const matchFilter = !filter || c.name.toLowerCase().includes(filter.toLowerCase()) || (c.label && c.label.toLowerCase().includes(filter.toLowerCase()));
+          const matchFilter = !filterTrim || 
+            c.name.toLowerCase().includes(filterTrim) || 
+            (c.label && c.label.toLowerCase().includes(filterTrim));
           return matchCat && matchFilter;
         });
 
-        if (comps.length === 0 && filter) return;
-        if (comps.length === 0 && !filter) return;
+        if (comps.length === 0) return;
+        totalMatched += comps.length;
 
         const groupDiv = document.createElement('div');
         groupDiv.className = 'palette-group';
@@ -115,6 +141,19 @@ class VoxStudioApp {
         groupDiv.appendChild(itemsDiv);
         accordion.appendChild(groupDiv);
       });
+
+      // Se nenhum componente foi encontrado no filtro
+      if (totalMatched === 0 && filterTrim) {
+        accordion.innerHTML = `
+          <div style="padding: 20px 12px; text-align: center; color: #94a3b8; font-size: 11.5px; line-height: 1.5;">
+            <div>🔍 Nenhum componente encontrado para:</div>
+            <div style="color: #38bdf8; font-weight: 600; margin: 4px 0; word-break: break-all;">"${filter}"</div>
+            <button onclick="window.app.clearPaletteSearch()" class="tool-btn" style="margin-top: 10px; padding: 4px 12px; font-size: 11px; background: #0078d4; color: #ffffff; border-radius: 3px; cursor: pointer;">
+              ✕ Limpar Filtro
+            </button>
+          </div>
+        `;
+      }
     };
 
     renderPalette();
@@ -123,7 +162,25 @@ class VoxStudioApp {
       searchInput.oninput = (e) => {
         renderPalette(e.target.value);
       };
+
+      // Forçar limpeza caso o navegador tente preencher credenciais após carregar
+      setTimeout(() => {
+        if (searchInput.value && !window.VOX_COMPONENTS[searchInput.value]) {
+          if (searchInput.value.includes('@')) {
+            searchInput.value = '';
+            renderPalette('');
+          }
+        }
+      }, 600);
     }
+  }
+
+  clearPaletteSearch() {
+    const searchInput = document.getElementById('paletteSearchInput');
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    this.initPalette();
   }
 
   // --------------------------------------------------------------------------
@@ -1960,6 +2017,11 @@ class VoxStudioApp {
       .replace(/\n\n/gim, '<br><br>');
 
     // Envolver tabelas
+    html = html.replace(/(<tr>[\s\S]+?<\/tr>)+/gim, '<div style="overflow-x: auto;"><table class="book-table">$&</table></div>');
+
+    return html;
+  }
+
   // --------------------------------------------------------------------------
   // 15. Assistente de Criação de Classes Vox (Class Wizard & MVC)
   // --------------------------------------------------------------------------

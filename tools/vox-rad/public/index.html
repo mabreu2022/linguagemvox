@@ -323,7 +323,7 @@
       <!-- Visão 1: Designer Visual Canvas -->
       <div class="delphi-designer-container" id="designerContainer">
         <!-- Janela do Formulário Delphi -->
-        <div class="delphi-form-window" id="delphiFormWindow">
+        <div class="delphi-form-window" id="delphiFormWindow" style="width: 700px; height: 480px; min-width: 200px; min-height: 140px;">
           <div class="delphi-form-titlebar" id="formTitlebar">
             <div class="delphi-form-title">
               <span class="delphi-form-icon"></span>
@@ -471,9 +471,10 @@
           </div>
         </div>
 
-        <!-- Caixa de Busca da Paleta -->
-        <div class="palette-search-container">
-          <input type="text" class="palette-search-input" id="paletteSearchInput" placeholder="🔍 Search Palette...">
+        <!-- Caixa de Busca da Paleta com Proteção Anti-Autofill e Botão Limpar -->
+        <div class="palette-search-container" style="position: relative; display: flex; align-items: center;">
+          <input type="text" class="palette-search-input" id="paletteSearchInput" placeholder="🔍 Filtrar Paleta..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" name="vox_palette_search_field">
+          <button id="paletteSearchClear" onclick="window.app.clearPaletteSearch()" title="Limpar busca" style="display: none; position: absolute; right: 6px; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 11px; padding: 2px 4px;">✕</button>
         </div>
 
         <!-- Categorias Accordion da Paleta -->
@@ -1165,15 +1166,15 @@ classe vox_CardDestaque herda vox_Panel {
     </div>
   </div>
 
-  <!-- Scripts da Aplicação (Com Cache Buster v=3.5) -->
-  <script src="js/components.js?v=3.5"></script>
-  <script src="js/codegen.js?v=3.5"></script>
-  <script src="js/templates.js?v=3.5"></script>
-  <script src="js/designer.js?v=3.5"></script>
-  <script src="js/inspector.js?v=3.5"></script>
-  <script src="js/editor.js?v=3.5"></script>
-  <script src="js/debugger.js?v=3.5"></script>
-  <script src="js/runner.js?v=3.5"></script>
-  <script src="js/app.js?v=3.5"></script>
+  <!-- Scripts da Aplicação (Com Cache Buster v=3.6) -->
+  <script src="js/components.js?v=3.6"></script>
+  <script src="js/codegen.js?v=3.6"></script>
+  <script src="js/templates.js?v=3.6"></script>
+  <script src="js/designer.js?v=3.6"></script>
+  <script src="js/inspector.js?v=3.6"></script>
+  <script src="js/editor.js?v=3.6"></script>
+  <script src="js/debugger.js?v=3.6"></script>
+  <script src="js/runner.js?v=3.6"></script>
+  <script src="js/app.js?v=3.6"></script>
 </body>
 </html>

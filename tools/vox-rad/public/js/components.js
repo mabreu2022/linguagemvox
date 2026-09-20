@@ -123,6 +123,49 @@ window.VOX_COMPONENTS = {
     }
   },
 
+  vox_RadioGroup: {
+    name: 'vox_RadioGroup',
+    category: 'Standard',
+    label: 'vox_RadioGroup',
+    icon: '📻',
+    defaultWidth: 200,
+    defaultHeight: 125,
+    defaultProps: {
+      Caption: 'RadioGroup1',
+      Items: 'Opção 1, Opção 2, Opção 3',
+      ItemIndex: 0,
+      Columns: 1,
+      Align: 'alNone',
+      Enabled: true
+    },
+    events: ['OnClick', 'OnSelectionChange'],
+    render(comp) {
+      const items = (comp.props.Items || 'Opção 1, Opção 2, Opção 3')
+        .split(',')
+        .map(i => i.trim())
+        .filter(Boolean);
+      const selIdx = parseInt(comp.props.ItemIndex, 10);
+      const cols = Math.max(1, parseInt(comp.props.Columns, 10) || 1);
+      const caption = comp.props.Caption || 'RadioGroup';
+
+      const itemsHtml = items.map((item, idx) => `
+        <label class="vcl-radiogroup-item">
+          <input type="radio" name="rg_${comp.id}" value="${idx}" ${idx === selIdx ? 'checked' : ''} tabindex="-1">
+          <span>${item}</span>
+        </label>
+      `).join('');
+
+      return `
+        <div class="vcl-radiogroup">
+          <span class="vcl-groupbox-caption">${caption}</span>
+          <div class="vcl-radiogroup-items" style="grid-template-columns: repeat(${cols}, 1fr);">
+            ${itemsHtml || '<span style="font-size:10px; color:#94a3b8;">(Sem itens)</span>'}
+          </div>
+        </div>
+      `;
+    }
+  },
+
   vox_ComboBox: {
     name: 'vox_ComboBox',
     category: 'Standard',
@@ -285,6 +328,53 @@ window.VOX_COMPONENTS = {
       return `
         <div class="vcl-groupbox">
           <span class="vcl-groupbox-caption">${comp.props.Caption || 'GroupBox'}</span>
+        </div>
+      `;
+    }
+  },
+
+  vox_CheckListGroupBox: {
+    name: 'vox_CheckListGroupBox',
+    category: 'Additional',
+    label: 'vox_CheckListGroupBox',
+    icon: '☑️',
+    defaultWidth: 220,
+    defaultHeight: 135,
+    defaultProps: {
+      Caption: 'CheckListGroupBox1',
+      Items: 'Item 1, Item 2, Item 3, Item 4',
+      CheckedIndices: '0, 1',
+      Columns: 1,
+      Align: 'alNone',
+      Enabled: true
+    },
+    events: ['OnClick', 'OnItemCheckChange'],
+    render(comp) {
+      const items = (comp.props.Items || 'Item 1, Item 2, Item 3, Item 4')
+        .split(',')
+        .map(i => i.trim())
+        .filter(Boolean);
+      const checkedArr = (comp.props.CheckedIndices || '')
+        .toString()
+        .split(',')
+        .map(s => parseInt(s.trim(), 10))
+        .filter(n => !isNaN(n));
+      const cols = Math.max(1, parseInt(comp.props.Columns, 10) || 1);
+      const caption = comp.props.Caption || 'CheckListGroupBox';
+
+      const itemsHtml = items.map((item, idx) => `
+        <label class="vcl-checklist-item">
+          <input type="checkbox" value="${idx}" ${checkedArr.includes(idx) ? 'checked' : ''} tabindex="-1">
+          <span>${item}</span>
+        </label>
+      `).join('');
+
+      return `
+        <div class="vcl-checklistbox">
+          <span class="vcl-groupbox-caption">${caption}</span>
+          <div class="vcl-checklist-items" style="grid-template-columns: repeat(${cols}, 1fr);">
+            ${itemsHtml || '<span style="font-size:10px; color:#94a3b8;">(Sem itens)</span>'}
+          </div>
         </div>
       `;
     }
@@ -876,6 +966,10 @@ window.VOX_COMPONENTS['TDBGrid'] = window.VOX_COMPONENTS['vox_DBGrid'];
 window.VOX_COMPONENTS['TDBNavigator'] = window.VOX_COMPONENTS['vox_DBNavigator'];
 window.VOX_COMPONENTS['TDBEdit'] = window.VOX_COMPONENTS['vox_DBEdit'];
 window.VOX_COMPONENTS['TMainMenu'] = window.VOX_COMPONENTS['vox_MainMenu'];
+window.VOX_COMPONENTS['TRadioGroup'] = window.VOX_COMPONENTS['vox_RadioGroup'];
+window.VOX_COMPONENTS['Vox_RadioGroup'] = window.VOX_COMPONENTS['vox_RadioGroup'];
+window.VOX_COMPONENTS['TCheckListBox'] = window.VOX_COMPONENTS['vox_CheckListGroupBox'];
+window.VOX_COMPONENTS['Vox_CheckListGroupBox'] = window.VOX_COMPONENTS['vox_CheckListGroupBox'];
 
 // Função para registrar novos componentes criados pela Fábrica de Componentes (Component Factory)
 window.registerCustomComponent = function(compDef) {

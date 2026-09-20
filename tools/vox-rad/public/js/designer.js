@@ -243,8 +243,8 @@ class VoxDesigner {
   recalculateAlignments(updateInspector = true) {
     if (!this.form || !this.form.components) return;
 
-    const formW = parseInt(this.form.width, 10) || 700;
-    const formH = parseInt(this.form.height, 10) || 480;
+    const canvasW = (this.canvas && this.canvas.clientWidth > 0) ? this.canvas.clientWidth : (parseInt(this.form.width, 10) || 700);
+    const canvasH = (this.canvas && this.canvas.clientHeight > 0) ? this.canvas.clientHeight : ((parseInt(this.form.height, 10) || 480) - 29);
 
     const nonVisual = [
       'vox_DataSource', 'vox_Connection', 'vox_Query', 'vox_Timer', 'vox_OpenDialog', 'vox_SaveDialog',
@@ -254,8 +254,8 @@ class VoxDesigner {
     let clientRect = {
       left: 0,
       top: 0,
-      right: formW,
-      bottom: formH
+      right: canvasW,
+      bottom: canvasH
     };
 
     const visualComps = this.form.components.filter(c => !nonVisual.includes(c.type));
@@ -267,12 +267,12 @@ class VoxDesigner {
         mainMenu.left = 0;
         mainMenu.top = 0;
         mainMenu.width = 180;
-        mainMenu.height = formH;
+        mainMenu.height = canvasH;
         clientRect.left = 180;
       } else {
         mainMenu.left = 0;
         mainMenu.top = 0;
-        mainMenu.width = formW;
+        mainMenu.width = canvasW;
         mainMenu.height = 38;
         clientRect.top = 38;
       }
@@ -344,10 +344,14 @@ class VoxDesigner {
   }
 
   renderForm() {
+    this.form.width = parseInt(this.form.width, 10) || 700;
+    this.form.height = parseInt(this.form.height, 10) || 480;
     this.formWindow.style.width = `${this.form.width}px`;
     this.formWindow.style.height = `${this.form.height}px`;
+    if (this.form.left !== undefined) this.formWindow.style.left = `${this.form.left}px`;
+    if (this.form.top !== undefined) this.formWindow.style.top = `${this.form.top}px`;
     const titleEl = document.getElementById('formTitleText');
-    if (titleEl) titleEl.innerText = this.form.title;
+    if (titleEl) titleEl.innerText = this.form.title || this.form.name || 'Form1';
 
     const sbStatus = document.getElementById('sbFormStatus');
     if (sbStatus) sbStatus.innerText = `${this.form.name} [${this.form.width} x ${this.form.height}]`;
