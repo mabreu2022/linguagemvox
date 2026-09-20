@@ -20,7 +20,7 @@ import { LifetimeChecker } from './lifetime';
 // ── Tipos da linguagem ───────────────────────────────────────
 
 export type KaelType =
-  | { kind: 'primitive';  name: 'int' | 'float' | 'bool' | 'str' | 'char' | 'void' }
+  | { kind: 'primitive';  name: 'int' | 'float' | 'bool' | 'str' | 'char' | 'void' | 'any' }
   | { kind: 'struct';     name: string; fields: Map<string, KaelType>; methods: Map<string, FnType>; generics?: string[] }
   | { kind: 'class';      name: string; fields: Map<string, KaelType>; methods: Map<string, FnType>; generics?: string[] }
   | { kind: 'function';   params: KaelType[]; returnType: KaelType; isAsync?: boolean; generics?: string[] }
@@ -290,7 +290,8 @@ export class SemanticAnalyzer {
 
   private isTypeAssignable(source: KaelType, target: KaelType): boolean {
     if (source.kind === 'unknown' || target.kind === 'unknown') return true;
-    if (target.kind === 'primitive' && target.name === 'void') return true;
+    if (target.kind === 'primitive' && (target.name === 'void' || target.name === 'any')) return true;
+    if (source.kind === 'primitive' && source.name === 'any') return true;
 
     if (source.kind === 'type_param' && target.kind === 'type_param') {
       return source.name === target.name;
@@ -607,6 +608,21 @@ export class SemanticAnalyzer {
       this.currentTypeParams = prevParams;
       this.currentScope.define({ name: f.name, type: fnType, isConst: true, isMut: false, defined: true });
     }
+    if (node.kind === NodeKind.ImportDecl) {
+      const imp = node as any;
+      const targets = (imp.units && imp.units.length > 0) ? imp.units : imp.names;
+      if (targets) {
+        for (const name of targets) {
+          this.currentScope.define({
+            name,
+            type: { kind: 'unknown' },
+            isConst: false,
+            isMut: false,
+            defined: true,
+          });
+        }
+      }
+    }
     if (node.kind === NodeKind.ExportDecl) {
       this.hoistDeclaration((node as any).decl);
     }
@@ -634,8 +650,9 @@ export class SemanticAnalyzer {
       case NodeKind.ExportDecl:    return this.analyzeNode((node as any).decl);
       case NodeKind.ImportDecl: {
         const imp = node as any;
-        if (imp.names) {
-          for (const name of imp.names) {
+        const targets = (imp.units && imp.units.length > 0) ? imp.units : imp.names;
+        if (targets) {
+          for (const name of targets) {
             this.currentScope.define({
               name,
               type: { kind: 'unknown' },
@@ -847,7 +864,8 @@ export class SemanticAnalyzer {
     // Check superclass
     if (node.superClass) {
       const cleanSuper = node.superClass.split('<')[0].trim();
-      if (!this.classRegistry.has(cleanSuper)) {
+      const isFrameworkClass = ['vox_Form', 'TForm', 'TComponent', 'TObject', 'vox_Component'].includes(cleanSuper);
+      if (!this.classRegistry.has(cleanSuper) && !this.currentScope.has(cleanSuper) && !isFrameworkClass) {
         this.error(`Superclass '${node.superClass}' not found`, node.position?.line);
       }
     }
@@ -882,6 +900,7 @@ export class SemanticAnalyzer {
       ? { kind: 'generic', base: node.name, params: node.generics.map(g => ({ kind: 'type_param' as const, name: g })) }
       : { kind: 'class', name: node.name, fields: new Map(), methods: new Map(), generics: node.generics };
     classScope.define({ name: 'self', type: selfType, isConst: false, defined: true });
+    classScope.define({ name: 'this', type: selfType, isConst: false, defined: true });
 
     if (node.superClass) {
       const cleanSuper = node.superClass.split('<')[0].trim();
@@ -1683,7 +1702,7 @@ export class SemanticAnalyzer {
         if (isTypeParam(name)) {
           return { kind: 'type_param', name };
         }
-        const primitives = ['int', 'float', 'bool', 'str', 'char', 'void', 'null'];
+        const primitives = ['int', 'float', 'bool', 'str', 'char', 'void', 'null', 'any'];
         if (primitives.includes(name)) return { kind: 'primitive', name: name as any };
         if (name === 'fn') return { kind: 'function', params: [], returnType: { kind: 'unknown' } };
         if (this.structRegistry.has(name)) {

@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Livro de Construção de Componentes Vox & Arquitetura de Pacotes (.vdpk)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       SISTEMA DE DESIGN DO LIVRO DIGITAL (HTML5 + CSS3 PARA TELA E PDF A4)
+       ========================================================================== */
+    :root {
+      --book-bg: #fdfdfd;
+      --book-paper: #ffffff;
+      --book-text: #1a202c;
+      --book-text-muted: #4a5568;
+      --book-primary: #0066cc;
+      --book-primary-dark: #004c99;
+      --book-accent: #d83b01;
+      --book-border: #e2e8f0;
+      --book-code-bg: #f8fafc;
+      --book-code-border: #cbd5e1;
+      --book-code-text: #0f172a;
+      --book-callout-bg: #f0f7ff;
+      --book-callout-border: #0078d4;
+      --book-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    body.dark-theme {
+      --book-bg: #0f131a;
+      --book-paper: #161c24;
+      --book-text: #e2e8f0;
+      --book-text-muted: #94a3b8;
+      --book-primary: #38bdf8;
+      --book-primary-dark: #0284c7;
+      --book-accent: #f59e0b;
+      --book-border: #283344;
+      --book-code-bg: #0d1117;
+      --book-code-border: #283344;
+      --book-code-text: #7dd3fc;
+      --book-callout-bg: rgba(0, 120, 212, 0.12);
+      --book-callout-border: #0078d4;
+      --book-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--book-bg);
+      color: var(--book-text);
+      line-height: 1.7;
+      font-size: 14.5px;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Barra Superior Flutuante de Ações (Oculta na Impressão / PDF) */
+    .top-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(22, 28, 36, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .toolbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 13.5px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toolbar-btn {
+      background: #252e3e;
+      border: 1px solid #3d4a61;
+      color: #e2e8f0;
+      padding: 6px 14px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .toolbar-btn:hover {
+      background: #0078d4;
+      border-color: #38bdf8;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .toolbar-btn.btn-print {
+      background: linear-gradient(135deg, #094771 0%, #0078d4 100%);
+      border-color: #38bdf8;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 120, 212, 0.4);
+    }
+
+    .toolbar-btn.btn-print:hover {
+      background: linear-gradient(135deg, #0284c7 0%, #0284c7 100%);
+    }
+
+    /* Contêiner Geral das Páginas do Livro */
+    .book-wrapper {
+      max-width: 880px;
+      margin: 30px auto 60px auto;
+      background: var(--book-paper);
+      border: 1px solid var(--book-border);
+      border-radius: 8px;
+      box-shadow: var(--book-shadow);
+      overflow: hidden;
+    }
+
+    .book-content {
+      padding: 50px 60px;
+    }
+
+    /* --------------------------------------------------------------------------
+       CAPA DO LIVRO (COVER PAGE)
+       -------------------------------------------------------------------------- */
+    .book-cover {
+      background: linear-gradient(145deg, #0f172a 0%, #1e293b 60%, #094771 100%);
+      color: #ffffff;
+      padding: 70px 60px 50px 60px;
+      border-bottom: 4px solid #0078d4;
+      position: relative;
+    }
+
+    .book-badge-edition {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid #38bdf8;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+
+    .book-main-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 14px;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .book-sub-title {
+      font-family: 'Merriweather', serif;
+      font-size: 16px;
+      font-style: italic;
+      color: #cbd5e1;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .cover-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 24px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .cover-meta strong {
+      color: #ffffff;
+    }
+
+    /* --------------------------------------------------------------------------
+       SUMÁRIO EXECUTIVO (TABLE OF CONTENTS)
+       -------------------------------------------------------------------------- */
+    .toc-section {
+      background: var(--book-code-bg);
+      border: 1px solid var(--book-border);
+      border-radius: 6px;
+      padding: 24px 30px;
+      margin: 40px 0 50px 0;
+    }
+
+    .toc-header {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--book-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--book-primary);
+      padding-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toc-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 13.5px;
+    }
+
+    .toc-item a {
+      color: var(--book-text);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+
+    .toc-item a:hover {
+      color: var(--book-primary);
+    }
+
+    .toc-dots {
+      flex: 1;
+      border-bottom: 1px dotted var(--book-text-muted);
+      margin: 0 10px;
+      opacity: 0.4;
+    }
+
+    .toc-page {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--book-text-muted);
+      font-weight: 600;
+    }
+
+    /* --------------------------------------------------------------------------
+       ESTILOS DE CONTEÚDO DOS CAPÍTULOS
+       -------------------------------------------------------------------------- */
+    .chapter {
+      margin-top: 50px;
+      padding-top: 30px;
+      border-top: 1px solid var(--book-border);
+    }
+
+    .chapter:first-of-type {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .chapter-tag {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--book-primary);
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    h2.chapter-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--book-text);
+      margin-bottom: 18px;
+      line-height: 1.3;
+    }
+
+    h3.section-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--book-primary-dark);
+      margin: 28px 0 12px 0;
+    }
+
+    body.dark-theme h3.section-title {
+      color: #7dd3fc;
+    }
+
+    h4.subsection-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--book-text);
+      margin: 18px 0 8px 0;
+    }
+
+    p {
+      margin-bottom: 14px;
+      color: var(--book-text);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    strong {
+      font-weight: 700;
+      color: var(--book-text);
+    }
+
+    /* Listas */
+    ul, ol {
+      margin: 10px 0 18px 24px;
+      color: var(--book-text);
+    }
+
+    li {
+      margin-bottom: 6px;
+      line-height: 1.6;
+    }
+
+    /* Callouts / Caixas de Destaque */
+    .callout {
+      background: var(--book-callout-bg);
+      border-left: 4px solid var(--book-callout-border);
+      padding: 14px 18px;
+      border-radius: 0 6px 6px 0;
+      margin: 20px 0;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--book-primary);
+    }
+
+    .callout.tip {
+      border-left-color: #22c55e;
+      background: rgba(34, 197, 94, 0.08);
+    }
+    .callout.tip .callout-title {
+      color: #16a34a;
+    }
+
+    .callout.warning {
+      border-left-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.08);
+    }
+    .callout.warning .callout-title {
+      color: #d97706;
+    }
+
+    /* Blocos de Código */
+    pre {
+      background: var(--book-code-bg);
+      border: 1px solid var(--book-code-border);
+      border-radius: 6px;
+      padding: 16px 18px;
+      margin: 16px 0 22px 0;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--book-code-text);
+    }
+
+    code {
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 12.5px;
+      background: var(--book-code-bg);
+      border: 1px solid var(--book-code-border);
+      padding: 2px 5px;
+      border-radius: 3px;
+      color: var(--book-primary);
+    }
+
+    pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    /* Tabelas */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      margin: 20px 0 26px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      border: 1px solid var(--book-border);
+    }
+
+    th {
+      background: var(--book-code-bg);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 700;
+      color: var(--book-text);
+      border-bottom: 2px solid var(--book-border);
+      border-right: 1px solid var(--book-border);
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--book-border);
+      border-right: 1px solid var(--book-border);
+      color: var(--book-text);
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(0, 0, 0, 0.015);
+    }
+
+    body.dark-theme tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Rodapé do Livro */
+    .book-footer {
+      border-top: 1px solid var(--book-border);
+      padding: 30px 60px;
+      font-size: 12px;
+      color: var(--book-text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--book-code-bg);
+    }
+
+    /* ==========================================================================
+       CONFIGURAÇÕES ESPECÍFICAS DE IMPRESSÃO & EXPORTAÇÃO EM PDF (A4)
+       ========================================================================== */
+    @page {
+      size: A4 portrait;
+      margin: 20mm 16mm 20mm 16mm;
+    }
+
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 11pt !important;
+        line-height: 1.5 !important;
+      }
+
+      .no-print, .top-toolbar {
+        display: none !important;
+      }
+
+      .book-wrapper {
+        max-width: 100% !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+      }
+
+      .book-content {
+        padding: 0 !important;
+      }
+
+      .book-cover {
+        height: 98vh !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        background: #0f172a !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        padding: 40mm 20mm !important;
+      }
+
+      .chapter {
+        page-break-before: always !important;
+        break-before: page !important;
+        padding-top: 10mm !important;
+        border-top: none !important;
+      }
+
+      pre, table, .callout {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      pre {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #0f172a !important;
+        font-size: 9.5pt !important;
+      }
+
+      .callout {
+        background: #f0f7ff !important;
+        border-left: 4pt solid #0078d4 !important;
+      }
+
+      th {
+        background: #f1f5f9 !important;
+      }
+
+      a {
+        color: #000000 !important;
+        text-decoration: none !important;
+      }
+
+      .toc-dots {
+        border-bottom-color: #94a3b8 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       BARRA DE FERRAMENTAS FLUTUANTE (NÃO SAI NA IMPRESSÃO / PDF)
+       ======================================================================== -->
+  <header class="top-toolbar no-print">
+    <div class="toolbar-brand">
+      <span>📘</span>
+      <span>Manual Oficial de Construção de Componentes Vox</span>
+      <span style="font-size: 10px; background: #094771; padding: 2px 8px; border-radius: 12px; color: #38bdf8; border: 1px solid #0078d4;">Delphi 13 Athens Edition</span>
+    </div>
+    <div class="toolbar-actions">
+      <button class="toolbar-btn" onclick="toggleTheme()" id="btnTheme" title="Alternar Modo Escuro / Claro">
+        🌓 Tema: Papel
+      </button>
+      <button class="toolbar-btn btn-print" onclick="window.print()" title="Imprimir ou Salvar diretamente em formato PDF">
+        🖨️ Exportar para PDF / Imprimir
+      </button>
+      <button class="toolbar-btn" onclick="window.close();" title="Fechar ou Voltar">
+        ✕ Fechar
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       LIVRO COMPLETO
+       ======================================================================== -->
+  <div class="book-wrapper">
+
+    <!-- CAPA OFICIAL -->
+    <section class="book-cover">
+      <div class="book-badge-edition">Linguagem Vox • Publicação Técnica Oficial</div>
+      <h1 class="book-main-title">Livro de Construção de Componentes Vox</h1>
+      <p class="book-sub-title">Arquitetura de Componentes Visuais, Não-Visuais e Projetos de Pacotes de Design (.vdpk) — Do Conceito ao RAD Studio</p>
+      
+      <div class="cover-meta">
+        <div>
+          <div>Autor: <strong>Equipe Central da Linguagem Vox</strong></div>
+          <div>Referência: <strong>Arquitetura de Componentes RAD (Delphi 13 Athens)</strong></div>
+        </div>
+        <div style="text-align: right;">
+          <div>Versão do Sistema: <strong>Vox Studio RAD v1.1.0</strong></div>
+          <div>Formato: <strong>E-book Técnico & Especificação de Pacotes (.vdpk)</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="book-content">
+
+      <!-- PREFÁCIO E APRESENTAÇÃO -->
+      <section style="margin-bottom: 40px;">
+        <h3 class="section-title">Prefácio: O Poder do Desenvolvimento Rápido de Aplicações</h3>
+        <p>
+          O paradigma **RAD (Rapid Application Development)** revolucionou a engenharia de software na década de 1990 com a introdução da biblioteca VCL (Visual Component Library) no Borland Delphi. O princípio fundamental era simples, porém transformador: <em>softwares robustos devem ser compostos por blocos de construção reutilizáveis, modulares e configuráveis visualmente em tempo de design</em>.
+        </p>
+        <p>
+          A **Linguagem Vox** resgata essa produtividade lendária e a une às demandas dos ambientes modernos: execução em navegadores Web sem perda de desempenho, forte tipagem estática, persistência estruturada em arquivos de formulário (<code>.vxf</code>) e distribuição organizada de componentes em bibliotecas de design (<code>.vdpk</code>).
+        </p>
+        <div class="callout tip">
+          <div class="callout-title">💡 Objetivo deste Livro</div>
+          Capacitar você a desenvolver desde controles visuais customizados (como botões estilizados, cards de métricas e seletores de notas com estrelas) até componentes não-visuais de alta performance (como conexões a bancos de dados FireDAC e clientes de telemetria), empacotá-los em arquivos <code>.vdpk</code> e distribuí-los para a Tool Palette da IDE.
+        </div>
+      </section>
+
+      <!-- SUMÁRIO EXECUTIVO -->
+      <section class="toc-section">
+        <div class="toc-header">
+          <span>📑</span>
+          <span>Sumário dos Capítulos</span>
+        </div>
+        <ul class="toc-list">
+          <li class="toc-item">
+            <a href="#cap1">Capítulo 1: A Filosofia de Componentes no Vox e o Paralelo com a VCL do Delphi</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 1</span>
+          </li>
+          <li class="toc-item">
+            <a href="#cap2">Capítulo 2: Anatomia de um Componente Vox</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 2</span>
+          </li>
+          <li class="toc-item">
+            <a href="#cap3">Capítulo 3: Componentes Visuais vs. Componentes Não-Visuais</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 3</span>
+          </li>
+          <li class="toc-item">
+            <a href="#cap4">Capítulo 4: A Extensão de Projetos de Pacotes (.vdpk — Vox Design Package)</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 4</span>
+          </li>
+          <li class="toc-item">
+            <a href="#cap5">Capítulo 5: O Procedimento Oficial Register() e a Tool Palette</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 5</span>
+          </li>
+          <li class="toc-item">
+            <a href="#cap6">Capítulo 6: Ciclo de Vida, Persistência e Streaming (.vxf / .dfm)</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 6</span>
+          </li>
+          <li class="toc-item">
+            <a href="#cap7">Capítulo 7: Construindo Controles Data-Aware (Acesso a Dados com vox_DataSource)</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 7</span>
+          </li>
+          <li class="toc-item">
+            <a href="#cap8">Capítulo 8: Projetos Práticos Passo a Passo: Criando o vox_RatingStars e vox_KanbanBoard</a>
+            <span class="toc-dots"></span>
+            <span class="toc-page">Cap. 8</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ====================================================================
+           CAPÍTULO 1
+           ==================================================================== -->
+      <article class="chapter" id="cap1">
+        <div class="chapter-tag">Capítulo 1</div>
+        <h2 class="chapter-title">A Filosofia de Componentes no Vox e o Paralelo com a VCL do Delphi</h2>
+
+        <p>
+          No Delphi, a espinha dorsal de todo o ecossistema é o <code>TComponent</code>, classe ancestral contida na unit <code>System.Classes</code>. Qualquer entidade que herde de <code>TComponent</code> herda automaticamente duas capacidades fundamentais:
+        </p>
+        <ol>
+          <li><strong>Capacidade de Pertencimento (Owner Model):</strong> Um componente gerencia a destruição de seus filhos (gestão hierárquica de memória e recursos).</li>
+          <li><strong>Capacidade de Streaming:</strong> As propriedades publicadas no bloco <code>published</code> são automaticamente lidas e gravadas em arquivos de recursos (os famosos formulários <code>.dfm</code>).</li>
+        </ol>
+
+        <p>
+          No Vox, o conceito é rigorosamente preservado sob a arquitetura <strong>Vox RAD Architecture (VRA)</strong>. A classe ancestral <code>vox_Component</code> fornece a interface de streaming com os formulários <code>.vxf</code> (Vox Visual Form), enquanto o subsistema de reflexão da IDE expõe dinamicamente todas as variáveis declaradas com <code>pub let mut</code> no <strong>Object Inspector</strong>.
+        </p>
+
+        <h3 class="section-title">Tabela de Correspondência Arquitetural: Delphi VCL vs. Vox RAD</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Conceito Delphi (VCL / FireDAC)</th>
+                <th>Equivalente na Linguagem Vox</th>
+                <th>Função e Responsabilidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>TComponent</code></td>
+                <td><code>classe vox_Component</code></td>
+                <td>Base universal de todos os componentes (visuais ou serviços em background).</td>
+              </tr>
+              <tr>
+                <td><code>TControl</code> / <code>TWinControl</code></td>
+                <td><code>classe vox_VisualControl</code></td>
+                <td>Controle com coordenadas físicas (<code>left</code>, <code>top</code>, <code>width</code>, <code>height</code>) e renderização visual.</td>
+              </tr>
+              <tr>
+                <td><code>TDataModule</code></td>
+                <td><code>classe vox_DataModule</code></td>
+                <td>Módulo não-visual que abriga componentes de conexão, tabelas e regras de negócio.</td>
+              </tr>
+              <tr>
+                <td><code>TFDConnection</code> (FireDAC)</td>
+                <td><code>vox_Connection</code></td>
+                <td>Conexão direta a Firebird, MySQL, PostgreSQL, SQLite, com porta TCP e DLL de cliente (<code>VendorLib</code>).</td>
+              </tr>
+              <tr>
+                <td>Arquivo de Form <code>.dfm</code></td>
+                <td>Arquivo de Form <code>.vxf</code></td>
+                <td>Formato de streaming que armazena a disposição geométrica e valores iniciais das propriedades.</td>
+              </tr>
+              <tr>
+                <td>Pacote de Design <code>.dpk</code></td>
+                <td>Pacote de Design <code>.vdpk</code></td>
+                <td>Arquivo de manifesto e código do pacote compilável e instalável na IDE.</td>
+              </tr>
+              <tr>
+                <td><code>procedure Register;</code></td>
+                <td><code>procedimento Register()</code></td>
+                <td>Ponto de entrada oficial invocado pela IDE para registrar o componente na Tool Palette.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           CAPÍTULO 2
+           ==================================================================== -->
+      <article class="chapter" id="cap2">
+        <div class="chapter-tag">Capítulo 2</div>
+        <h2 class="chapter-title">Anatomia de um Componente Vox</h2>
+
+        <p>
+          Um componente bem arquitetado na linguagem Vox possui quatro blocos essenciais:
+        </p>
+        <ol>
+          <li><strong>Declaração de Herança:</strong> Especifica a classe base (ex: <code>vox_Panel</code>, <code>vox_VisualControl</code> ou <code>vox_Component</code>).</li>
+          <li><strong>Propriedades Publicadas (Published):</strong> Declaradas com o modificador <code>pub let mut</code>. Elas aparecem instantaneamente no <em>Object Inspector</em> da IDE.</li>
+          <li><strong>Método Construtor / Inicializador (<code>Inicializar</code>):</strong> Configura dimensões padrão, cores e valores iniciais.</li>
+          <li><strong>Método de Renderização (<code>Renderizar</code>):</strong> Retorna a marcação estruturada que define a aparência do controle tanto no designer quanto no navegador do cliente final.</li>
+        </ol>
+
+        <h3 class="section-title">Código Modelo: Anatomia Completa</h3>
+        <pre><code>// Definição da classe do componente
+classe vox_CardMetrica herda vox_Panel {
+    // 1. Propriedades Inspecionáveis no Object Inspector
+    pub let mut Titulo: string;
+    pub let mut Valor: string;
+    pub let mut VariacaoPercentual: f32;
+    pub let mut CorDestaque: string;
+    pub let mut ExibirIcone: bool;
+
+    // 2. Construtor e Valores Iniciais Padrão
+    procedimento Inicializar() {
+        this.width = 200;
+        this.height = 90;
+        this.Titulo = "Vendas do Mês";
+        this.Valor = "R$ 48.500,00";
+        this.VariacaoPercentual = 14.8;
+        this.CorDestaque = "#0078d4";
+        this.ExibirIcone = true;
+    }
+
+    // 3. Setters com Notificação de Repintura (Equivalente ao Invalidate do Delphi)
+    procedimento SetValor(novoValor: string) {
+        this.Valor = novoValor;
+        this.Invalidar(); // Dispara atualização visual imediata no canvas e no DOM
+    }
+
+    // 4. Renderização do Componente
+    procedimento Renderizar() -> string {
+        let corBadge = this.VariacaoPercentual >= 0.0 ? "#22c55e" : "#ef4444";
+        return "&lt;div class='vox-metric-card' style='border-left: 4px solid " + this.CorDestaque + ";'&gt;" +
+               "  &lt;div class='title'&gt;" + this.Titulo + "&lt;/div&gt;" +
+               "  &lt;div class='value'&gt;" + this.Valor + "&lt;/div&gt;" +
+               "  &lt;div class='badge' style='color:" + corBadge + ";'&gt;+" + str(this.VariacaoPercentual) + "%&lt;/div&gt;" +
+               "&lt;/div&gt;";
+    }
+}</code></pre>
+
+        <div class="callout">
+          <div class="callout-title">📌 Dica de Produtividade</div>
+          Propriedades cujo nome se inicia por <code>On</code> (por exemplo <code>OnClick</code>, <code>OnChange</code>, <code>OnHover</code>) são automaticamente roteadas para a aba <strong>Events</strong> do Object Inspector do Vox Studio, permitindo vinculação rápida a rotinas de código com duplo clique.
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           CAPÍTULO 3
+           ==================================================================== -->
+      <article class="chapter" id="cap3">
+        <div class="chapter-tag">Capítulo 3</div>
+        <h2 class="chapter-title">Componentes Visuais vs. Componentes Não-Visuais</h2>
+
+        <p>
+          O sistema de componentes divide os elementos em duas categorias fundamentais, exatamente como na VCL e no FireDAC do Delphi:
+        </p>
+
+        <h3 class="section-title">1. Componentes Visuais (Visual Controls)</h3>
+        <p>
+          São elementos que compõem a interface visual direta com o usuário final. Possuem geometria (posição <code>left</code>, <code>top</code> e dimensões <code>width</code>, <code>height</code>), capturam eventos de mouse e toque, e herdam de <code>vox_VisualControl</code> ou de contêineres como <code>vox_Panel</code>.
+        </p>
+        <ul>
+          <li><strong>Exemplos Nativos:</strong> <code>vox_Button</code>, <code>vox_Edit</code>, <code>vox_DBGrid</code>, <code>vox_MainMenu</code>, <code>vox_Card</code>, <code>vox_Switch</code>, <code>vox_ProgressBar</code>.</li>
+          <li><strong>Comportamento no Web App:</strong> Renderizados como elementos ativos do layout (100% integrados à janela responsiva do sistema).</li>
+        </ul>
+
+        <h3 class="section-title">2. Componentes Não-Visuais (Non-Visual Components)</h3>
+        <p>
+          São módulos de infraestrutura, comunicação, execução em lote ou serviços. No ambiente de design (Form Designer), eles precisam de um ponto de manipulação para o desenvolvedor, sendo representados por um <strong>ícone quadrado estilizado de 38x38 pixels</strong> com etiqueta do nome do componente. No entanto, na aplicação web final gerada, eles são compilados exclusivamente como classes de serviço e não ocupam espaço na tela visual.
+        </p>
+        <ul>
+          <li><strong>Exemplos Nativos:</strong> <code>vox_Connection</code> (Conexão a bancos de dados), <code>vox_Query</code> (Execução SQL), <code>vox_DataSource</code> (Ponte de dados), <code>vox_Timer</code> (Temporizador de eventos).</li>
+          <li><strong>Comportamento no Web App:</strong> Instanciados no backend ou no worker cliente sem elemento DOM visível.</li>
+        </ul>
+      </article>
+
+      <!-- ====================================================================
+           CAPÍTULO 4
+           ==================================================================== -->
+      <article class="chapter" id="cap4">
+        <div class="chapter-tag">Capítulo 4</div>
+        <h2 class="chapter-title">A Extensão de Projetos de Pacotes (.vdpk — Vox Design Package)</h2>
+
+        <p>
+          No Delphi, os componentes não são instalados individualmente como fontes soltos; eles são compilados em **pacotes de componentes (.dpk)**. A linguagem Vox adota exatamente este padrão profissional através dos arquivos com extensão **<code>.vdpk</code>** (*Vox Design Package*).
+        </p>
+
+        <h3 class="section-title">Estrutura Sintática de um Pacote .vdpk</h3>
+        <p>
+          Um pacote <code>.vdpk</code> é composto por três blocos declarativos:
+        </p>
+        <ol>
+          <li><code>package NomeDoPacote;</code> — Identificador único da biblioteca.</li>
+          <li><code>requires ...;</code> — Lista de dependências de runtime (ex: <code>vox_rtl</code>, <code>vox_vcl</code>).</li>
+          <li><code>contains ...;</code> — Lista de units e componentes incluídos no pacote.</li>
+        </ol>
+
+        <pre><code>// ==============================================================================
+// Arquivo: VoxDashboardControls.vdpk
+// ==============================================================================
+package VoxDashboardControls;
+
+requires
+    vox_rtl,
+    vox_vcl,
+    vox_designer;
+
+contains
+    vox_RatingStars in 'vox_RatingStars.vox',
+    vox_CardMetrica in 'vox_CardMetrica.vox';
+
+// Implementação dos componentes e procedimento de registro
+procedimento Register() {
+    RegisterComponents("Dashboard", [
+        vox_RatingStars,
+        vox_CardMetrica
+    ]);
+}</code></pre>
+
+        <div class="callout tip">
+          <div class="callout-title">🚀 Instalador Integrado na IDE</div>
+          Para instalar um pacote <code>.vdpk</code> no Vox Studio, abra o menu <code>Component ➔ 📦 Instalar Pacote de Componentes (.vdpk)...</code>, cole o código ou clique em <em>✨ Carregar Modelo Oficial</em> e pressione <em>Compilar e Instalar na Palette</em>. O componente ficará disponível imediatamente na Tool Palette da IDE.
+        </div>
+      </article>
+
+      <!-- ====================================================================
+           CAPÍTULO 5
+           ==================================================================== -->
+      <article class="chapter" id="cap5">
+        <div class="chapter-tag">Capítulo 5</div>
+        <h2 class="chapter-title">O Procedimento Oficial Register() e a Tool Palette</h2>
+
+        <p>
+          A convenção oficial de registro de componentes do Delphi exige a declaração de um procedimento global chamado <code>Register</code>. Quando a IDE carrega um pacote, ela busca e executa essa rotina, passando os componentes para a paleta de ferramentas.
+        </p>
+
+        <h3 class="section-title">Assinatura da Função RegisterComponents</h3>
+        <pre><code>procedimento RegisterComponents(categoria: string, componentes: lista);</code></pre>
+
+        <p>
+          Onde:
+        </p>
+        <ul>
+          <li><strong>categoria:</strong> Nome do grupo na Tool Palette onde os componentes residirão (ex: <code>"Standard"</code>, <code>"Additional"</code>, <code>"Data Controls"</code>, <code>"Custom"</code>, <code>"Dashboard"</code>). Se a categoria não existir, a IDE a cria automaticamente.</li>
+          <li><strong>componentes:</strong> Vetor contendo os tipos/classes dos componentes a serem adicionados à paleta.</li>
+        </ul>
+
+        <pre><code>// Exemplo de Registro de Múltiplos Componentes
+procedimento Register() {
+    // Registra controles adicionais
+    RegisterComponents("Additional", [
+        vox_Badge,
+        vox_Switch
+    ]);
+
+    // Registra controles próprios na categoria da sua empresa
+    RegisterComponents("MinhaEmpresa", [
+        vox_RatingStars,
+        vox_CardMetrica
+    ]);
+}</code></pre>
+      </article>
+
+      <!-- ====================================================================
+           CAPÍTULO 6
+           ==================================================================== -->
+      <article class="chapter" id="cap6">
+        <div class="chapter-tag">Capítulo 6</div>
+        <h2 class="chapter-title">Ciclo de Vida, Persistência e Streaming (.vxf / .dfm)</h2>
+
+        <p>
+          Quando um desenvolvedor arrasta um componente da paleta para o canvas da IDE e altera propriedades no Object Inspector, como a IDE armazena essas alterações sem perder os dados entre as sessões?
+        </p>
+        <p>
+          No Delphi, isso é resolvido pelo **Streaming VCL / .dfm**. No Vox Studio, utilizamos o formato padronizado **<code>.vxf</code>** (*Vox Visual Form*).
+        </p>
+
+        <h3 class="section-title">Estrutura de Streaming .vxf</h3>
+        <p>
+          O arquivo <code>.vxf</code> é um manifesto estruturado que registra cada componente, sua geometria e o delta de propriedades modificadas em relação aos valores padrão da classe:
+        </p>
+
+        <pre><code>{
+  "name": "FormClientes",
+  "title": "Cadastro Geral de Clientes",
+  "width": 1024,
+  "height": 600,
+  "components": [
+    {
+      "id": "vox_Connection1",
+      "name": "vox_Connection1",
+      "type": "vox_Connection",
+      "left": 40,
+      "top": 30,
+      "width": 38,
+      "height": 38,
+      "props": {
+        "Driver": "Firebird",
+        "Server": "127.0.0.1",
+        "Port": 3050,
+        "Database": "C:\\Sistemas\\Dados\\empresa.fdb",
+        "UserName": "SYSDBA",
+        "VendorLib": "fbclient.dll",
+        "Connected": true
+      }
+    },
+    {
+      "id": "vox_MainMenu1",
+      "name": "vox_MainMenu1",
+      "type": "vox_MainMenu",
+      "left": 0,
+      "top": 0,
+      "width": 220,
+      "height": 600,
+      "props": {
+        "Layout": "Left",
+        "Title": "ERP Vox",
+        "Items": "Dashboard, Clientes, Vendas, Ajustes",
+        "Responsive": true,
+        "Collapsed": false
+      }
+    }
+  ]
+}</code></pre>
+      </article>
+
+      <!-- ====================================================================
+           CAPÍTULO 7
+           ==================================================================== -->
+      <article class="chapter" id="cap7">
+        <div class="chapter-tag">Capítulo 7</div>
+        <h2 class="chapter-title">Construindo Controles Data-Aware (Acesso a Dados com vox_DataSource)</h2>
+
+        <p>
+          O grande diferencial que consagrou o Delphi nos sistemas de gestão empresarial (ERP) foi o ecossistema de componentes **Data-Aware**: controles de interface que se vinculam diretamente a um <code>TDataSource</code> e respondem automaticamente às alterações do ponteiro do dataset.
+        </p>
+
+        <h3 class="section-title">A Tríade de Dados do Vox</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Componente</th>
+                <th>Responsabilidade</th>
+                <th>Propriedades Chave</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>vox_Connection</code></td>
+                <td>Estabelece a conexão física com o banco de dados (Firebird, MySQL, PostgreSQL, SQLite).</td>
+                <td><code>Driver</code>, <code>Server</code>, <code>Port</code>, <code>Database</code>, <code>VendorLib</code></td>
+              </tr>
+              <tr>
+                <td><code>vox_Query</code></td>
+                <td>Executa instruções SQL (SELECT, INSERT, UPDATE, DELETE) e retém o buffer de registros em memória.</td>
+                <td><code>Connection</code>, <code>SQL</code>, <code>Active</code></td>
+              </tr>
+              <tr>
+                <td><code>vox_DataSource</code></td>
+                <td>Atua como mediador entre o dataset (vox_Query) e os controles visuais (vox_DBGrid, vox_DBEdit).</td>
+                <td><code>DataSet</code>, <code>AutoEdit</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="section-title">Construindo um Componente Data-Aware Customizado</h3>
+        <p>
+          Para tornar um componente Data-Aware, você deve publicar as propriedades <code>DataSource</code> e <code>DataField</code>:
+        </p>
+
+        <pre><code>classe vox_DBRatingStars herda vox_RatingStars {
+    pub let mut DataSource: string;
+    pub let mut DataField: string;
+
+    procedimento AtualizarDoDataset(valorCampo: f32) {
+        this.SetRating(valorCampo);
+    }
+}</code></pre>
+      </article>
+
+      <!-- ====================================================================
+           CAPÍTULO 8
+           ==================================================================== -->
+      <article class="chapter" id="cap8">
+        <div class="chapter-tag">Capítulo 8</div>
+        <h2 class="chapter-title">Projetos Práticos Passo a Passo: Criando o vox_RatingStars e vox_KanbanBoard</h2>
+
+        <p>
+          Neste capítulo final, implementaremos dois componentes completos prontos para uso em produção.
+        </p>
+
+        <h3 class="section-title">Projeto 1: vox_RatingStars (Avaliação por Estrelas)</h3>
+        <pre><code>classe vox_RatingStars herda vox_Panel {
+    pub let mut StarsCount: i32;
+    pub let mut Rating: f32;
+    pub let mut ActiveColor: string;
+    pub let mut InactiveColor: string;
+    pub let mut ReadOnly: bool;
+
+    procedimento Inicializar() {
+        this.width = 140;
+        this.height = 32;
+        this.StarsCount = 5;
+        this.Rating = 4.0;
+        this.ActiveColor = "#ffca28";
+        this.InactiveColor = "#4b5563";
+        this.ReadOnly = false;
+    }
+
+    procedimento SetRating(novoValor: f32) {
+        if novoValor >= 0.0 && novoValor &lt;= f32(this.StarsCount) {
+            this.Rating = novoValor;
+            this.Invalidar();
+        }
+    }
+
+    procedimento Renderizar() -> string {
+        let estrelas = "";
+        let arredondado = i32(this.Rating);
+        para i de 1 ate this.StarsCount {
+            if i &lt;= arredondado {
+                estrelas = estrelas + "&lt;span style='color:" + this.ActiveColor + "; cursor:pointer;'&gt;★&lt;/span&gt; ";
+            } senao {
+                estrelas = estrelas + "&lt;span style='color:" + this.InactiveColor + "; cursor:pointer;'&gt;☆&lt;/span&gt; ";
+            }
+        }
+        return "&lt;div class='vcl-rating-container' style='font-size: 18px;'&gt;" + estrelas + "&lt;/div&gt;";
+    }
+}</code></pre>
+
+        <h3 class="section-title">Projeto 2: vox_KanbanBoard (Quadro Kanban com Colunas e Cartões)</h3>
+        <pre><code>classe vox_KanbanBoard herda vox_Panel {
+    pub let mut Colunas: string;
+    pub let mut CorCabecalho: string;
+
+    procedimento Inicializar() {
+        this.width = 720;
+        this.height = 420;
+        this.Colunas = "A Fazer, Em Andamento, Concluído";
+        this.CorCabecalho = "#1e293b";
+    }
+
+    procedimento Renderizar() -> string {
+        let cols = this.Colunas.split(",");
+        let html = "&lt;div class='kanban-board' style='display:flex; gap:12px; height:100%; width:100%;'&gt;";
+        para col em cols {
+            html = html + "&lt;div class='kanban-column' style='flex:1; background:#181e29; border-radius:6px; padding:10px;'&gt;" +
+                          "  &lt;div style='font-weight:700; color:#38bdf8; margin-bottom:8px;'&gt;" + col.trim() + "&lt;/div&gt;" +
+                          "  &lt;div class='kanban-card' style='background:#232b3b; padding:8px; border-radius:4px; font-size:12px; margin-bottom:6px;'&gt;Tarefa Exemplo&lt;/div&gt;" +
+                          "&lt;/div&gt;";
+        }
+        html = html + "&lt;/div&gt;";
+        return html;
+    }
+}
+
+// Procedimento de Registro Final
+procedimento Register() {
+    RegisterComponents("Custom", [
+        vox_RatingStars,
+        vox_KanbanBoard
+    ]);
+}</code></pre>
+      </article>
+
+    </div>
+
+    <!-- RODAPÉ DO LIVRO -->
+    <footer class="book-footer">
+      <div>
+        <span>Vox Studio RAD — Delphi 13 Athens Edition</span>
+      </div>
+      <div>
+        <span>Documentação Técnica Oficial • Linguagem Vox © 2026</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const isDark = document.body.classList.toggle('dark-theme');
+      const btn = document.getElementById('btnTheme');
+      if (btn) {
+        btn.innerHTML = isDark ? '🌓 Tema: Dark Tech' : '🌓 Tema: Papel';
+      }
+    }
+
+    // Se aberto com parâmetro ?print=1, aciona automaticamente a janela de impressão para PDF
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('print') === '1') {
+        setTimeout(() => {
+          window.print();
+        }, 500);
+      }
+    });
+  </script>
+</body>
+</html>

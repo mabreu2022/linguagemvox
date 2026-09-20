@@ -1,0 +1,73 @@
+// ==============================================================================
+// templates/erp_mvc/models/estoque_model.vox
+// Modelo de Controle e Movimentação de Estoque (Kardex / Saldo)
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+
+classe TEstoqueMovimentoModel herda TObject {
+private:
+    var _id: int;
+    var _usuario: str;
+
+published:
+    var IdMovimento: int;
+    var IdProduto: int;
+    var CodigoProduto: str;
+    var TipoMovimento: str;     // "ENTRADA_COMPRA", "SAIDA_VENDA", "AJUSTE_INVENTARIO", "DEVOLUCAO"
+    var DocumentoFiscal: str;   // Número da NF-e, NFC-e ou Pedido
+    var Quantidade: float;
+    var SaldoAnterior: float;
+    var SaldoNovo: float;
+    var DataHora: str;
+    var Observacao: str;
+
+public:
+    new() {
+        this._id = 0;
+        this._usuario = "operador";
+
+        this.IdMovimento = 0;
+        this.IdProduto = 0;
+        this.CodigoProduto = "";
+        this.TipoMovimento = "ENTRADA_COMPRA";
+        this.DocumentoFiscal = "";
+        this.Quantidade = 0.0;
+        this.SaldoAnterior = 0.0;
+        this.SaldoNovo = 0.0;
+        this.DataHora = "2026-09-20 10:00:00";
+        this.Observacao = "";
+    }
+
+    public procedure RegistrarEntrada(idProd: int, codProd: str, qtd: float, saldoAtual: float, numNota: str) {
+        this.IdProduto = idProd;
+        this.CodigoProduto = codProd;
+        this.TipoMovimento = "ENTRADA_COMPRA";
+        this.DocumentoFiscal = numNota;
+        this.Quantidade = qtd;
+        this.SaldoAnterior = saldoAtual;
+        this.SaldoNovo = saldoAtual + qtd;
+        this.Observacao = "Entrada por compra de fornecedor";
+
+        println("[ESTOQUE] Entrada: +" + str(qtd) + " no item " + codProd + " (Saldo: " + str(this.SaldoNovo) + ")");
+    }
+
+    public fn RegistrarSaida(idProd: int, codProd: str, qtd: float, saldoAtual: float, numVenda: str) -> bool {
+        if saldoAtual < qtd {
+            println("[ESTOQUE ERRO] Saldo insuficiente para saída do item " + codProd);
+            return false;
+        }
+
+        this.IdProduto = idProd;
+        this.CodigoProduto = codProd;
+        this.TipoMovimento = "SAIDA_VENDA";
+        this.DocumentoFiscal = numVenda;
+        this.Quantidade = qtd;
+        this.SaldoAnterior = saldoAtual;
+        this.SaldoNovo = saldoAtual - qtd;
+        this.Observacao = "Baixa automática por venda no PDV";
+
+        println("[ESTOQUE] Saída: -" + str(qtd) + " no item " + codProd + " (Saldo: " + str(this.SaldoNovo) + ")");
+        return true;
+    }
+}

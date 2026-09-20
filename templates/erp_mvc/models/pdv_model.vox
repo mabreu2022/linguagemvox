@@ -1,0 +1,143 @@
+// ==============================================================================
+// templates/erp_mvc/models/pdv_model.vox
+// Modelo de Frente de Caixa (PDV) com Itens, Pagamentos (PIX/Cartão/Dinheiro) e Cupom
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+
+// ── 1. Item Individual da Venda ───────────────────────────────────────────────
+classe TItemVendaModel herda TObject {
+published:
+    var NumeroItem: int;
+    var CodigoProduto: str;
+    var Descricao: str;
+    var Quantidade: float;
+    var ValorUnitario: float;
+    var Subtotal: float;
+    var AliquotaICMS: float;
+
+public:
+    new() {
+        this.NumeroItem = 1;
+        this.CodigoProduto = "";
+        this.Descricao = "";
+        this.Quantidade = 1.0;
+        this.ValorUnitario = 0.0;
+        this.Subtotal = 0.0;
+        this.AliquotaICMS = 18.0;
+    }
+
+    public fn CalcularSubtotal() -> float {
+        this.Subtotal = this.Quantidade * this.ValorUnitario;
+        return this.Subtotal;
+    }
+}
+
+// ── 2. Venda Completa no PDV ──────────────────────────────────────────────────
+classe TVendaPDVModel herda TObject {
+private:
+    var _numeroCupom: int;
+    var _itensCount: int;
+
+published:
+    var IdVenda: int;
+    var NumeroCaixa: int;
+    var NomeOperador: str;
+    var NomeCliente: str;
+    var DocumentoCliente: str;  // CPF na Nota
+    var TotalBruto: float;
+    var Desconto: float;
+    var Acrescimo: float;
+    var TotalLiquido: float;
+    var FormaPagamento: str;    // "DINHEIRO", "CARTAO_CREDITO", "CARTAO_DEBITO", "PIX", "A_PRAZO"
+    var ValorRecebido: float;
+    var ValorTroco: float;
+    var StatusVenda: str;       // "ABERTA", "FINALIZADA", "CANCELADA"
+    var DataHora: str;
+
+public:
+    new() {
+        this._numeroCupom = 1042;
+        this._itensCount = 0;
+
+        this.IdVenda = 1;
+        this.NumeroCaixa = 1;
+        this.NomeOperador = "Caixa 01 - Maria";
+        this.NomeCliente = "Consumidor Final";
+        this.DocumentoCliente = "";
+
+        this.TotalBruto = 0.0;
+        this.Desconto = 0.0;
+        this.Acrescimo = 0.0;
+        this.TotalLiquido = 0.0;
+
+        this.FormaPagamento = "PIX";
+        this.ValorRecebido = 0.0;
+        this.ValorTroco = 0.0;
+        this.StatusVenda = "ABERTA";
+        this.DataHora = "2026-09-20 14:30:00";
+    }
+
+    // ── Adicionar Item e Atualizar Total da Venda ──────────────────────────────
+    public procedure AdicionarValorItem(subtotal: float) {
+        this._itensCount = this._itensCount + 1;
+        this.TotalBruto = this.TotalBruto + subtotal;
+        this.RecalcularTotais();
+    }
+
+    public fn RecalcularTotais() -> float {
+        this.TotalLiquido = (this.TotalBruto - this.Desconto) + this.Acrescimo;
+        return this.TotalLiquido;
+    }
+
+    // ── Processar Pagamento e Troco ───────────────────────────────────────────
+    public fn ProcessarPagamento(forma: str, valorPago: float) -> bool {
+        this.FormaPagamento = forma;
+        this.ValorRecebido = valorPago;
+        this.RecalcularTotais();
+
+        if forma == "PIX" || forma == "CARTAO_CREDITO" || forma == "CARTAO_DEBITO" {
+            this.ValorRecebido = this.TotalLiquido;
+            this.ValorTroco = 0.0;
+            this.StatusVenda = "FINALIZADA";
+            return true;
+        }
+
+        if valorPago < this.TotalLiquido {
+            println("[PDV ALERTA] Valor recebido menor que o total da venda!");
+            return false;
+        }
+
+        this.ValorTroco = valorPago - this.TotalLiquido;
+        this.StatusVenda = "FINALIZADA";
+        return true;
+    }
+
+    // ── Emissão do Cupom Fiscal / NFC-e Formatado em Texto ────────────────────
+    public fn GerarCupomFiscalTexto() -> str {
+        let mut txt = "========================================\n";
+        txt = txt + "        MERCADO & CIA LTDA - ME         \n";
+        txt = txt + "     CNPJ: 12.345.678/0001-90           \n";
+        txt = txt + "   EXTRATO No. " + str(this._numeroCupom) + " - CUPOM FISCAL ELETRONICO \n";
+        txt = txt + "========================================\n";
+        txt = txt + "Consumidor: " + this.NomeCliente + "\n";
+        if len(this.DocumentoCliente) > 0 {
+            txt = txt + "CPF/CNPJ: " + this.DocumentoCliente + "\n";
+        }
+        txt = txt + "Data/Hora: " + this.DataHora + " | Caixa: " + str(this.NumeroCaixa) + "\n";
+        txt = txt + "----------------------------------------\n";
+        txt = txt + "TOTAL BRUTO R$:       " + str(this.TotalBruto) + "\n";
+        if this.Desconto > 0.0 {
+            txt = txt + "DESCONTO R$:         -" + str(this.Desconto) + "\n";
+        }
+        txt = txt + "TOTAL LIQUIDO R$:     " + str(this.TotalLiquido) + "\n";
+        txt = txt + "----------------------------------------\n";
+        txt = txt + "FORMA PAGAMENTO:      " + this.FormaPagamento + "\n";
+        txt = txt + "VALOR PAGO R$:        " + str(this.ValorRecebido) + "\n";
+        txt = txt + "TROCO R$:             " + str(this.ValorTroco) + "\n";
+        txt = txt + "========================================\n";
+        txt = txt + "     OBRIGADO PELA PREFERENCIA!         \n";
+        txt = txt + "========================================\n";
+        return txt;
+    }
+}

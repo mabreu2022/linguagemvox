@@ -97,7 +97,7 @@ export enum NodeKind {
 }
 
 // ── Tipos de Acesso ────────────────────────────────────────────
-export type Visibility = 'pub' | 'priv' | 'prot';
+export type Visibility = 'pub' | 'priv' | 'prot' | 'published';
 export type OwnershipKind = 'own' | 'borrow' | 'ref' | 'none';
 
 // ────────────────────────────────────────────────────────────────
@@ -120,6 +120,7 @@ export interface VarDeclNode extends ASTNode {
   typeAnnot?: TypeNode;
   value?:     ExprNode;
   ownership:  OwnershipKind;
+  visibility?: Visibility;
 }
 
 export interface StructFieldParam {
@@ -197,6 +198,7 @@ export interface ImportDeclNode extends ASTNode {
   kind:    NodeKind.ImportDecl;
   names:   string[];
   source:  string;
+  units?:  string[];
 }
 
 export interface ExportDeclNode extends ASTNode {

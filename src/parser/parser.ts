@@ -53,12 +53,18 @@ export class Parser {
     if (this.check(TokenType.INTERFACE)) return this.parseInterface();
     if (this.check(TokenType.MIXIN))  return this.parseMixin();
     // Handle visibility modifiers at top level
-    if (this.check(TokenType.PUB) || this.check(TokenType.PRIV) || this.check(TokenType.PROT)) {
+    if (
+      this.check(TokenType.PUB) ||
+      this.check(TokenType.PRIV) ||
+      this.check(TokenType.PROT) ||
+      this.check(TokenType.PUBLISHED)
+    ) {
       const vis = this.parseVisibility();
       const isStatic = this.match(TokenType.STATIC);
       if (this.check(TokenType.STRUCT)) return this.parseStruct(decorators, vis);
+      if (this.check(TokenType.CLASS))  return this.parseClass(decorators);
       if (this.check(TokenType.FN) || this.check(TokenType.ASYNC)) return this.parseFnDecl(decorators, vis, isStatic);
-      return this.parseVarDecl();
+      return this.parseVarDecl(vis);
     }
     if (this.check(TokenType.FN) || this.check(TokenType.ASYNC)) return this.parseFnDecl(decorators, "pub", false);
     if (this.check(TokenType.LET) || this.check(TokenType.CONST)) return this.parseVarDecl();
@@ -84,18 +90,45 @@ export class Parser {
 
   private parseImport(): ImportDeclNode {
     const pos = this.current().position;
-    this.advance();
-    this.expect(TokenType.LBRACE, "Expected '{'");
-    const names: string[] = [];
-    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
-      names.push(this.expect(TokenType.IDENTIFIER, "Name expected").value);
+    this.advance(); // consume 'import'
+
+    // Formato 1: import { a, b } from "caminho";
+    if (this.check(TokenType.LBRACE)) {
+      this.advance();
+      const names: string[] = [];
+      while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+        names.push(this.expect(TokenType.IDENTIFIER, "Name expected").value);
+        if (!this.match(TokenType.COMMA)) break;
+      }
+      this.expect(TokenType.RBRACE, "Expected '}'");
+      this.expect(TokenType.FROM, "Expected 'from'");
+      const source = this.expect(TokenType.STRING, "Module path expected").value;
+      this.matchSemicolon();
+      return { kind: NodeKind.ImportDecl, names, source, position: pos };
+    }
+
+    // Formato 2: import "caminho.vox";
+    if (this.check(TokenType.STRING)) {
+      const source = this.advance().value;
+      this.matchSemicolon();
+      return { kind: NodeKind.ImportDecl, names: [], source, position: pos };
+    }
+
+    // Formato 3: import Unit1, Unit2, UnitClientes; (estilo uses do Delphi)
+    const units: string[] = [];
+    while (!this.isAtEnd() && !this.check(TokenType.SEMICOLON)) {
+      const unitName = this.expect(TokenType.IDENTIFIER, "Unit name expected in import").value;
+      units.push(unitName);
       if (!this.match(TokenType.COMMA)) break;
     }
-    this.expect(TokenType.RBRACE, "Expected '}'");
-    this.expect(TokenType.FROM, "Expected 'from'");
-    const source = this.expect(TokenType.STRING, "Module path expected").value;
     this.matchSemicolon();
-    return { kind: NodeKind.ImportDecl, names, source, position: pos };
+    return {
+      kind: NodeKind.ImportDecl,
+      names: units,
+      units: units,
+      source: units[0] || "",
+      position: pos
+    };
   }
 
   private parseExport(decorators: DecoratorNode[]): ExportDeclNode {
@@ -124,13 +157,17 @@ export class Parser {
       }
       this.expect(TokenType.GT, "Expected '>'");
     }
-    if (this.match(TokenType.EXTENDS)) {
-      throw new ParseError(
-        "Classical inheritance ('extends') has been removed in Vox v1.0 to prevent object slicing. Use 'struct', 'trait', and 'impl Trait for Struct' instead.",
-        this.current()
-      );
-    }
     let superClass: string | undefined;
+    if (this.match(TokenType.EXTENDS) || this.match(TokenType.COLON)) {
+      superClass = this.expect(TokenType.IDENTIFIER, "Superclass name expected").value;
+    } else if (this.check(TokenType.IDENTIFIER) && this.peek().value === 'herda') {
+      this.advance();
+      superClass = this.expect(TokenType.IDENTIFIER, "Superclass name expected").value;
+    } else if (this.check(TokenType.LPAREN)) {
+      this.advance();
+      superClass = this.expect(TokenType.IDENTIFIER, "Superclass name expected").value;
+      this.expect(TokenType.RPAREN, "Expected ')'");
+    }
     const interfaces: string[] = [];
     if (this.match(TokenType.IMPLEMENTS)) {
       interfaces.push(this.expect(TokenType.IDENTIFIER, "Interface expected").value);
@@ -143,15 +180,30 @@ export class Parser {
     }
     this.expect(TokenType.LBRACE, "Expected '{'");
     const members: ClassMemberNode[] = [];
+    let sectionVisibility: Visibility = 'pub';
     while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      // Seção de visibilidade estilo Delphi: private:, public:, published:, protected:
+      if (
+        (this.check(TokenType.PUB) ||
+         this.check(TokenType.PRIV) ||
+         this.check(TokenType.PROT) ||
+         this.check(TokenType.PUBLISHED)) &&
+        this.peekNext().type === TokenType.COLON
+      ) {
+        sectionVisibility = this.parseVisibility();
+        this.expect(TokenType.COLON, "Expected ':' after visibility section");
+        continue;
+      }
+
       const memberDecorators = this.parseDecorators();
-      let visibility: Visibility = 'pub';
+      let visibility: Visibility = sectionVisibility;
       let isStatic = false;
       let hasExplicitVis = false;
       while (
         this.check(TokenType.PUB) ||
         this.check(TokenType.PRIV) ||
         this.check(TokenType.PROT) ||
+        this.check(TokenType.PUBLISHED) ||
         this.check(TokenType.STATIC)
       ) {
         if (this.match(TokenType.STATIC)) {
@@ -165,16 +217,33 @@ export class Parser {
         } else if (this.match(TokenType.PROT)) {
           visibility = 'prot';
           hasExplicitVis = true;
+        } else if (this.match(TokenType.PUBLISHED)) {
+          visibility = 'published';
+          hasExplicitVis = true;
         }
       }
+      if (!hasExplicitVis) visibility = sectionVisibility;
+
       if (this.check(TokenType.FN) || this.check(TokenType.ASYNC)) {
-        members.push(this.parseMethod(memberDecorators, visibility, isStatic));
+        if (this.peekNext().value === "new" || this.peekNext().value === "constructor" || this.peekNext().value === "Create") {
+          this.advance(); // consume fn
+          if (this.peek().value === "constructor") {
+            this.advance();
+            if (this.peek().value === "Create") this.advance();
+          }
+          members.push(this.parseConstructor());
+        } else {
+          members.push(this.parseMethod(memberDecorators, visibility, isStatic));
+        }
       } else if (this.check(TokenType.OPERATOR)) {
         members.push(this.parseOperator());
-      } else if (this.peek().value === "new") {
+      } else if (this.peek().value === "new" || this.peek().value === "constructor" || (this.peek().value === "Create" && this.peekNext().type === TokenType.LPAREN)) {
+        if (this.peek().value === "constructor") {
+          this.advance();
+          if (this.peek().value === "Create") this.advance();
+        }
         members.push(this.parseConstructor());
       } else {
-        if (!hasExplicitVis) visibility = 'pub';
         members.push(this.parseField(visibility, isStatic));
       }
     }
@@ -446,7 +515,9 @@ export class Parser {
 
   private parseConstructor(): ConstructorDeclNode {
     const pos = this.current().position;
-    this.advance(); // 'new'
+    if (this.peek().value === "new" || this.peek().value === "constructor" || this.peek().value === "Create") {
+      this.advance();
+    }
     const params = this.parseParams();
     const body = this.parseBlock();
     return { kind: NodeKind.ConstructorDecl, params, body, position: pos };
@@ -476,8 +547,15 @@ export class Parser {
 
   private parseField(visibility: Visibility, isStatic: boolean): FieldDeclNode {
     const pos = this.current().position;
+    this.match(TokenType.LET);
+    this.match(TokenType.MUT);
     const ownership = this.parseOwnership();
-    const name = this.expect(TokenType.IDENTIFIER, "Field name").value;
+    let name: string;
+    if (this.check(TokenType.IDENTIFIER) || /^[a-zA-Z_\u00C0-\u017F][a-zA-Z0-9_\u00C0-\u017F]*$/.test(this.peek().value)) {
+      name = this.advance().value;
+    } else {
+      name = this.expect(TokenType.IDENTIFIER, "Field name").value;
+    }
     let typeAnnot: TypeNode | undefined;
     if (this.match(TokenType.COLON)) typeAnnot = this.parseType();
     let value: ExprNode | undefined;
@@ -508,6 +586,7 @@ export class Parser {
     if (this.match(TokenType.PUB))  return "pub";
     if (this.match(TokenType.PRIV)) return "priv";
     if (this.match(TokenType.PROT)) return "prot";
+    if (this.match(TokenType.PUBLISHED)) return "published";
     return "priv";
   }
 
@@ -544,10 +623,11 @@ export class Parser {
     return { kind: NodeKind.ExprStmt, expr, position: expr.position };
   }
 
-  private parseVarDecl(): VarDeclNode {
+  private parseVarDecl(visibility?: Visibility): VarDeclNode {
     const pos = this.current().position;
-    const isConst = this.advance().type === TokenType.CONST;
-    const isMut = this.match(TokenType.MUT);
+    const leadTok = this.advance();
+    const isConst = leadTok.type === TokenType.CONST;
+    const isMut = this.match(TokenType.MUT) || leadTok.value === 'var';
     const ownership = this.parseOwnership();
     const name = this.expect(TokenType.IDENTIFIER, "Variable name").value;
     let typeAnnot: TypeNode | undefined;
@@ -555,7 +635,7 @@ export class Parser {
     let value: ExprNode | undefined;
     if (this.match(TokenType.ASSIGN)) value = this.parseExpression();
     this.matchSemicolon();
-    return { kind: NodeKind.VarDecl, name, isConst, isMut, typeAnnot, value, ownership, position: pos };
+    return { kind: NodeKind.VarDecl, name, isConst, isMut, typeAnnot, value, ownership, visibility, position: pos };
   }
 
   private parseReturn(): ReturnStmtNode {
@@ -573,8 +653,13 @@ export class Parser {
     const condition = this.parseExpression();
     const then = this.parseBlock();
     const elif: Array<{ condition: ExprNode; block: BlockNode }> = [];
-    while (this.check(TokenType.ELIF)) {
-      this.advance();
+    while (this.check(TokenType.ELIF) || (this.check(TokenType.ELSE) && this.peekNext().type === TokenType.IF)) {
+      if (this.check(TokenType.ELIF)) {
+        this.advance();
+      } else {
+        this.advance(); // consume 'else'
+        this.advance(); // consume 'if'
+      }
       elif.push({ condition: this.parseExpression(), block: this.parseBlock() });
     }
     let elseBlock: BlockNode | undefined;
@@ -1021,9 +1106,9 @@ export class Parser {
     const allowed = [
       TokenType.IDENTIFIER, TokenType.SOME, TokenType.NONE, TokenType.OK, TokenType.ERR,
       TokenType.TYPE_INT, TokenType.TYPE_FLOAT, TokenType.TYPE_STR, TokenType.TYPE_BOOL,
-      TokenType.TYPE_CHAR, TokenType.NEW
+      TokenType.TYPE_CHAR, TokenType.NEW, TokenType.PUB, TokenType.PRIV, TokenType.PROT, TokenType.PUBLISHED
     ];
-    if (allowed.includes(tok.type)) {
+    if (allowed.includes(tok.type) || /^[a-zA-Z_\u00C0-\u017F][a-zA-Z0-9_\u00C0-\u017F]*$/.test(tok.value)) {
       this.advance();
       return tok.value;
     }

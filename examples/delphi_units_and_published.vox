@@ -1,0 +1,75 @@
+// ==============================================================================
+// Exemplo Vox: Delphi Uses/Import, Visibilidade (Public, Private, Published)
+// ==============================================================================
+
+// 1. Import no estilo 'uses' do Delphi (múltiplas units separadas por vírgula)
+import Vox_UI, Vox_Database, Vox_SysUtils;
+
+// 2. Variáveis globais com visibilidade pública e privada
+public var AppVersao: str = "2.5.0";
+private var _contadorSessao: int = 0;
+
+// 3. Funções e Procedures públicas e privadas a nível de unidade
+public procedure NotificarUsuario(msg: str) {
+    println("[SISTEMA] Notificação: " + msg);
+}
+
+private fn ObterTokenSegredo() -> str {
+    return "VOX-KEY-SECRET-994";
+}
+
+// 4. Classe de Formulário com seções Delphi (private:, public:, published:)
+classe TFormPrincipal herda vox_Form {
+private:
+    // Membros estritamente encapsulados
+    var _usuarioLogado: str;
+    var _tentativasLogin: int;
+
+    private procedure RegistrarAuditoria(acao: str) {
+        println("[AUDITORIA] " + acao + " pelo usuário " + this._usuarioLogado);
+    }
+
+published:
+    // Propriedades e componentes visíveis no Object Inspector
+    var Caption: str;
+    var Width: int;
+    var Height: int;
+    var vox_MainMenu1: vox_MainMenu;
+    var vox_Connection1: vox_Connection;
+    var vox_Query1: vox_Query;
+    var vox_DataSource1: vox_DataSource;
+    var vox_DBGrid1: vox_DBGrid;
+    var btnSalvar: vox_Button;
+
+public:
+    // Construtor e métodos de negócio públicos
+    new() {
+        this.Caption = "Gestão de Clientes Vox";
+        this.Width = 1024;
+        this.Height = 768;
+        this._usuarioLogado = "admin";
+        this._tentativasLogin = 0;
+
+        println("Formulário carregado: " + this.Caption);
+    }
+
+    public procedure btnSalvar_OnClick(sender: any) {
+        this.RegistrarAuditoria("Clique em Salvar Dados");
+        NotificarUsuario("Registro de cliente salvo com sucesso!");
+    }
+
+    public fn ObterStatus() -> str {
+        return "Ativo - Conexão Aberta";
+    }
+}
+
+// ── Ponto de entrada ─────────────────────────────────────────────────────────
+public fn main() -> void {
+    println("=== Teste de Unidades e Visibilidade Vox ===");
+    println("Versão: " + AppVersao);
+    
+    let form = new TFormPrincipal();
+    println("Dimensões: " + str(form.Width) + "x" + str(form.Height));
+    form.btnSalvar_OnClick(none);
+    println("Status: " + form.ObterStatus());
+}

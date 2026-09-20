@@ -1,0 +1,178 @@
+// ==============================================================================
+// templates/erp_mvc/controllers/erp_controllers.vox
+// Controladores do ERP: Orquestração MVC entre Modelos, Regras Fiscais e Telas
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+import cliente_nfe_model, produto_model, estoque_model, pdv_model;
+
+// ── 1. Controlador de Clientes com Regras de NF-e ─────────────────────────────
+classe TClienteNFeController herda TObject {
+private:
+    var _totalClientesCadastrados: int;
+
+    private procedure LogController(msg: str) {
+        println("[CONTROLLER-CLIENTE] " + msg);
+    }
+
+published:
+    var UltimoStatus: str;
+
+public:
+    new() {
+        this._totalClientesCadastrados = 0;
+        this.UltimoStatus = "Pronto";
+    }
+
+    public fn SalvarCliente(cliente: TClienteNFeModel) -> bool {
+        this.LogController("Iniciando validação fiscal para NF-e...");
+
+        if !cliente.ValidarParaNFe() {
+            this.UltimoStatus = "Erro de validação: Verifique os campos obrigatórios da NF-e.";
+            this.LogController(this.UltimoStatus);
+            return false;
+        }
+
+        this._totalClientesCadastrados = this._totalClientesCadastrados + 1;
+        this.UltimoStatus = "Cliente " + cliente.RazaoSocial + " validado e gravado com sucesso!";
+        this.LogController(this.UltimoStatus);
+        return true;
+    }
+
+    public fn ObterEspelhoFiscalNFe(cliente: TClienteNFeModel) -> str {
+        return cliente.GerarXMLDestinatario();
+    }
+}
+
+// ── 2. Controlador de Produtos e Precificação ─────────────────────────────────
+classe TProdutoController herda TObject {
+private:
+    var _totalProdutos: int;
+
+published:
+    var Mensagem: str;
+
+public:
+    new() {
+        this._totalProdutos = 0;
+        this.Mensagem = "OK";
+    }
+
+    public fn CadastrarProduto(produto: TProdutoModel) -> bool {
+        if !produto.ValidarParaNFe() {
+            this.Mensagem = "Dados tributários do produto inválidos (NCM ou CFOP incorretos).";
+            println("[PRODUTO CONTROLLER] " + this.Mensagem);
+            return false;
+        }
+
+        produto.RecalcularPrecoVenda();
+        this._totalProdutos = this._totalProdutos + 1;
+        this.Mensagem = "Produto " + produto.Descricao + " registrado com preço R$ " + str(produto.PrecoVenda);
+        println("[PRODUTO CONTROLLER] " + this.Mensagem);
+        return true;
+    }
+}
+
+// ── 3. Controlador de Estoque e Almoxarifado ──────────────────────────────────
+classe TEstoqueController herda TObject {
+private:
+    var _movimentosCount: int;
+
+published:
+    var UltimoMovimento: str;
+
+public:
+    new() {
+        this._movimentosCount = 0;
+        this.UltimoMovimento = "Sem movimentações recentes";
+    }
+
+    public fn EntradaPorNotaFiscal(produto: TProdutoModel, qtd: float, numNota: str) -> bool {
+        let mov = new TEstoqueMovimentoModel();
+        mov.RegistrarEntrada(produto.Id, produto.Codigo, qtd, produto.EstoqueAtual, numNota);
+        produto.EstoqueAtual = produto.EstoqueAtual + qtd;
+        this._movimentosCount = this._movimentosCount + 1;
+        this.UltimoMovimento = "Entrada de " + str(qtd) + " unidades registrada via NF-e " + numNota;
+        return true;
+    }
+
+    public fn BaixaPorVenda(produto: TProdutoModel, qtd: float, numVenda: str) -> bool {
+        if !produto.TemEstoqueDisponivel(qtd) {
+            this.UltimoMovimento = "Estoque insuficiente para venda!";
+            return false;
+        }
+
+        let mov = new TEstoqueMovimentoModel();
+        let sucesso = mov.RegistrarSaida(produto.Id, produto.Codigo, qtd, produto.EstoqueAtual, numVenda);
+        if sucesso {
+            produto.EstoqueAtual = produto.EstoqueAtual - qtd;
+            this._movimentosCount = this._movimentosCount + 1;
+            this.UltimoMovimento = "Baixa de " + str(qtd) + " unidades registrada pela venda " + numVenda;
+        }
+        return sucesso;
+    }
+}
+
+// ── 4. Controlador de Frente de Caixa (PDV) ───────────────────────────────────
+classe TPDVController herda TObject {
+private:
+    var _caixaAberto: bool;
+    var _estoqueCtrl: TEstoqueController;
+
+published:
+    var OperadorAtual: str;
+    var SaldoCaixa: float;
+    var CupomEmitido: str;
+
+public:
+    new() {
+        this._caixaAberto = false;
+        this._estoqueCtrl = new TEstoqueController();
+        this.OperadorAtual = "Operador 01";
+        this.SaldoCaixa = 0.0;
+        this.CupomEmitido = "";
+    }
+
+    public procedure AbrirCaixa(operador: str, fundoInicial: float) {
+        this.OperadorAtual = operador;
+        this.SaldoCaixa = fundoInicial;
+        this._caixaAberto = true;
+        println("[PDV] Caixa aberto com sucesso. Fundo de troco inicial: R$ " + str(fundoInicial));
+    }
+
+    public fn RealizarVendaRapida(venda: TVendaPDVModel, produto: TProdutoModel, qtd: float, formaPagto: str, valorPago: float) -> bool {
+        if !this._caixaAberto {
+            println("[PDV ERRO] Não é possível vender com o caixa fechado!");
+            return false;
+        }
+
+        // 1. Criar item e calcular subtotal
+        let item = new TItemVendaModel();
+        item.CodigoProduto = produto.Codigo;
+        item.Descricao = produto.Descricao;
+        item.Quantidade = qtd;
+        item.ValorUnitario = produto.PrecoVenda;
+        let subtotal = item.CalcularSubtotal();
+
+        // 2. Adicionar à venda
+        venda.AdicionarValorItem(subtotal);
+
+        // 3. Processar pagamento
+        let pagtoOk = venda.ProcessarPagamento(formaPagto, valorPago);
+        if !pagtoOk {
+            return false;
+        }
+
+        // 4. Baixar estoque automaticamente
+        this._estoqueCtrl.BaixaPorVenda(produto, qtd, "PDV-" + str(venda.IdVenda));
+
+        // 5. Atualizar saldo do caixa
+        this.SaldoCaixa = this.SaldoCaixa + venda.TotalLiquido;
+
+        // 6. Gerar cupom fiscal impresso
+        this.CupomEmitido = venda.GerarCupomFiscalTexto();
+        println(this.CupomEmitido);
+
+        return true;
+    }
+}

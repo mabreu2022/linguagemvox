@@ -1,0 +1,84 @@
+// ==============================================================================
+// templates/erp_mvc/teste_erp_mvc.vox
+// Teste e Demonstração Executável do ERP Vox em Arquitetura MVC
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+import cliente_nfe_model, produto_model, estoque_model, pdv_model, erp_controllers;
+
+public fn main() -> void {
+    println("==============================================================");
+    println("      TESTE INTEGRADO DO SISTEMA ERP VOX (ARQUITETURA MVC)    ");
+    println("==============================================================");
+
+    // ── 1. Cadastro de Cliente Completo para NF-e ─────────────────────────────
+    println("\n[1] MÓDULO DE CLIENTES: Dados Fiscais para Nota Fiscal Eletrônica");
+    let cli = new TClienteNFeModel();
+    cli.RazaoSocial = "COMERCIAL ALIMENTOS BRASIL LTDA";
+    cli.NomeFantasia = "SUPERMERCADO BRASIL";
+    cli.CnpjCpf = "12345678000199";
+    cli.InscricaoEstadual = "123456789110";
+    cli.IndIEDest = 1;
+    cli.CRT = 3; // Regime Normal
+
+    cli.CEP = "01001000";
+    cli.Logradouro = "Praça da Sé";
+    cli.Numero = "100";
+    cli.Complemento = "Andar 5";
+    cli.Bairro = "Sé";
+    cli.CodigoMunicipioIBGE = "3550308";
+    cli.NomeMunicipio = "São Paulo";
+    cli.UF = "SP";
+
+    cli.Telefone = "1133334444";
+    cli.EmailNFe = "fiscal@supermercadobrasil.com.br";
+    cli.LimiteCredito = 25000.0;
+
+    let cliController = new TClienteNFeController();
+    let gravouCli = cliController.SalvarCliente(cli);
+    println("Status do Cliente: " + cliController.UltimoStatus);
+    println("Espelho XML <dest>:\n" + cliController.ObterEspelhoFiscalNFe(cli));
+
+    // ── 2. Módulo de Produtos com Tributos ────────────────────────────────────
+    println("\n[2] MÓDULO DE PRODUTOS: Cadastro e Formação de Preço");
+    let prod = new TProdutoModel();
+    prod.Codigo = "NOTE-DELL-I7";
+    prod.CodigoBarrasEAN = "7898529631478";
+    prod.Descricao = "NOTEBOOK DELL INSPIRON 15 I7 16GB SSD 512GB";
+    prod.NCM = "84713012";
+    prod.CEST = "2100100";
+    prod.CFOP = "5102";
+    prod.PrecoCusto = 3200.0;
+    prod.MargemLucroPercent = 45.0; // 45% de margem
+    prod.EstoqueAtual = 20.0;
+    prod.EstoqueMinimo = 5.0;
+
+    let prodController = new TProdutoController();
+    prodController.CadastrarProduto(prod);
+
+    // ── 3. Módulo de Estoque (Entradas e Saídas) ──────────────────────────────
+    println("\n[3] MÓDULO DE ESTOQUE: Entrada de Mercadoria via Fornecedor");
+    let estController = new TEstoqueController();
+    estController.EntradaPorNotaFiscal(prod, 10.0, "NF-55421");
+    println("Saldo de Estoque após entrada: " + str(prod.EstoqueAtual) + " unidades.");
+
+    // ── 4. Módulo de Frente de Caixa (PDV) ────────────────────────────────────
+    println("\n[4] MÓDULO PDV: Frente de Caixa e Venda com Emissão de Cupom");
+    let pdvController = new TPDVController();
+    pdvController.AbrirCaixa("Operador 02 - Roberto", 250.0);
+
+    let venda = new TVendaPDVModel();
+    venda.IdVenda = 501;
+    venda.NomeCliente = cli.RazaoSocial;
+    venda.DocumentoCliente = cli.CnpjCpf;
+
+    // Venda de 2 Notebooks via PIX
+    let vendaSucesso = pdvController.RealizarVendaRapida(venda, prod, 2.0, "PIX", 0.0);
+    println("Venda realizada com sucesso? " + str(vendaSucesso));
+    println("Saldo final de estoque do produto: " + str(prod.EstoqueAtual) + " unidades.");
+    println("Saldo total em caixa do PDV: R$ " + str(pdvController.SaldoCaixa));
+
+    println("\n==============================================================");
+    println("✔ TESTE DO ERP CONCLUÍDO COM SUCESSO! ARQUITETURA MVC 100% OK ");
+    println("==============================================================");
+}

@@ -1,0 +1,35 @@
+// ==============================================================================
+// templates/erp_mvc/interfaces/ierp_services.vox
+// Contratos de Serviços da Arquitetura MVC do ERP Vox
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+
+// ── Interface de Serviço de Clientes para NF-e ────────────────────────────────
+interface IClienteNFeService {
+    fn ValidarDadosFiscais(cliente: any) -> bool;
+    fn FormatarDocumento(doc: str) -> str;
+    fn GerarXMLDestinatario(cliente: any) -> str;
+}
+
+// ── Interface de Serviço de Produtos ──────────────────────────────────────────
+interface IProdutoService {
+    fn ValidarNCM(ncm: str) -> bool;
+    fn CalcularMarkup(custo: float, margem: float) -> float;
+    fn CalcularTributos(produto: any, valor: float) -> float;
+}
+
+// ── Interface de Serviço de Estoque ───────────────────────────────────────────
+interface IEstoqueService {
+    fn DarEntrada(idProduto: int, qtd: float, numNota: str) -> bool;
+    fn DarBaixa(idProduto: int, qtd: float, numVenda: str) -> bool;
+    fn ConsultarSaldo(idProduto: int) -> float;
+}
+
+// ── Interface de Serviço do PDV (Frente de Caixa) ─────────────────────────────
+interface IPDVService {
+    fn AbrirCaixa(operador: str, saldoInicial: float) -> bool;
+    fn AdicionarItem(codigoBarras: str, qtd: float) -> any;
+    fn ProcessarPagamento(forma: str, valorPago: float) -> float;
+    fn FecharVenda() -> str;
+}

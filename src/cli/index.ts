@@ -78,6 +78,36 @@ function readFile(filePath: string, visited: Set<string> = new Set()): string {
     return readFile(target, visited);
   });
 
+  // Suporte modular a import no estilo uses do Delphi: import Unit1, Unit2;
+  content = content.replace(/^[ \t]*import[ \t]+([a-zA-Z0-9_,\s]+);/gm, (fullMatch, unitsStr) => {
+    const units = unitsStr.split(',').map((u: string) => u.trim()).filter(Boolean);
+    let included = '';
+    for (const unit of units) {
+      const candidates = [
+        path.resolve(dir, unit + '.vox'),
+        path.resolve(dir, 'models', unit + '.vox'),
+        path.resolve(dir, 'controllers', unit + '.vox'),
+        path.resolve(dir, 'interfaces', unit + '.vox'),
+        path.resolve(dir, 'views', unit + '.vox'),
+        path.resolve(process.cwd(), unit + '.vox'),
+        path.resolve(process.cwd(), 'forms', unit + '.vox'),
+        path.resolve(process.cwd(), 'src', unit + '.vox'),
+        path.resolve(process.cwd(), 'models', unit + '.vox'),
+        path.resolve(process.cwd(), 'controllers', unit + '.vox'),
+        path.resolve(process.cwd(), 'interfaces', unit + '.vox'),
+        path.resolve(process.cwd(), 'clientes', unit + '.vox'),
+        path.resolve(process.cwd(), 'templates', 'erp_mvc', 'models', unit + '.vox'),
+        path.resolve(process.cwd(), 'templates', 'erp_mvc', 'controllers', unit + '.vox'),
+        path.resolve(process.cwd(), 'templates', 'erp_mvc', 'interfaces', unit + '.vox')
+      ];
+      const target = candidates.find(c => fs.existsSync(c));
+      if (target) {
+        included += '\n' + readFile(target, visited);
+      }
+    }
+    return included ? included : fullMatch;
+  });
+
   return content;
 }
 
@@ -107,6 +137,12 @@ function runFile(filePath: string): void {
     // 4. Interpret
     const interpreter = new Interpreter();
     interpreter.run(ast);
+    if (interpreter.globals.has('main')) {
+      const mainFn = interpreter.globals.get('main');
+      if (typeof mainFn === 'object' && mainFn !== null && (mainFn as any).kind === 'function') {
+        (interpreter as any).callFn(mainFn, []);
+      }
+    }
 
   } catch (error: any) {
     const reporter = new DiagnosticReporter();

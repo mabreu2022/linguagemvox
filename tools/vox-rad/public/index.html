@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vox Studio — RAD IDE</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/rad.css?v=3.4">
+</head>
+<body>
+
+  <!-- ========================================================================
+       1. MENU BAR SUPERIOR (DELPHI PADRÃO)
+       ======================================================================== -->
+  <div class="delphi-menubar">
+    <!-- File Menu -->
+    <div class="delphi-menu-item">
+      <span>File</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.newForm()"><span>📄 Novo Formulário</span><span class="shortcut">Ctrl+N</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openNewClassModal()"><span>🏛️ Nova Classe / Unit...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openCreateFromExampleModal()"><span>📦 Novo Projeto a partir de Exemplo...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.newProject()"><span>📦 Novo Projeto em Branco</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.saveForm()"><span>💾 Salvar (Save)</span><span class="shortcut">Ctrl+S</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openSaveDialog()"><span>💾 Salvar Como... (Save As)</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.saveAll()"><span>📁💾 Salvar Tudo</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.closeFormWindow()"><span>❌ Fechar Formulário</span></div>
+      </div>
+    </div>
+
+    <!-- Edit Menu -->
+    <div class="delphi-menu-item">
+      <span>Edit</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.editUndo()"><span>↩️ Desfazer (Undo)</span><span class="shortcut">Ctrl+Z</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.editRedo()"><span>↪️ Refazer (Redo)</span><span class="shortcut">Ctrl+Y</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.designer.duplicateSelected()"><span>📑 Duplicar</span><span class="shortcut">Ctrl+D</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.designer.deleteSelected()"><span>🗑️ Excluir</span><span class="shortcut">Del</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.selectAll()"><span>☑️ Selecionar Tudo</span><span class="shortcut">Ctrl+A</span></div>
+      </div>
+    </div>
+
+    <!-- Search Menu -->
+    <div class="delphi-menu-item">
+      <span>Search</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openSearch()"><span>🔍 Localizar no Código...</span><span class="shortcut">Ctrl+F</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openReplace()"><span>🔄 Substituir no Código...</span><span class="shortcut">Ctrl+H</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.findNext()"><span>⬇️ Localizar Próximo</span><span class="shortcut">F3</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.findPrev()"><span>⬆️ Localizar Anterior</span><span class="shortcut">Shift+F3</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.gotoLine()"><span>🎯 Ir para a Linha...</span><span class="shortcut">Ctrl+G</span></div>
+      </div>
+    </div>
+
+    <!-- View Menu -->
+    <div class="delphi-menu-item">
+      <span>View</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.toggleDesignCodeView()"><span>🔄 Alternar Design / Código</span><span class="shortcut">F12</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.switchView('designer')"><span>🎨 Visual Form Designer</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.switchView('code')"><span>📝 Editor de Código Vox</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.toggleTheme()"><span id="menuThemeIcon">☀️</span> <span id="menuThemeText">Modo Claro (Light Mode)</span></div>
+      </div>
+    </div>
+
+    <!-- Refactor Menu -->
+    <div class="delphi-menu-item">
+      <span>Refactor</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.refactorRename()"><span>🏷️ Renomear Símbolo...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.refactorExtractFn()"><span>⚡ Extrair Função / Procedimento...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.refactorFormat()"><span>✨ Formatar Código Vox</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.refactorAddHandler()"><span>➕ Adicionar Manipulador de Evento...</span></div>
+      </div>
+    </div>
+
+    <!-- Project Menu -->
+    <div class="delphi-menu-item">
+      <span>Project</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openNewClassModal()"><span>🏛️ Nova Classe...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openCreateFromExampleModal()"><span>📦 Novo Projeto a partir de Exemplo...</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.buildWebApp()"><span>⚙️ Compilar Sistema Web</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.runApp()"><span>▶ Executar no Navegador</span><span class="shortcut">F9</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.switchView('code')"><span>💻 Ver Código do Projeto (.vox)</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.showProjectOptions()"><span>🔧 Opções do Projeto...</span></div>
+      </div>
+    </div>
+
+    <!-- Run / Debug Menu (Delphi Standard) -->
+    <div class="delphi-menu-item">
+      <span>Run</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.runApp()"><span>▶ Executar Sem Depuração</span><span class="shortcut">Ctrl+F9</span></div>
+        <div class="delphi-menu-dropdown-item" style="color: #22c55e; font-weight: 600;" onclick="window.app.startDebug()"><span>🐞 Iniciar com Depuração</span><span class="shortcut">F9</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.stepOver()"><span>⤵ Passo a Passo (Step Over)</span><span class="shortcut">F8</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.stepInto()"><span>⤷ Entrar na Função (Step Into)</span><span class="shortcut">F7</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.stepOut()"><span>⤴ Sair da Função (Step Out)</span><span class="shortcut">Shift+F8</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.runToCursor()"><span>🎯 Executar até o Cursor</span><span class="shortcut">F4</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.toggleBreakpointCurrentLine()"><span>🔴 Alternar Ponto de Parada</span><span class="shortcut">F5</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.clearAllBreakpoints()"><span>⚪ Limpar Todos os Breakpoints</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.pauseDebug()"><span>⏸ Pausar Depuração</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.stopDebug()"><span>⏹ Resetar Programa (Program Reset)</span><span class="shortcut">Ctrl+F2</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openAddWatchModal()"><span>👁️ Adicionar Watch...</span><span class="shortcut">Ctrl+F5</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.toggleDebugPanel()"><span>🗔 Exibir/Ocultar Painel de Depuração</span></div>
+      </div>
+    </div>
+
+    <!-- Component Menu (Com a Fábrica de Componentes) -->
+    <div class="delphi-menu-item">
+      <span>Component</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" style="color: #ffca28; font-weight:600;" onclick="window.app.openComponentFactory()"><span>🏭 Fábrica de Componentes...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openInstallPackageModal()"><span>📦 Instalar Pacote de Componentes (.vdpk)...</span></div>
+        <div class="delphi-menu-dropdown-item" style="color: #38bdf8;" onclick="window.app.openComponentBook()"><span>📖 Livro: Guia de Construção de Componentes...</span></div>
+        <div class="menu-sep"></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.initPalette()"><span>🔄 Recarregar Paleta de Ferramentas</span></div>
+      </div>
+    </div>
+
+    <!-- Tools Menu -->
+    <div class="delphi-menu-item">
+      <span>Tools</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openConnectionEditor(null)"><span>🔌 FireDAC Connection Editor (Delphi 13)...</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openSqlEditor(null)"><span>📝 SQL Command Editor</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.openExternalBrowser()"><span>🌐 Abrir Aplicação Web (Porta 5000)</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.runBackend()"><span>⚡ Executar via CLI Vox</span></div>
+      </div>
+    </div>
+
+    <!-- Help Menu -->
+    <div class="delphi-menu-item">
+      <span>Help</span>
+      <div class="delphi-menu-dropdown">
+        <div class="delphi-menu-dropdown-item" style="color:#38bdf8;" onclick="window.app.openComponentBook()"><span>📖 Manual de Construção de Componentes Vox</span></div>
+        <div class="delphi-menu-dropdown-item" onclick="window.app.showAbout()"><span>ℹ️ Sobre o Vox Studio RAD</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       2. TOOLBAR (BARRA DE FERRAMENTAS COM ÍCONES DELPHI)
+       ======================================================================== -->
+  <div class="delphi-toolbar">
+    <div class="toolbar-group">
+      <!-- Arquivo -->
+      <button class="tool-btn" onclick="window.app.newForm()" title="Novo Formulário (New Form)">
+        📄
+      </button>
+      <button class="tool-btn" onclick="window.app.saveForm()" title="Salvar (Ctrl+S)">
+        💾
+      </button>
+      <button class="tool-btn" onclick="window.app.saveForm()" title="Salvar Tudo (Save All)">
+        📁💾
+      </button>
+
+      <div class="tool-sep"></div>
+
+      <!-- Edição -->
+      <button class="tool-btn" onclick="window.app.designer.duplicateSelected()" title="Duplicar Componente (Ctrl+D)">
+        📋
+      </button>
+      <button class="tool-btn" onclick="window.app.designer.deleteSelected()" title="Excluir Componente (Del)">
+        🗑️
+      </button>
+
+      <div class="tool-sep"></div>
+
+      <!-- Execução e Depuração (Run / Debug Group Delphi) -->
+      <button class="tool-btn btn-run-delphi" style="border-color: #22c55e; color: #4ade80;" onclick="window.app.startDebug()" title="Iniciar Depuração com Pontos de Parada (F9)">
+        🐞 Debug (F9)
+      </button>
+      <button class="tool-btn" onclick="window.app.runApp()" title="Executar Sistema Web (Ctrl+F9)">
+        ▶ Run
+      </button>
+      <button class="tool-btn" id="tbBtnStepOver" onclick="window.app.stepOver()" title="Passo a Passo / Step Over (F8)">
+        ⤵ Step Over (F8)
+      </button>
+      <button class="tool-btn" id="tbBtnStepInto" onclick="window.app.stepInto()" title="Entrar na Função / Step Into (F7)">
+        ⤷ Step Into (F7)
+      </button>
+      <button class="tool-btn" id="tbBtnPause" onclick="window.app.pauseDebug()" title="Pausar Depuração">
+        ⏸
+      </button>
+      <button class="tool-btn" id="tbBtnStop" onclick="window.app.stopDebug()" title="Parar Depuração (Program Reset - Ctrl+F2)">
+        ⏹
+      </button>
+      <button class="tool-btn" onclick="window.app.toggleBreakpointCurrentLine()" title="Alternar Ponto de Parada na Linha Atual (F5)" style="color: #ef4444; font-weight: 700;">
+        🔴 BP (F5)
+      </button>
+      <button class="tool-btn" onclick="window.app.buildWebApp()" title="Compilar Sistema Web (dist/web-app/)">
+        ⚙️ Build Web
+      </button>
+
+      <div class="tool-sep"></div>
+
+      <!-- Alvo / Plataforma -->
+      <select class="platform-dropdown" style="width: 220px; color: #4cc2ff; font-weight: 600;">
+        <option selected>🌐 Web Browser (HTML5 + REST)</option>
+        <option>📱 Web Mobile / Responsive</option>
+      </select>
+
+      <select class="platform-dropdown" style="width: 80px;">
+        <option selected>Debug</option>
+        <option>Release</option>
+      </select>
+    </div>
+
+    <!-- Lado Direito da Toolbar: Modelos Rápidos -->
+    <div class="toolbar-group">
+      <select class="platform-dropdown" onchange="if(this.value) window.app.openCreateFromExampleModal(this.value);" style="background:#232832; color:#00e5ff; font-weight:600;">
+        <option value="" disabled selected>📂 Criar Projeto a partir de Exemplo...</option>
+        <option value="erpCompleto">🌟 ERP Completo MVC (Clientes NF-e, Produtos, Estoque, PDV)</option>
+        <option value="crudClientes">📋 Cadastro de Clientes (Menu no Topo)</option>
+        <option value="sistemaSidebar">📑 Sistema Comercial (Menu Lateral à Esquerda)</option>
+        <option value="pdv">🛒 Frente de Caixa (PDV Comercial)</option>
+        <option value="calculadora">🔢 Calculadora RAD</option>
+      </select>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" id="btnThemeToggle" onclick="window.app.toggleTheme()" title="Alternar Modo Claro / Escuro (Light / Dark)" style="padding: 0 10px; gap: 6px;">
+        <span id="themeIcon">☀️</span> <span id="themeText" style="font-weight: 600;">Modo Claro</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       3. WORKSPACE PRINCIPAL (3 COLUNAS: ESQUERDA, CENTRO, DIREITA)
+       ======================================================================== -->
+  <div class="delphi-workspace">
+
+    <!-- ── COLUNA ESQUERDA: STRUCTURE & OBJECT INSPECTOR ─────────────────── -->
+    <div class="left-dock-column">
+
+      <!-- 1. Structure Panel -->
+      <div class="dock-panel structure-panel">
+        <div class="panel-header">
+          <span>Structure</span>
+          <div class="panel-header-actions">
+            <span>📌</span>
+            <span>✕</span>
+          </div>
+        </div>
+        <div class="structure-toolbar">
+          <span title="Expandir Todos" style="cursor:pointer;">▼</span>
+          <span title="Recolher Todos" style="cursor:pointer;">▲</span>
+          <span style="font-size:10px; color:#6c7889;">| Hierarquia do Form</span>
+        </div>
+        <div class="structure-tree" id="structureTree">
+          <!-- Árvore preenchida dinamicamente -->
+        </div>
+      </div>
+
+      <!-- 2. Object Inspector Panel -->
+      <div class="dock-panel object-inspector-panel">
+        <div class="panel-header">
+          <span>Object Inspector</span>
+          <div class="panel-header-actions">
+            <span>📌</span>
+            <span>✕</span>
+          </div>
+        </div>
+
+        <!-- Seletor do Componente Atual -->
+        <div class="oi-selector-container">
+          <select class="oi-component-dropdown" id="oiComponentDropdown">
+            <!-- Opções injetadas dinamicamente -->
+          </select>
+        </div>
+
+        <!-- Busca de Propriedades -->
+        <div class="oi-search-bar">
+          <input type="text" class="oi-search-input" id="oiSearchInput" placeholder="🔍 Filtrar propriedades...">
+        </div>
+
+        <!-- Abas Properties / Events -->
+        <div class="oi-tabs">
+          <div class="oi-tab active" id="oiTabProperties">Properties</div>
+          <div class="oi-tab" id="oiTabEvents">Events</div>
+        </div>
+
+        <!-- Conteúdo do Grid -->
+        <div class="oi-grid-content">
+          <div id="oiPropertiesContainer"></div>
+          <div id="oiEventsContainer" style="display: none;"></div>
+        </div>
+
+        <!-- Links de Rodapé do Object Inspector -->
+        <div class="oi-footer-links">
+          <span onclick="window.app.toggleDesignCodeView()">View as Text (F12)</span>
+          <span onclick="window.app.runApp()">Bind Visually...</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── COLUNA CENTRAL: FORM DESIGNER / CODE VIEW ──────────────────────── -->
+    <div class="center-dock-column">
+
+      <!-- Aba do Documento no Topo: Unit1 ● -->
+      <div class="document-tab-bar">
+        <div class="doc-tab">
+          <div class="doc-tab-dot"></div>
+          <span id="docTabTitle">Unit1.vox</span>
+          <span style="font-size: 10px; color: #9aa7b8;">✕</span>
+        </div>
+      </div>
+
+      <!-- Visão 1: Designer Visual Canvas -->
+      <div class="delphi-designer-container" id="designerContainer">
+        <!-- Janela do Formulário Delphi -->
+        <div class="delphi-form-window" id="delphiFormWindow">
+          <div class="delphi-form-titlebar" id="formTitlebar">
+            <div class="delphi-form-title">
+              <span class="delphi-form-icon"></span>
+              <span id="formTitleText">Form1</span>
+            </div>
+            <div class="delphi-form-sysbuttons">
+              <span>🗕</span>
+              <span>🗖</span>
+              <span>✕</span>
+            </div>
+          </div>
+          <!-- O Canvas do Form -->
+          <div class="delphi-form-canvas" id="delphiFormCanvas"></div>
+
+          <!-- Alças e Barras de Redimensionamento do Form (Padrão Delphi) -->
+          <div class="form-resize-bar-r" data-form-handle="r" title="Arrastar para Esticar Largura"></div>
+          <div class="form-resize-bar-b" data-form-handle="b" title="Arrastar para Esticar Altura"></div>
+          <div class="form-handle-r" data-form-handle="r" title="Arrastar para Esticar Largura"></div>
+          <div class="form-handle-b" data-form-handle="b" title="Arrastar para Esticar Altura"></div>
+          <div class="form-handle-br" data-form-handle="br" title="Arrastar para Esticar Largura e Altura"></div>
+        </div>
+      </div>
+
+      <!-- Visão 2: Editor de Código Fonte Vox -->
+      <div class="delphi-code-view" id="codeView">
+        <!-- Barra de Busca Flutuante no Código (Ctrl+F) -->
+        <div class="code-search-bar" id="codeSearchBar" style="display: none;">
+          <input type="text" id="codeSearchInput" class="code-search-input" placeholder="Buscar no código...">
+          <span class="code-search-count" id="codeSearchCount">0 / 0</span>
+          <button class="code-search-btn" onclick="window.app.findPrev()" title="Anterior (Shift+F3)">▲</button>
+          <button class="code-search-btn" onclick="window.app.findNext()" title="Próximo (F3)">▼</button>
+          <button class="code-search-btn" onclick="window.app.closeSearch()" title="Fechar (Esc)">✕</button>
+        </div>
+
+        <div style="flex: 1; display: flex; height: 100%; position: relative;">
+          <div class="line-numbers" id="lineNumbers"></div>
+          <div style="flex: 1; position: relative; height: 100%; overflow: hidden;">
+            <div class="code-highlight-layer" id="codeHighlightLayer"></div>
+            <textarea id="codeTextarea" spellcheck="false" style="width: 100%; height: 100%; background: transparent; color: #d4d4d4; border: none; outline: none; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 13px; line-height: 22px; padding: 12px 16px; resize: none; tab-size: 4; position: relative; z-index: 2; box-sizing: border-box;" placeholder="// Código Vox gerado automaticamente..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Abas Inferiores Direitas: [ Code ] [ Design ] [ History ] -->
+      <div class="delphi-bottom-tabs">
+        <div class="view-mode-tab" id="btnTabCode">Code</div>
+        <div class="view-mode-tab active" id="btnTabDesign">Design</div>
+        <div class="view-mode-tab" id="btnTabHistory">History</div>
+      </div>
+
+      <!-- ========================================================================
+           DELPHI DEBUG DOCK PANEL (INFERIOR - BREAKPOINTS, WATCHES, CALLSTACK, LOCALS, CONSOLE)
+           ======================================================================== -->
+      <div id="delphiDebugDock">
+        <div class="debug-dock-header">
+          <div class="debug-dock-tabs">
+            <div class="debug-dock-tab active" data-tab="breakpoints" onclick="window.app.debugger.switchDebugTab('breakpoints')">
+              <span>🔴 Pontos de Parada</span> <span id="debugTabBpCount" style="color: #ef4444; font-weight:700;"></span>
+            </div>
+            <div class="debug-dock-tab" data-tab="watches" onclick="window.app.debugger.switchDebugTab('watches')">
+              <span>👁️ Watches</span> <span id="debugTabWatchCount" style="color: #38bdf8; font-weight:700;"></span>
+            </div>
+            <div class="debug-dock-tab" data-tab="callstack" onclick="window.app.debugger.switchDebugTab('callstack')">
+              <span>🥞 Call Stack</span>
+            </div>
+            <div class="debug-dock-tab" data-tab="locals" onclick="window.app.debugger.switchDebugTab('locals')">
+              <span>📦 Variáveis Locais</span>
+            </div>
+            <div class="debug-dock-tab" data-tab="console" onclick="window.app.debugger.switchDebugTab('console')">
+              <span>💻 Debug Console</span>
+            </div>
+          </div>
+          <div class="debug-dock-actions">
+            <button class="tool-btn" style="height:20px; padding:0 6px; font-size:10px;" onclick="window.app.debugger.clearConsole()" title="Limpar Console">🧹</button>
+            <button class="tool-btn" style="height:20px; padding:0 6px; font-size:10px;" onclick="window.app.debugger.toggleDebugDock()" title="Recolher/Expandir Painel">🔽</button>
+            <button class="tool-btn" style="height:20px; padding:0 6px; font-size:10px;" onclick="window.app.debugger.hideDebugDock()" title="Fechar">✕</button>
+          </div>
+        </div>
+        <div class="debug-dock-body">
+          <div class="debug-dock-page" id="debugPage_breakpoints" style="display: block;"></div>
+          <div class="debug-dock-page" id="debugPage_watches"></div>
+          <div class="debug-dock-page" id="debugPage_callstack"></div>
+          <div class="debug-dock-page" id="debugPage_locals"></div>
+          <div class="debug-dock-page" id="debugPage_console">
+            <div id="debugConsoleBody" style="height: 100%; overflow-y: auto; padding: 4px 0;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── COLUNA DIREITA: PROJECTS & TOOL PALETTE ────────────────────────── -->
+    <div class="right-dock-column">
+
+      <!-- 1. Projects Panel -->
+      <div class="dock-panel projects-panel">
+        <div class="panel-header">
+          <span>Project1.dproj - Projects</span>
+          <div class="panel-header-actions">
+            <span>📌</span>
+            <span>✕</span>
+          </div>
+        </div>
+        <div class="projects-toolbar">
+          <span title="New Unit" style="cursor:pointer;" onclick="window.app.newForm()">📄+</span>
+          <span title="Save" style="cursor:pointer;" onclick="window.app.saveForm()">💾</span>
+          <span title="Build" style="cursor:pointer;" onclick="window.app.runBackend()">⚙️</span>
+          <span style="font-size:10px; color:#6c7889;">| Gerenciador</span>
+        </div>
+        <div class="projects-tree">
+          <div class="tree-node">
+            <span>📦</span>
+            <span style="font-weight:600;">ProjectGroup1</span>
+          </div>
+          <div class="tree-node" style="padding-left: 18px;">
+            <span>💻</span>
+            <span>Project1.exe</span>
+          </div>
+          <div class="tree-node" style="padding-left: 32px; color: #9aa7b8;">
+            <span>⚙️</span>
+            <span>Build Configurations (Debug)</span>
+          </div>
+          <div class="tree-node" style="padding-left: 32px; color: #9aa7b8;">
+            <span>🎯</span>
+            <span>Target Platforms (Windows 64-bit)</span>
+          </div>
+          <div class="tree-node selected" style="padding-left: 32px;">
+            <span>📄</span>
+            <span id="projTreeUnitName">Unit1.vox</span>
+          </div>
+          <div class="tree-node" style="padding-left: 32px; color: #9aa7b8;">
+            <span>🎨</span>
+            <span id="projTreeVxfName">Form1.vxf</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Tool Palette Panel -->
+      <div class="dock-panel palette-panel">
+        <div class="panel-header">
+          <span>Palette</span>
+          <div class="panel-header-actions">
+            <span>📌</span>
+            <span>✕</span>
+          </div>
+        </div>
+
+        <!-- Caixa de Busca da Paleta -->
+        <div class="palette-search-container">
+          <input type="text" class="palette-search-input" id="paletteSearchInput" placeholder="🔍 Search Palette...">
+        </div>
+
+        <!-- Categorias Accordion da Paleta -->
+        <div class="palette-accordion" id="paletteAccordion">
+          <!-- Grupos e Componentes injetados dinamicamente via app.js -->
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ========================================================================
+       4. BARRA DE STATUS INFERIOR (DELPHI STYLE)
+       ======================================================================== -->
+  <footer class="delphi-statusbar">
+    <div class="status-left">
+      <span>CodeInsight: Done</span>
+      <span style="color: #6c7889;">|</span>
+      <span id="sbFormStatus">Form1 [720 x 520]</span>
+      <span style="color: #6c7889;">|</span>
+      <span id="sbServerStatus" style="color: #22c55e;">● Servidor Vox Online</span>
+    </div>
+    <div class="status-right">
+      <span style="cursor: pointer; color: #4cc2ff;" onclick="window.app.toggleTheme()" id="sbThemeToggle" title="Clique para alternar tema (Light / Dark)">🎨 Tema: Escuro</span>
+      <span style="color: #6c7889;">|</span>
+      <span>Atalhos: [F12] Design/Code • [F9] Run • [Del] Excluir • [Ctrl+D] Duplicar</span>
+      <span style="color: #6c7889;">|</span>
+      <span style="color: #0098ff; font-weight: 600;">Windows 64-bit</span>
+    </div>
+  </footer>
+
+  <!-- ========================================================================
+       5. MODAL DE EXECUÇÃO AO VIVO (F9 RUN MODAL)
+       ======================================================================== -->
+  <div class="modal-overlay" id="runModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #22c55e;">▶</span>
+          <span id="runModalTitle">Executando Formulário</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.runner.close()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" id="runModalBody">
+        <!-- Renderizado dinamicamente via runner.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       6. MODAL DO EDITOR DE COMANDOS SQL (DELPHI SQL COMMAND EDITOR)
+       ======================================================================== -->
+  <div class="modal-overlay" id="sqlEditorModal">
+    <div class="modal-content" style="width: 640px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #4cc2ff;">📝</span>
+          <span id="sqlEditorTitle">TFDQuery — SQL Command Editor</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeSqlEditor()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
+        <label style="font-size: 11px; color: #9aa7b8;">Instrução SQL (SELECT, INSERT, UPDATE, DELETE):</label>
+        <textarea id="sqlEditorTextarea" rows="6" style="width: 100%; background: #16191f; color: #00e5ff; border: 1px solid #313947; border-radius: 3px; font-family: monospace; font-size: 12px; padding: 8px; outline: none; line-height: 1.5;"></textarea>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <button class="tool-btn btn-run-delphi" style="border: 1px solid #22c55e; padding: 4px 10px;" onclick="window.app.testQuerySql()">
+            ⚡ Testar / Executar Consulta
+          </button>
+          <span id="sqlTestStatus" style="font-size: 11px; color: #9aa7b8;"></span>
+        </div>
+
+        <div id="sqlTestResult" style="max-height: 140px; overflow: auto; background: #12151b; border: 1px solid #282f3a; border-radius: 3px; font-size: 11px; padding: 4px;">
+          <span style="color: #6c7889;">Nenhum teste executado ainda.</span>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+          <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 4px 14px;" onclick="window.app.closeSqlEditor()">Cancelar</button>
+          <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 4px 18px; font-weight:600;" onclick="window.app.applySqlEditor()">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       7. MODAL DE EXECUÇÃO WEB (SISTEMA COMPILADO PARA O NAVEGADOR)
+       ======================================================================== -->
+  <div class="modal-overlay" id="webBuildModal">
+    <div class="modal-content" style="width: 860px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #22c55e;">🌐</span>
+          <span id="webBuildTitle" style="font-weight: 700;">Aplicação Web Compilada — Executando no Browser</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="tool-btn btn-run-delphi" style="border: 1px solid #22c55e; padding: 2px 10px; font-size: 11px;" onclick="window.app.openExternalBrowser()">
+            🔗 Abrir no Navegador (http://localhost:5000)
+          </button>
+          <button class="tool-btn" onclick="window.app.closeWebBuildModal()" style="height: 22px; padding: 0 8px;">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" style="padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #9aa7b8;">
+          <span id="webBuildStats">Compilado com sucesso em: dist/web-app/ • Servidor rodando na porta 5000</span>
+          <span style="color: #22c55e;">● Live Web Preview</span>
+        </div>
+        <iframe id="webAppIframe" src="" style="width: 100%; height: 500px; border: 1px solid #313947; border-radius: 4px; background: #0d1117;"></iframe>
+      </div>
+    </div>
+  <!-- ========================================================================
+       8. MODAL DE SALVAMENTO RAD STUDIO (SAVE UNIT AS)
+       ======================================================================== -->
+  <div class="modal-overlay" id="saveDialogModal">
+    <div class="modal-content" style="width: 560px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #4cc2ff; font-size: 14px;">💾</span>
+          <span id="saveDialogTitle" style="font-weight: 700;">Save Unit As — Salvar Formulário Vox</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeSaveDialog()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body save-dialog-card">
+        <!-- Banner de Localização do Projeto -->
+        <div class="save-path-banner">
+          <span>📁 Projeto Corrente:</span>
+          <strong id="saveDialogProjectRoot">linguagem</strong>
+        </div>
+
+        <!-- Opções de Pastas do Projeto -->
+        <div class="save-form-row">
+          <label>Onde Salvar (Selecione a Pasta de Destino):</label>
+          <div class="save-folder-options" id="saveFolderOptions">
+            <div class="save-folder-btn active" data-folder="forms" onclick="window.app.selectSaveFolder('forms')">
+              <span class="folder-label">📁 forms/</span>
+              <span class="folder-sub">Pasta padrão de forms</span>
+            </div>
+            <div class="save-folder-btn" data-folder="." onclick="window.app.selectSaveFolder('.')">
+              <span class="folder-label">📁 . (Raiz)</span>
+              <span class="folder-sub">Raiz do projeto</span>
+            </div>
+            <div class="save-folder-btn" data-folder="src" onclick="window.app.selectSaveFolder('src')">
+              <span class="folder-label">📁 src/</span>
+              <span class="folder-sub">Código-fonte</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pasta Customizada -->
+        <div class="save-form-row">
+          <label>Caminho da Pasta de Destino:</label>
+          <div class="save-input-group">
+            <input type="text" id="saveFolderPathInput" value="forms" placeholder="Ex: forms ou src">
+            <span class="save-input-suffix">/</span>
+          </div>
+        </div>
+
+        <!-- Nome do Arquivo / Unit -->
+        <div class="save-form-row">
+          <label>Nome da Unit / Formulário (File Name):</label>
+          <div class="save-input-group">
+            <input type="text" id="saveUnitNameInput" value="Unit1" placeholder="Ex: Unit1 ou FormClientes" spellcheck="false">
+            <span class="save-input-suffix">.vox & .vxf</span>
+          </div>
+        </div>
+
+        <!-- Tipo de Arquivo -->
+        <div class="save-form-row">
+          <label>Tipo do Arquivo (Save as type):</label>
+          <div style="font-size: 11.5px; color: #4cc2ff; background: #14171d; border: 1px solid #282f3a; border-radius: 3px; padding: 6px 10px; display: flex; justify-content: space-between;">
+            <span>Vox Form & Unit Files (*.vxf, *.vox)</span>
+            <span style="color: #6c7889;">Visual + Código</span>
+          </div>
+        </div>
+
+        <!-- Preview dos Arquivos Finais -->
+        <div class="save-preview-box">
+          <div style="font-weight: 600; color: #9aa7b8; margin-bottom: 2px;">Arquivos que serão gravados no projeto:</div>
+          <div class="save-preview-item">
+            <span class="file-badge">VXF</span>
+            <span id="savePreviewVxf">forms/Unit1.vxf</span>
+          </div>
+          <div class="save-preview-item">
+            <span class="file-badge">VOX</span>
+            <span id="savePreviewVox">forms/Unit1.vox</span>
+          </div>
+        </div>
+
+        <!-- Rodapé do Diálogo -->
+        <div class="save-dialog-footer">
+          <span id="saveDialogStatus" style="font-size: 11px; color: #9aa7b8;"></span>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeSaveDialog()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmSaveForm()">💾 Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  <!-- ========================================================================
+       9. MODAL DA FÁBRICA DE COMPONENTES (COMPONENT FACTORY WIZARD)
+       ======================================================================== -->
+  <div class="modal-overlay" id="componentFactoryModal">
+    <div class="modal-content" style="width: 600px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #ffca28; font-size: 14px;">🏭</span>
+          <span style="font-weight: 700;">Fábrica de Componentes Vox (Component Factory)</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeComponentFactory()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body cf-card">
+        <div class="save-path-banner">
+          <span>🧩 Crie novos componentes reutilizáveis para a Tool Palette da IDE.</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="cf-row">
+            <label>Nome do Componente (vox_*):</label>
+            <input type="text" id="cfNameInput" class="cf-input" value="vox_CardDestaque" placeholder="Ex: vox_CardProduto" oninput="window.app.updateCfPreview()">
+          </div>
+          <div class="cf-row">
+            <label>Categoria na Palette:</label>
+            <select id="cfCategoryInput" class="cf-select">
+              <option value="Custom" selected>Custom (Personalizados)</option>
+              <option value="Standard">Standard</option>
+              <option value="Additional">Additional</option>
+              <option value="Data Controls">Data Controls</option>
+              <option value="Win32">Win32</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="cf-row">
+            <label>Componente Base (Herança):</label>
+            <select id="cfBaseInput" class="cf-select" onchange="window.app.updateCfPreview()">
+              <option value="vox_Panel" selected>vox_Panel (Painel Estrutural)</option>
+              <option value="vox_Button">vox_Button (Botão)</option>
+              <option value="vox_GroupBox">vox_GroupBox (Moldura)</option>
+              <option value="vox_Card">vox_Card (Card Moderno)</option>
+              <option value="vox_Image">vox_Image (Imagem)</option>
+            </select>
+          </div>
+          <div class="cf-row">
+            <label>Ícone / Emoji da Paleta:</label>
+            <select id="cfIconInput" class="cf-select">
+              <option value="📦" selected>📦 Caixa / Widget</option>
+              <option value="⭐">⭐ Destaque / Estrela</option>
+              <option value="🛒">🛒 Carrinho / Vendas</option>
+              <option value="💳">💳 Card / Pagamento</option>
+              <option value="📊">📊 Gráfico / Métrica</option>
+              <option value="🧩">🧩 Módulo / Plugin</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="cf-row">
+            <label>Propriedade Customizada:</label>
+            <input type="text" id="cfPropNameInput" class="cf-input" value="Titulo" placeholder="Ex: Titulo" oninput="window.app.updateCfPreview()">
+          </div>
+          <div class="cf-row">
+            <label>Valor Padrão da Propriedade:</label>
+            <input type="text" id="cfPropValInput" class="cf-input" value="Item em Destaque" placeholder="Ex: Valor" oninput="window.app.updateCfPreview()">
+          </div>
+        </div>
+
+        <div class="cf-row">
+          <label>Definição de Classe Vox Gerada:</label>
+          <div class="cf-preview-code" id="cfCodePreview">
+classe vox_CardDestaque herda vox_Panel {
+    var Titulo: Texto
+    procedimento Inicializar() {
+        this.Titulo = "Item em Destaque"
+    }
+}
+          </div>
+        </div>
+
+        <div class="save-dialog-footer">
+          <span id="cfStatus" style="font-size: 11px; color: #9aa7b8;"></span>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeComponentFactory()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.createCustomComponent()">🚀 Criar e Instalar na Palette</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       10. MODAL NOVO PROJETO / ESCOLHA DE MENU PRINCIPAL (NEW PROJECT WIZARD)
+       ======================================================================== -->
+  <div class="modal-overlay" id="newProjectModal">
+    <div class="modal-content" style="width: 580px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 15px;">🧭</span>
+          <span style="font-weight: 700;">Novo Projeto / Formulário Vox</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeNewProjectModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="save-path-banner">
+          <span>🎯 Escolha o layout inicial do menu para o seu projeto:</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <!-- Opção 1: Menu no Topo -->
+          <div class="new-proj-card selected" id="optMenuTop" onclick="window.app.selectNewProjOption('Top')">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 22px;">🧭</span>
+              <span style="font-weight: 700; color: #38bdf8;">Menu no Topo (Horizontal)</span>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 4px;">
+              Barra horizontal clássica no topo com marca e botões de módulos. Ideal para formulários tradicionais e CRUDs.
+            </p>
+            <div style="margin-top: 10px; border: 1px solid #313947; border-radius: 4px; padding: 6px; background: #12151b;">
+              <div style="height: 14px; background: #0078d4; border-radius: 2px; margin-bottom: 6px;"></div>
+              <div style="height: 30px; background: #252a34; border-radius: 2px;"></div>
+            </div>
+          </div>
+
+          <!-- Opção 2: Menu Lateral à Esquerda -->
+          <div class="new-proj-card" id="optMenuLeft" onclick="window.app.selectNewProjOption('Left')">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 22px;">📑</span>
+              <span style="font-weight: 700; color: #22c55e;">Menu Lateral (Sidebar)</span>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin-top: 4px;">
+              Sidebar vertical moderna à esquerda com navegação rápida e área de trabalho ampla à direita.
+            </p>
+            <div style="margin-top: 10px; border: 1px solid #313947; border-radius: 4px; padding: 6px; background: #12151b; display: flex; gap: 6px;">
+              <div style="width: 32px; height: 50px; background: #0078d4; border-radius: 2px;"></div>
+              <div style="flex: 1; height: 50px; background: #252a34; border-radius: 2px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #282f3a;">
+          <button class="tool-btn" onclick="window.app.createNewFormWithMenu('None')" style="padding: 5px 12px; font-size: 11px; color: #94a3b8;">
+            📄 Formulário em Branco (Sem Menu)
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeNewProjectModal()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmCreateNewProject()">🚀 Criar Projeto</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       11. MODAL DO CONNECTION EDITOR (DELPHI 13 FIREDAC STYLE)
+       ======================================================================== -->
+  <div class="modal-overlay" id="connectionEditorModal">
+    <div class="modal-content" style="width: 640px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 15px;">🔌</span>
+          <span id="connEditorTitle" style="font-weight: 700;">FireDAC Connection Editor — Delphi 13 Edition</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeConnectionEditor()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+        <div class="save-path-banner">
+          <span>⚙️ Configure os parâmetros de conexão com o banco de dados (Host, Porta, Login, Senha e DLL Cliente).</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <!-- Driver ID -->
+          <div class="cf-row">
+            <label style="font-size:11px; color:#94a3b8; font-weight:600;">Driver (Banco de Dados):</label>
+            <select id="connDriverSelect" class="cf-select" onchange="window.app.onConnectionDriverChange(this.value)">
+              <option value="MySQL" selected>🐬 MySQL / MariaDB (Porta 3306)</option>
+              <option value="MSSQL">🏢 Microsoft SQL Server / MSSQL (Porta 1433)</option>
+              <option value="Firebird">🔥 Firebird (Porta 3050)</option>
+              <option value="SQLite">🗄️ SQLite (Arquivo Local .db)</option>
+              <option value="PostgreSQL">🐘 PostgreSQL (Porta 5432)</option>
+              <option value="Oracle">🔴 Oracle Database (Porta 1521)</option>
+            </select>
+          </div>
+
+          <!-- Component Name -->
+          <div class="cf-row">
+            <label style="font-size:11px; color:#94a3b8; font-weight:600;">Nome do Componente:</label>
+            <input type="text" id="connCompNameInput" class="cf-input" value="vox_Connection1" readonly style="opacity: 0.8;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+          <!-- IP -->
+          <div class="cf-row">
+            <label style="font-size:11px; color:#38bdf8; font-weight:700;">IP (Host / Endereço do Servidor):</label>
+            <input type="text" id="connServerInput" class="cf-input" value="127.0.0.1" placeholder="Ex: 127.0.0.1 ou 192.168.1.100">
+          </div>
+
+          <!-- Porta -->
+          <div class="cf-row">
+            <label style="font-size:11px; color:#38bdf8; font-weight:700;">Porta (Porta TCP do Banco):</label>
+            <input type="number" id="connPortInput" class="cf-input" value="3306" placeholder="Ex: 3306 (MySQL), 1433 (MSSQL), 3050 (Firebird)">
+          </div>
+        </div>
+
+        <!-- Database -->
+        <div class="cf-row">
+          <label style="font-size:11px; color:#94a3b8; font-weight:600;">Database (Nome ou Caminho da Base de Dados):</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="connDatabaseInput" class="cf-input" value="loja_vox" placeholder="Ex: loja_vox, master ou C:\Dados\banco.fdb" style="flex: 1;">
+            <button class="tool-btn" onclick="window.app.browseDatabaseFile()" title="Procurar Arquivo">📂</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <!-- Login -->
+          <div class="cf-row">
+            <label style="font-size:11px; color:#38bdf8; font-weight:700;">Login (Usuário de Acesso):</label>
+            <input type="text" id="connUserInput" class="cf-input" value="root" placeholder="Ex: root (MySQL), sa (MSSQL), SYSDBA (Firebird)">
+          </div>
+
+          <!-- Senha -->
+          <div class="cf-row">
+            <label style="font-size:11px; color:#38bdf8; font-weight:700;">Senha (Password):</label>
+            <div style="display: flex; gap: 6px;">
+              <input type="password" id="connPasswordInput" class="cf-input" value="" placeholder="Senha de acesso" style="flex: 1;">
+              <button class="tool-btn" onclick="window.app.togglePasswordVisibility('connPasswordInput')" title="Exibir/Ocultar Senha">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- VendorLib -->
+        <div class="cf-row">
+          <label style="font-size:11px; color:#f59e0b; font-weight:700;">VendorLib (Caminho da DLL Cliente do Banco — Padrão FireDAC):</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="connVendorLibInput" class="cf-input" value="libmysql.dll" placeholder="Ex: libmysql.dll, sqlncli11.dll ou fbclient.dll" style="flex: 1; font-family: monospace;">
+            <button class="tool-btn" onclick="window.app.selectCommonVendorLib()" title="Selecionar DLL Comum">📋 DLLs</button>
+          </div>
+          <span style="font-size:10px; color:#64748b; margin-top: 2px;">
+            💡 MySQL: <code>libmysql.dll</code> • MSSQL: <code>sqlncli11.dll</code> • Firebird: <code>fbclient.dll</code> • PostgreSQL: <code>libpq.dll</code>
+          </span>
+        </div>
+
+        <!-- Botão Testar Conexão e Status -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding: 8px 10px; background: #12151b; border: 1px solid #282f3a; border-radius: 4px;">
+          <button class="tool-btn btn-run-delphi" style="border: 1px solid #22c55e; color: #4ade80; padding: 4px 14px; font-weight: 700;" onclick="window.app.testDatabaseConnection()">
+            ⚡ Testar Conexão (Test Connection)
+          </button>
+          <div id="connTestStatus" style="font-size: 11.5px; color: #9aa7b8;">
+            Aguardando teste...
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; border-top: 1px solid #282f3a; padding-top: 10px;">
+          <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeConnectionEditor()">Cancelar</button>
+          <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.applyConnectionEditor()">💾 Salvar Conexão</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       12. MODAL DE INSTALAÇÃO DE PACOTES DE COMPONENTES (.vdpk)
+       ======================================================================== -->
+  <div class="modal-overlay" id="installPackageModal">
+    <div class="modal-content" style="width: 680px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #ffca28; font-size: 15px;">📦</span>
+          <span style="font-weight: 700;">Instalador de Pacotes de Componentes (.vdpk) — Delphi Style</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeInstallPackageModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+        <div class="save-path-banner">
+          <span>🧩 Instale pacotes <code>.vdpk</code> (Vox Design Package) com componentes visuais e não-visuais na Tool Palette da IDE.</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 11px; color: #94a3b8;">Código-Fonte do Pacote de Componente:</span>
+          <button class="tool-btn" style="color: #ffca28; border: 1px solid #ffca28; padding: 2px 10px; font-size: 11px;" onclick="window.app.loadDefaultPackageTemplate()">
+            ✨ Carregar Modelo Oficial (vox_RatingStars)
+          </button>
+        </div>
+
+        <textarea id="packageCodeInput" rows="10" style="width: 100%; background: #12151b; color: #38bdf8; border: 1px solid #313947; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 10px; line-height: 1.5; outline: none;"></textarea>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #282f3a; padding-top: 10px;">
+          <span id="pkgInstallStatus" style="font-size: 11px; color: #9aa7b8;"></span>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeInstallPackageModal()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.installPackageFromVdpk()">🚀 Compilar e Instalar na Palette</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       13. MODAL DO LIVRO DE CONSTRUÇÃO DE COMPONENTES VOX
+       ======================================================================== -->
+  <div class="modal-overlay" id="componentBookModal">
+    <div class="modal-content" style="width: 960px; max-width: 95vw; height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 16px;">📖</span>
+          <span style="font-weight: 700;">Livro: Guia de Construção de Componentes Vox & Pacotes (.vdpk)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; font-size: 11px; padding: 2px 10px; font-weight: 600;" onclick="window.app.exportBookPdf()" title="Converter / Exportar Livro para PDF">🖨️ Salvar em PDF</button>
+          <button class="tool-btn" style="border:1px solid #38bdf8; color:#38bdf8; font-size: 11px; padding: 2px 10px;" onclick="window.app.openBookInNewTab()" title="Abrir publicação completa em HTML em nova aba">🌐 Versão HTML Completa</button>
+          <button class="tool-btn" onclick="window.app.closeComponentBook()" style="height: 22px; padding: 0 8px;">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" style="flex: 1; display: flex; overflow: hidden; padding: 0;">
+        <!-- Índice Lateral Esquerdo do Livro -->
+        <div class="book-sidebar" style="width: 250px; background: #14171d; border-right: 1px solid #282f3a; overflow-y: auto; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase; padding: 0 6px 8px; border-bottom: 1px solid #20252e;">Capítulos do Livro</div>
+          <div class="book-chapter-item active" data-chapter="1" onclick="window.app.loadBookChapter(1)">Cap 1: Filosofia & VCL Delphi</div>
+          <div class="book-chapter-item" data-chapter="2" onclick="window.app.loadBookChapter(2)">Cap 2: Anatomia do Componente</div>
+          <div class="book-chapter-item" data-chapter="3" onclick="window.app.loadBookChapter(3)">Cap 3: Visuais vs Não-Visuais</div>
+          <div class="book-chapter-item" data-chapter="4" onclick="window.app.loadBookChapter(4)">Cap 4: Pacotes .vdpk</div>
+          <div class="book-chapter-item" data-chapter="5" onclick="window.app.loadBookChapter(5)">Cap 5: Procedimento Register()</div>
+          <div class="book-chapter-item" data-chapter="6" onclick="window.app.loadBookChapter(6)">Cap 6: Streaming e .vxf</div>
+          <div class="book-chapter-item" data-chapter="7" onclick="window.app.loadBookChapter(7)">Cap 7: Controles Data-Aware</div>
+          <div class="book-chapter-item" data-chapter="8" onclick="window.app.loadBookChapter(8)">Cap 8: Projetos Práticos</div>
+        </div>
+        <!-- Conteúdo do Capítulo -->
+        <div class="book-content-pane" id="bookContentPane" style="flex: 1; background: #1a1e27; padding: 24px 30px; overflow-y: auto; color: #e2e8f0; line-height: 1.6; font-size: 13px;">
+          <!-- Conteúdo dinâmico injetado via app.js -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       15. MODAL ASSISTENTE DE NOVA CLASSE VOX (DELPHI CLASS WIZARD)
+       ======================================================================== -->
+  <div class="modal-overlay" id="newClassModal">
+    <div class="modal-content" style="width: 640px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 16px;">🏛️</span>
+          <span style="font-weight: 700;">Nova Classe Vox — Assistente de Arquitetura (MVC & POO)</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeNewClassModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 16px;">
+        <div style="background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0284c7; padding: 8px 12px; font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+          Crie novas unidades e classes organizadas em camadas (Model, Controller, Interface) e adicione automaticamente ao <strong style="color: #38bdf8;">import</strong> do formulário ativo.
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Nome da Classe:</label>
+            <input type="text" id="ncClassName" class="delphi-prop-input" value="TClienteModel" placeholder="Ex.: TClienteModel, TProdutoController"
+              oninput="window.app.updateNewClassPreview()" style="width: 100%; height: 26px; font-weight: 600; color: #38bdf8;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Nome do Arquivo / Unit (.vox):</label>
+            <input type="text" id="ncFileName" class="delphi-prop-input" value="cliente_model.vox" placeholder="Ex.: cliente_model.vox"
+              oninput="window.app.updateNewClassPreview()" style="width: 100%; height: 26px;">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Padrão / Camada MVC:</label>
+            <select id="ncPatternType" class="delphi-prop-input" onchange="window.app.onNewClassPatternChange()" style="width: 100%; height: 26px;">
+              <option value="Model" selected>📦 Model (Dados, Validações Fiscais e Regras)</option>
+              <option value="Controller">🎮 Controller (Orquestração, Fluxo e Eventos)</option>
+              <option value="Interface">📐 Interface (Contrato Abstrato de Serviço)</option>
+              <option value="Custom">🏛️ Classe Padrão POO (TObject)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Superclasse (Herança):</label>
+            <input type="text" id="ncSuperClass" class="delphi-prop-input" value="TObject" placeholder="Ex.: TObject, vox_Component"
+              oninput="window.app.updateNewClassPreview()" style="width: 100%; height: 26px;">
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 6px;">Seções de Visibilidade:</label>
+          <div style="display: flex; gap: 16px; font-size: 11.5px; color: #94a3b8;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="ncSecPrivate" checked onchange="window.app.updateNewClassPreview()"> <span>private: (Campos Internos)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="ncSecPublished" checked onchange="window.app.updateNewClassPreview()"> <span>published: (Object Inspector)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="ncSecPublic" checked onchange="window.app.updateNewClassPreview()"> <span>public: (Métodos & Construtor)</span>
+            </label>
+          </div>
+        </div>
+
+        <div style="background: #11141a; border: 1px solid #282f3a; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #38bdf8; font-weight: 600; cursor: pointer;">
+            <input type="checkbox" id="ncAutoInjectImport" checked>
+            <span>🔗 Adicionar automaticamente no import / uses do formulário ativo</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #94a3b8; cursor: pointer;">
+            <input type="checkbox" id="ncOpenInEditor" checked>
+            <span>💻 Abrir o novo arquivo da classe no Editor de Código após a criação</span>
+          </label>
+        </div>
+
+        <div>
+          <label style="font-size: 10.5px; font-weight: 600; color: #64748b; text-transform: uppercase;">Pré-visualização do Código Fonte Gerado:</label>
+          <pre id="ncCodePreview" style="margin-top: 4px; background: #0f1218; border: 1px solid #232832; border-radius: 4px; padding: 10px; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 11px; max-height: 140px; overflow-y: auto; color: #a5f3fc;"></pre>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid #282f3a;">
+          <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeNewClassModal()">Cancelar</button>
+          <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmCreateNewClass()">🚀 Criar Classe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       16. MODAL CRIAR PROJETO A PARTIR DE EXEMPLO (COM ESCOLHA DE PASTA)
+       ======================================================================== -->
+  <div class="modal-overlay" id="createFromExampleModal">
+    <div class="modal-content" style="width: 620px; max-width: 95vw;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #38bdf8; font-size: 16px;">📁</span>
+          <span style="font-weight: 700;">Criar Novo Projeto a partir de Exemplo</span>
+        </div>
+        <button class="tool-btn" onclick="window.app.closeCreateFromExampleModal()" style="height: 22px; padding: 0 8px;">✕</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 16px;">
+        <div style="background: rgba(34, 197, 94, 0.08); border-left: 3px solid #22c55e; padding: 8px 12px; font-size: 11.5px; color: #94a3b8; line-height: 1.4;">
+          Escolha o modelo de arquitetura e a pasta de destino onde os arquivos do projeto e o banco de dados serão salvos.
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Exemplo Base:</label>
+            <select id="cfeTemplateSelect" class="delphi-prop-input" onchange="window.app.onCfeTemplateChange()" style="width: 100%; height: 26px; font-weight: 600; color: #00e5ff;">
+              <option value="erpCompleto" selected>🌟 ERP Completo MVC (Clientes NF-e, Produtos, Estoque, PDV)</option>
+              <option value="crudClientes">📋 Cadastro de Clientes (SQLite CRUD)</option>
+              <option value="sistemaSidebar">📑 Sistema Comercial (Menu Lateral)</option>
+              <option value="pdv">🛒 Frente de Caixa (PDV Comercial)</option>
+              <option value="calculadora">🔢 Calculadora RAD</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Nome do Novo Projeto:</label>
+            <input type="text" id="cfeProjectName" class="delphi-prop-input" value="VoxERP_Comercial" placeholder="Ex.: MeuProjeto"
+              oninput="window.app.updateCfePreview()" style="width: 100%; height: 26px; font-weight: 600; color: #38bdf8;">
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 11px; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">Pasta de Destino do Projeto:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="cfeTargetFolder" class="delphi-prop-input" value="projetos/VoxERP_Comercial" placeholder="Ex.: projetos/MeuProjeto"
+              oninput="window.app.updateCfePreview()" style="flex: 1; height: 26px; font-family: monospace;">
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 6px; align-items: center;">
+            <span style="font-size: 10.5px; color: #64748b;">Pastas rápidas:</span>
+            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setCfeFolder('projetos')">📁 projetos/</button>
+            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setCfeFolder('clientes')">📁 clientes/</button>
+            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setCfeFolder('forms')">📁 forms/</button>
+            <button class="tool-btn" style="height: 18px; padding: 0 6px; font-size: 10px;" onclick="window.app.setCfeFolder('src')">📁 src/</button>
+          </div>
+        </div>
+
+        <div style="background: #11141a; border: 1px solid #282f3a; border-radius: 4px; padding: 10px;">
+          <div style="font-size: 11px; font-weight: 600; color: #38bdf8; margin-bottom: 4px;" id="cfeDescriptionTitle">📦 Arquitetura Completa em Camadas MVC:</div>
+          <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;" id="cfeDescriptionText">
+            • <strong>Models:</strong> Clientes NF-e com 17 campos fiscais (Razão Social, CNPJ/CPF, IE, Município IBGE, CRT), Produtos com tributos (NCM, CEST, CFOP) e Estoque.<br>
+            • <strong>Controllers:</strong> Validações de CNPJ/CPF, regras de negócio e cálculo de troco.<br>
+            • <strong>Views:</strong> Formulários visuais RAD sincronizados (.vxf e .vox) prontos para compilar para web.
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid #282f3a;">
+          <span style="font-size: 10.5px; color: #64748b;" id="cfeFolderPreview">Destino: D:/Projetos AntiGravity/linguagem/projetos/VoxERP_Comercial</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn" style="background:#282e38; border:1px solid #313947; padding: 5px 16px;" onclick="window.app.closeCreateFromExampleModal()">Cancelar</button>
+            <button class="tool-btn btn-run-delphi" style="background:#094771; border:1px solid #0078d4; color:#ffffff; padding: 5px 22px; font-weight:600;" onclick="window.app.confirmCreateProjectFromExample()">🚀 Criar e Abrir Projeto</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts da Aplicação (Com Cache Buster v=3.5) -->
+  <script src="js/components.js?v=3.5"></script>
+  <script src="js/codegen.js?v=3.5"></script>
+  <script src="js/templates.js?v=3.5"></script>
+  <script src="js/designer.js?v=3.5"></script>
+  <script src="js/inspector.js?v=3.5"></script>
+  <script src="js/editor.js?v=3.5"></script>
+  <script src="js/debugger.js?v=3.5"></script>
+  <script src="js/runner.js?v=3.5"></script>
+  <script src="js/app.js?v=3.5"></script>
+</body>
+</html>

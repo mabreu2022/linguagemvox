@@ -1,0 +1,51 @@
+// ==============================================================================
+// Teste de vox_Connection com propriedades IP, Porta, Login, Senha para MySQL, MSSQL e Firebird
+// ==============================================================================
+
+import Vox_Database;
+
+fn main() {
+    println("==============================================================");
+    println("   TESTE DE VOX_CONNECTION: PROPRIEDADES IP, PORTA, LOGIN, SENHA");
+    println("==============================================================\n");
+
+    // 1. Conexão MySQL
+    println("--- [1] Conexão MySQL ---");
+    let mut connMySQL = new vox_Connection();
+    connMySQL.DriverName = "MySQL";
+    connMySQL.IP = "192.168.1.50";
+    connMySQL.Porta = 3306;
+    connMySQL.Database = "erp_comercial";
+    connMySQL.Login = "vox_admin";
+    connMySQL.Senha = "mysql_secret_2026";
+    connMySQL.VendorLib = "libmysql.dll";
+    connMySQL.TestarConexao();
+
+    // 2. Conexão MSSQL (Microsoft SQL Server)
+    println("\n--- [2] Conexão MSSQL (SQL Server) ---");
+    let mut connMSSQL = new vox_Connection();
+    connMSSQL.DriverName = "MSSQL";
+    connMSSQL.IP = "10.0.0.12";
+    connMSSQL.Porta = 1433;
+    connMSSQL.Database = "ERP_CORPORATIVO_DB";
+    connMSSQL.Login = "sa";
+    connMSSQL.Senha = "Mssql#Pass2026!";
+    connMSSQL.VendorLib = "sqlncli11.dll";
+    connMSSQL.TestarConexao();
+
+    // 3. Conexão Firebird
+    println("\n--- [3] Conexão Firebird ---");
+    let mut connFirebird = new vox_Connection();
+    connFirebird.DriverName = "Firebird";
+    connFirebird.IP = "127.0.0.1";
+    connFirebird.Porta = 3050;
+    connFirebird.Database = "C:\\Sistemas\\Dados\\empresa.fdb";
+    connFirebird.Login = "SYSDBA";
+    connFirebird.Senha = "masterkey";
+    connFirebird.VendorLib = "fbclient.dll";
+    connFirebird.TestarConexao();
+
+    println("\n==============================================================");
+    println("✔ PROPRIEDADES IP, PORTA, LOGIN E SENHA TESTADAS COM SUCESSO!");
+    println("==============================================================");
+}

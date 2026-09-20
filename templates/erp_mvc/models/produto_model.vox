@@ -1,0 +1,94 @@
+// ==============================================================================
+// templates/erp_mvc/models/produto_model.vox
+// Modelo de Produto com Parâmetros Fiscais (NCM, CEST, CFOP, ICMS, PIS, COFINS)
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+
+classe TProdutoModel herda TObject {
+private:
+    var _id: int;
+    var _dataUltimaCompra: str;
+
+    private procedure LogAviso(msg: str) {
+        println("[PRODUTO-MODEL] " + msg);
+    }
+
+published:
+    // ── 1. Dados Básicos e Identificação ──────────────────────────────────────
+    var Id: int;
+    var Codigo: str;            // cProd (Código Interno / SKU)
+    var CodigoBarrasEAN: str;   // cEAN (GTIN/EAN 13)
+    var Descricao: str;         // xProd (Descrição Completa do Produto)
+    var UnidadeMedida: str;     // uCom (UN, KG, PC, CX, LT, M)
+
+    // ── 2. Classificação Fiscal para Nota Fiscal (NF-e / NFC-e) ───────────────
+    var NCM: str;               // NCM (8 dígitos numéricos)
+    var CEST: str;              // CEST (7 dígitos - Substituição Tributária)
+    var CFOP: str;              // CFOP (ex: 5102 Venda Estadual, 6102 Interestadual)
+    var OrigemMercadoria: int;  // 0=Nacional, 1=Estrangeira Direta, 2=Estrangeira Adquirida
+
+    // ── 3. Custos, Formação de Preço e Alíquotas Fiscais ──────────────────────
+    var PrecoCusto: float;
+    var MargemLucroPercent: float;
+    var PrecoVenda: float;      // vUnCom (Valor Unitário de Comercialização)
+    var AliquotaICMS: float;    // pICMS (ex: 18.0)
+    var AliquotaPIS: float;     // pPIS (ex: 1.65)
+    var AliquotaCOFINS: float;  // pCOFINS (ex: 7.60)
+
+    // ── 4. Controle Físico de Estoque ─────────────────────────────────────────
+    var EstoqueAtual: float;    // Saldo em depósito
+    var EstoqueMinimo: float;   // Ponto de ressuprimento
+
+public:
+    new() {
+        this._id = 0;
+        this._dataUltimaCompra = "2026-09-20";
+
+        this.Id = 0;
+        this.Codigo = "PROD-001";
+        this.CodigoBarrasEAN = "7891234567890";
+        this.Descricao = "PRODUTO TESTE";
+        this.UnidadeMedida = "UN";
+
+        this.NCM = "84713012";  // Computadores / Notebooks
+        this.CEST = "2100100";
+        this.CFOP = "5102";
+        this.OrigemMercadoria = 0;
+
+        this.PrecoCusto = 100.0;
+        this.MargemLucroPercent = 50.0;
+        this.PrecoVenda = 150.0;
+        this.AliquotaICMS = 18.0;
+        this.AliquotaPIS = 1.65;
+        this.AliquotaCOFINS = 7.60;
+
+        this.EstoqueAtual = 50.0;
+        this.EstoqueMinimo = 10.0;
+    }
+
+    // ── Formação Automática de Preço com Base na Margem ───────────────────────
+    public fn RecalcularPrecoVenda() -> float {
+        this.PrecoVenda = this.PrecoCusto * (1.0 + (this.MargemLucroPercent / 100.0));
+        return this.PrecoVenda;
+    }
+
+    // ── Checagem de Disponibilidade Física ────────────────────────────────────
+    public fn TemEstoqueDisponivel(qtd: float) -> bool {
+        if this.EstoqueAtual < qtd {
+            this.LogAviso("Estoque insuficiente para o produto " + this.Descricao + ". Disponível: " + str(this.EstoqueAtual));
+            return false;
+        }
+        return true;
+    }
+
+    // ── Validação para Emissão de NF-e ────────────────────────────────────────
+    public fn ValidarParaNFe() -> bool {
+        if len(this.Codigo) == 0 { return false; }
+        if len(this.Descricao) == 0 { return false; }
+        if len(this.NCM) != 8 { return false; }
+        if len(this.CFOP) != 4 { return false; }
+        if this.PrecoVenda <= 0.0 { return false; }
+        return true;
+    }
+}

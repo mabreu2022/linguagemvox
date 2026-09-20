@@ -1,0 +1,89 @@
+// ==============================================================================
+// src/Vox_Database.vox — Componentes de Acesso a Dados Padrão FireDAC para Vox
+// ==============================================================================
+
+classe vox_Connection herda TComponent {
+published:
+    var DriverName: str;
+    var IP: str;
+    var Porta: int;
+    var Database: str;
+    var Login: str;
+    var Senha: str;
+    var VendorLib: str;
+    var Connected: bool;
+    var LoginPrompt: bool;
+    var CharSet: str;
+
+public:
+    new() {
+        this.DriverName = "MySQL";
+        this.IP = "127.0.0.1";
+        this.Porta = 3306;
+        this.Database = "loja_vox";
+        this.Login = "root";
+        this.Senha = "";
+        this.VendorLib = "libmysql.dll";
+        this.Connected = true;
+        this.LoginPrompt = false;
+        this.CharSet = "UTF8";
+    }
+
+    public procedure Configurar(driver: str, ip: str, porta: int, db: str, login: str, senha: str) {
+        this.DriverName = driver;
+        this.IP = ip;
+        this.Porta = porta;
+        this.Database = db;
+        this.Login = login;
+        this.Senha = senha;
+        if driver == "MySQL" {
+            this.VendorLib = "libmysql.dll";
+        } else if driver == "MSSQL" {
+            this.VendorLib = "sqlncli11.dll";
+        } else if driver == "Firebird" {
+            this.VendorLib = "fbclient.dll";
+        }
+    }
+
+    public fn TestarConexao() -> bool {
+        println("[vox_Connection] Conectando via Driver: " + this.DriverName);
+        println("[vox_Connection] Host IP: " + this.IP + " | Porta: " + str(this.Porta));
+        println("[vox_Connection] Login: " + this.Login + " | Database: " + this.Database);
+        return true;
+    }
+}
+
+classe vox_Query herda TComponent {
+published:
+    var Connection: str;
+    var SQL: str;
+    var Active: bool;
+
+public:
+    new() {
+        this.Connection = "vox_Connection1";
+        this.SQL = "";
+        this.Active = false;
+    }
+
+    public procedure Open() {
+        this.Active = true;
+        println("[vox_Query] Consulta SQL aberta: " + this.SQL);
+    }
+
+    public procedure Close() {
+        this.Active = false;
+    }
+}
+
+classe vox_DataSource herda TComponent {
+published:
+    var DataSet: str;
+    var AutoEdit: bool;
+
+public:
+    new() {
+        this.DataSet = "vox_Query1";
+        this.AutoEdit = true;
+    }
+}

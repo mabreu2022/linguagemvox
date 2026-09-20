@@ -686,7 +686,7 @@ export class Interpreter {
   }
 
   private checkAccess(visibility: Visibility, declaringClass: string, memberName: string): void {
-    if (visibility === 'pub') return;
+    if (visibility === 'pub' || visibility === 'published') return;
     const currentClass = this.callingClassStack[this.callingClassStack.length - 1];
     const visName = visibility === 'priv' ? 'private' : visibility === 'prot' ? 'protected' : 'public';
     if (!currentClass) {
@@ -745,6 +745,7 @@ export class Interpreter {
     const declaringCls = this.globals.has(found.declaringClass.name) ? (this.globals.get(found.declaringClass.name) as KaelClass) : inst.class;
     const opEnv = declaringCls.closure.child();
     opEnv.set('self', inst);
+    opEnv.set('this', inst);
     for (let i = 0; i < opNode.params.length; i++) {
       opEnv.set(opNode.params[i].name, args[i] ?? null);
     }
@@ -1088,6 +1089,53 @@ export class Interpreter {
   }
 
   private execImport(node: ImportDeclNode, env: Environment): KaelValue {
+    if (node.units && node.units.length > 0) {
+      for (const unitName of node.units) {
+        const candidates = [
+          path.resolve(process.cwd(), unitName + '.vox'),
+          path.resolve(process.cwd(), 'forms', unitName + '.vox'),
+          path.resolve(process.cwd(), 'src', unitName + '.vox'),
+          path.resolve(process.cwd(), 'models', unitName + '.vox'),
+          path.resolve(process.cwd(), 'controllers', unitName + '.vox'),
+          path.resolve(process.cwd(), 'interfaces', unitName + '.vox'),
+          path.resolve(process.cwd(), 'clientes', unitName + '.vox'),
+          path.resolve(process.cwd(), 'templates', 'erp_mvc', 'models', unitName + '.vox'),
+          path.resolve(process.cwd(), 'templates', 'erp_mvc', 'controllers', unitName + '.vox'),
+          path.resolve(process.cwd(), 'templates', 'erp_mvc', 'interfaces', unitName + '.vox'),
+          path.resolve(process.cwd(), unitName)
+        ];
+        let foundPath = candidates.find(c => fs.existsSync(c));
+        if (foundPath) {
+          let modEnv = this.moduleCache.get(foundPath);
+          if (!modEnv) {
+            const code = fs.readFileSync(foundPath, 'utf8');
+            const tokens = new Lexer(code).tokenize();
+            const ast = new Parser(tokens).parse();
+            modEnv = this.globals.child();
+            const subInterp = new Interpreter();
+            subInterp.globals = this.globals;
+            subInterp.moduleCache = this.moduleCache;
+            for (const stmt of ast.body) {
+              subInterp.execNode(stmt, modEnv);
+            }
+            this.moduleCache.set(foundPath, modEnv);
+          }
+          for (const [k, v] of (modEnv as any).values.entries()) {
+            env.set(k, v);
+          }
+          const unitObj: Record<string, any> = {};
+          for (const [k, v] of (modEnv as any).values.entries()) {
+            unitObj[k] = v;
+          }
+          env.set(unitName, unitObj);
+        } else {
+          // Unidade virtual de sistema ou módulo interno
+          env.set(unitName, { name: unitName });
+        }
+      }
+      return null;
+    }
+
     let targetPath = node.source;
     if (!path.isAbsolute(targetPath)) {
       targetPath = path.resolve(process.cwd(), targetPath);
@@ -1443,6 +1491,7 @@ export class Interpreter {
     const fnEnv = fn.closure.child();
     if (thisVal !== null) {
       fnEnv.set('self', thisVal);
+      fnEnv.set('this', thisVal);
       // Bind super if method belongs to a class with a superclass
       if (fn.declaringClassName) {
         const declaringClsVal = this.globals.has(fn.declaringClassName) ? this.globals.get(fn.declaringClassName) : null;
@@ -1837,6 +1886,7 @@ export class Interpreter {
     if (constructor) {
       const ctorEnv = klass.closure.child();
       ctorEnv.set('self', instance);
+      ctorEnv.set('this', instance);
       const args = node.args.map(a => this.evalExpr(a, env));
       for (let i = 0; i < constructor.params.length; i++) {
         ctorEnv.set(constructor.params[i].name, args[i] ?? null);
@@ -1855,6 +1905,7 @@ export class Interpreter {
               if (parentCtor) {
                 const parentCtorEnv = parentClass.closure.child();
                 parentCtorEnv.set('self', instance);
+                parentCtorEnv.set('this', instance);
                 for (let i = 0; i < parentCtor.params.length; i++) {
                   parentCtorEnv.set(parentCtor.params[i].name, superArgs[i] ?? null);
                 }

@@ -1,0 +1,32 @@
+// ==============================================================================
+// Form1.vox — Classe de Formulário RAD Gerada pelo Vox Studio
+// ==============================================================================
+
+class Form1 {
+    // ── Definições de Componentes Visuais ─────────────────────────────────────
+    let mut width: int;
+    let mut height: int;
+    let mut title: str;
+
+
+    // ── Construtor e Inicialização de Tela ────────────────────────────────────
+    new() {
+        this.title = "Form1 — Aplicação Vox";
+        this.width = 680;
+        this.height = 480;
+
+
+        println("Formulário " + this.title + " inicializado no Vox Studio.");
+    }
+
+    // Tratador de Evento: Form1 -> OnCreate
+    pub fn form_create(sender: any) -> void {
+        println("Formulário Form1 carregado com sucesso!");
+    }
+}
+
+// ── Ponto de Entrada para Execução Standalone ─────────────────────────────────
+fn main() -> void {
+    let app = new Form1();
+    println("Janela ativa: " + app.title + " [" + str(app.width) + "x" + str(app.height) + "]");
+}

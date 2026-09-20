@@ -1,0 +1,150 @@
+// ==============================================================================
+// templates/erp_mvc/models/cliente_nfe_model.vox
+// Modelo de Cliente Completo para Emissão de Nota Fiscal Eletrônica (NF-e / NFC-e)
+// ==============================================================================
+
+import Vox_UI, Vox_Database, Vox_SysUtils;
+
+classe TClienteNFeModel herda TObject {
+private:
+    // ── Dados de Controle Interno ─────────────────────────────────────────────
+    var _id: int;
+    var _dataCadastro: str;
+    var _ativo: bool;
+
+    private procedure RegistrarLog(msg: str) {
+        println("[CLIENTE-NFE] " + msg);
+    }
+
+published:
+    // ── 1. Identificação do Destinatário na NF-e ──────────────────────────────
+    var Id: int;
+    var RazaoSocial: str;       // xNome (Nome ou Razão Social do Destinatário)
+    var NomeFantasia: str;      // xFant (Nome de Fantasia)
+    var CnpjCpf: str;           // CNPJ ou CPF (somente dígitos ou formatado)
+    var InscricaoEstadual: str; // IE (Inscrição Estadual)
+    var IndIEDest: int;         // indIEDest (1=Contribuinte, 2=Isento, 9=Não Contribuinte)
+    var CRT: int;               // CRT (1=Simples Nacional, 2=Simples Excesso, 3=Regime Normal)
+
+    // ── 2. Endereço Completo do Destinatário (enderDest) ──────────────────────
+    var CEP: str;               // CEP (8 dígitos)
+    var Logradouro: str;        // xLgr (Rua, Avenida, etc.)
+    var Numero: str;            // nro (Número do imóvel)
+    var Complemento: str;       // xCpl (Apartamento, Sala, etc.)
+    var Bairro: str;            // xBairro (Bairro)
+    var CodigoMunicipioIBGE: str; // cMun (Código do Município pelo IBGE - 7 dígitos)
+    var NomeMunicipio: str;     // xMun (Nome da Cidade)
+    var UF: str;                // UF (Sigla do Estado da Federação - 2 caracteres)
+    var CodigoPais: str;        // cPais (1058 = Brasil)
+    var NomePais: str;          // xPais (Brasil)
+
+    // ── 3. Contato e Envio do XML / DANFE ─────────────────────────────────────
+    var Telefone: str;          // fone (DDD + Telefone)
+    var EmailNFe: str;          // email (E-mail para disparo do XML e DANFE pela SEFAZ)
+    var LimiteCredito: float;   // Limite financeiro disponível para compras a prazo
+
+public:
+    // ── Construtor e Inicialização de Padrões ──────────────────────────────────
+    new() {
+        this._id = 0;
+        this._dataCadastro = "2026-09-20";
+        this._ativo = true;
+
+        this.Id = 0;
+        this.RazaoSocial = "";
+        this.NomeFantasia = "";
+        this.CnpjCpf = "";
+        this.InscricaoEstadual = "";
+        this.IndIEDest = 1;
+        this.CRT = 1;
+
+        this.CEP = "";
+        this.Logradouro = "";
+        this.Numero = "";
+        this.Complemento = "";
+        this.Bairro = "";
+        this.CodigoMunicipioIBGE = "3550308"; // Padrão São Paulo / SP
+        this.NomeMunicipio = "São Paulo";
+        this.UF = "SP";
+        this.CodigoPais = "1058";
+        this.NomePais = "Brasil";
+
+        this.Telefone = "";
+        this.EmailNFe = "";
+        this.LimiteCredito = 5000.0;
+    }
+
+    // ── Validação Rigorosa para Rejeição Zero na SEFAZ ────────────────────────
+    public fn ValidarParaNFe() -> bool {
+        if len(this.RazaoSocial) == 0 {
+            this.RegistrarLog("Rejeição 232: Razão Social do destinatário não informada.");
+            return false;
+        }
+        if len(this.CnpjCpf) < 11 {
+            this.RegistrarLog("Rejeição 207: CNPJ/CPF do destinatário inválido ou incompleto.");
+            return false;
+        }
+        if len(this.Logradouro) == 0 {
+            this.RegistrarLog("Rejeição 234: Endereço do destinatário não informado.");
+            return false;
+        }
+        if len(this.Numero) == 0 {
+            this.RegistrarLog("Rejeição 234: Número do endereço não informado.");
+            return false;
+        }
+        if len(this.Bairro) == 0 {
+            this.RegistrarLog("Rejeição 234: Bairro do destinatário não informado.");
+            return false;
+        }
+        if len(this.CodigoMunicipioIBGE) != 7 {
+            this.RegistrarLog("Rejeição 275: Código de Município IBGE deve ter 7 dígitos.");
+            return false;
+        }
+        if len(this.UF) != 2 {
+            this.RegistrarLog("Rejeição 270: UF do destinatário inválida.");
+            return false;
+        }
+        if len(this.CEP) < 8 {
+            this.RegistrarLog("Rejeição 279: CEP do destinatário inválido.");
+            return false;
+        }
+        return true;
+    }
+
+    // ── Geração do Bloco XML <dest> para o Transmissor de NF-e ─────────────────
+    public fn GerarXMLDestinatario() -> str {
+        let mut tagDoc = "CPF";
+        if len(this.CnpjCpf) > 11 {
+            tagDoc = "CNPJ";
+        }
+        let mut xml = "<dest>";
+        xml = xml + "<" + tagDoc + ">" + this.CnpjCpf + "</" + tagDoc + ">";
+        xml = xml + "<xNome>" + this.RazaoSocial + "</xNome>";
+        if len(this.NomeFantasia) > 0 {
+            xml = xml + "<xFant>" + this.NomeFantasia + "</xFant>";
+        }
+        xml = xml + "<enderDest>";
+        xml = xml + "<xLgr>" + this.Logradouro + "</xLgr>";
+        xml = xml + "<nro>" + this.Numero + "</nro>";
+        if len(this.Complemento) > 0 {
+            xml = xml + "<xCpl>" + this.Complemento + "</xCpl>";
+        }
+        xml = xml + "<xBairro>" + this.Bairro + "</xBairro>";
+        xml = xml + "<cMun>" + this.CodigoMunicipioIBGE + "</cMun>";
+        xml = xml + "<xMun>" + this.NomeMunicipio + "</xMun>";
+        xml = xml + "<UF>" + this.UF + "</UF>";
+        xml = xml + "<CEP>" + this.CEP + "</CEP>";
+        xml = xml + "<cPais>" + this.CodigoPais + "</cPais>";
+        xml = xml + "<xPais>" + this.NomePais + "</xPais>";
+        xml = xml + "</enderDest>";
+        xml = xml + "<indIEDest>" + str(this.IndIEDest) + "</indIEDest>";
+        if len(this.InscricaoEstadual) > 0 {
+            xml = xml + "<IE>" + this.InscricaoEstadual + "</IE>";
+        }
+        if len(this.EmailNFe) > 0 {
+            xml = xml + "<email>" + this.EmailNFe + "</email>";
+        }
+        xml = xml + "</dest>";
+        return xml;
+    }
+}
