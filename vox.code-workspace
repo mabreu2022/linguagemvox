@@ -1,0 +1,27 @@
+{
+  "folders": [
+    {
+      "name": "🪐 Vox Language (Compilador & Runtime)",
+      "path": "."
+    },
+    {
+      "name": "🎨 Vox Studio RAD (IDE Visual)",
+      "path": "../VOXIDERAD"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.git": true,
+      "**/.DS_Store": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "mauricioabreu.voxlang-tools"
+    ]
+  }
+}
