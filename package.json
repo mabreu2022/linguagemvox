@@ -19,7 +19,6 @@
     "crud:manual": "powershell -Command Start-Process clientes/manual.html",
     "livro": "powershell -Command Start-Process docs/livro_vox.html",
     "livro:build": "node tools/build_book.js",
-    "rad": "node tools/vox-rad/server.js",
     "installers": "node installers/build_installers.js"
   },
   "keywords": [

@@ -19,6 +19,7 @@
 - 📖 **[Documentação de Referência da Linguagem (HTML)](docs/index.html)**: Guia completo de sintaxe, OOP, traits, generics, ownership, concorrência e compilação nativa.
 - ⚡ **[Manual Interativo de Comandos (HTML)](clientes/manual.html)**: Guia prático com botões de cópia para rodar o CRUD no terminal e na web.
 - 🔌 **[Extensão Oficial para VS Code](https://marketplace.visualstudio.com/items?itemName=MauricioAbreu.voxlang-tools)**: Disponível no Visual Studio Marketplace (`mauricioabreu.voxlang-tools`).
+- 🪐 **[Vox Studio RAD (IDE Visual Oficial)](https://github.com/mabreu2022/VOXIDERAD)**: Ambiente integrado visual Delphi-Like para criação de telas, componentes e relatórios.
 
 ---
 

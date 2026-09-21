@@ -1,8 +1,0 @@
-{
-  "ProjectName": "TestAutoProj",
-  "Version": "1.0.0",
-  "TargetPlatform": "Web Browser (HTML5 + REST)",
-  "OutputType": "Executable",
-  "MainForm": "Form1",
-  "Created": "2026-09-20T13:41:38.864Z"
-}
