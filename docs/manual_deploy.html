@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual Oficial de Deploy de Aplicações Web — Vox Studio RAD</title>
+  <meta name="description" content="Guia completo e manual prático para deploy e publicação em produção das aplicações web geradas pelo Vox Studio RAD: Node.js, PM2, Docker, VPS Linux, Nginx, SSL HTTPS, Windows Service e Cloud PaaS." />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0e17;
+      --bg-surface: #0f1523;
+      --bg-card: rgba(17, 24, 39, 0.8);
+      --bg-card-hover: rgba(24, 34, 56, 0.9);
+      --border: rgba(56, 189, 248, 0.18);
+      --border-focus: rgba(56, 189, 248, 0.6);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.35);
+      --vox-cyan: #38bdf8;
+      --vox-blue: #0284c7;
+      --vox-green: #22c55e;
+      --vox-amber: #f59e0b;
+      --vox-purple: #c084fc;
+      --vox-rose: #f43f5e;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --code-bg: #090d16;
+      --sidebar-w: 310px;
+      --header-h: 70px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 20px 45px rgba(0, 0, 0, 0.6);
+    }
+
+    body.theme-light {
+      --bg: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.95);
+      --bg-card-hover: #ffffff;
+      --border: rgba(2, 132, 199, 0.22);
+      --border-focus: rgba(2, 132, 199, 0.8);
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --code-bg: #f1f5f9;
+      --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.06);
+    }
+
+    html { scroll-behavior: smooth; font-size: 15px; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(34, 197, 94, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    /* BARRA SUPERIOR */
+    #navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: rgba(10, 14, 23, 0.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 1000;
+      transition: background 0.25s ease, border-color 0.25s ease;
+    }
+    body.theme-light #navbar {
+      background: rgba(255, 255, 255, 0.9);
+      border-bottom-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .nav-logo-badge {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #0284c7, #22c55e);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .nav-title-group h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-doc {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      color: var(--vox-green);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-action:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--vox-cyan);
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #16a34a);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #15803d);
+      border-color: #38bdf8;
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.5);
+    }
+
+    /* BARRA DE PROGRESSO DE LEITURA */
+    #reading-progress {
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      width: 0%;
+      height: 3px;
+      background: linear-gradient(90deg, #0284c7, #38bdf8, #22c55e);
+      z-index: 1001;
+      transition: width 0.1s ease;
+    }
+
+    /* ESTRUTURA GERAL COM SIDEBAR E MAIN */
+    .layout-container {
+      display: flex;
+      margin-top: var(--header-h);
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    /* SIDEBAR (ÍNDICE) */
+    #sidebar {
+      width: var(--sidebar-w);
+      position: fixed;
+      top: var(--header-h);
+      bottom: 0;
+      left: 0;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      overflow-y: auto;
+      z-index: 900;
+    }
+    body.theme-light #sidebar {
+      background: #f1f5f9;
+    }
+    .sidebar-search {
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .sidebar-search input {
+      width: 100%;
+      padding: 9px 12px 9px 34px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12.5px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .sidebar-search input:focus {
+      border-color: var(--vox-cyan);
+    }
+    .sidebar-search svg {
+      position: absolute;
+      top: 50%;
+      left: 10px;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      fill: var(--text-dim);
+    }
+    .sidebar-nav-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin: 16px 0 8px 6px;
+    }
+    .sidebar-nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .sidebar-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .sidebar-nav-link:hover,
+    .sidebar-nav-link.active {
+      color: #ffffff;
+      background: rgba(56, 189, 248, 0.14);
+      border-left: 3px solid var(--vox-cyan);
+      font-weight: 600;
+    }
+    body.theme-light .sidebar-nav-link:hover,
+    body.theme-light .sidebar-nav-link.active {
+      color: var(--vox-blue);
+      background: #e2e8f0;
+    }
+
+    /* CONTEÚDO PRINCIPAL (MAIN) */
+    #main-content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 40px 60px 100px 60px;
+      max-width: 1050px;
+    }
+
+    /* SEÇÕES E TIPOGRAFIA */
+    section {
+      margin-bottom: 60px;
+      scroll-margin-top: calc(var(--header-h) + 24px);
+    }
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    h2 .section-num {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(34, 197, 94, 0.25));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--vox-cyan);
+      font-weight: 800;
+    }
+    h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin: 28px 0 12px;
+      color: var(--vox-cyan);
+    }
+    p {
+      margin-bottom: 16px;
+      color: var(--text-muted);
+      font-size: 14.5px;
+    }
+    p strong {
+      color: var(--text);
+    }
+
+    /* HERO BANNER DE CAPA */
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(15, 30, 45, 0.85));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      margin-bottom: 50px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    .hero-banner::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -20%;
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 70%);
+      pointer-events: none;
+    }
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 20px;
+      color: var(--vox-cyan);
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+    }
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 40%, #7dd3fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: 15.5px;
+      color: var(--text-muted);
+      max-width: 780px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .hero-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .hero-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .hero-meta-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+    .hero-meta-val {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* CARDS DE DESTAQUE / CALLOUTS */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin: 24px 0;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-focus);
+      transform: translateY(-2px);
+    }
+    .stat-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    .stat-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .stat-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ALERTS / CALLOUT BOXES */
+    .callout {
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      margin: 20px 0;
+      border-left: 4px solid;
+      background: var(--bg-card);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .callout-icon { font-size: 20px; line-height: 1.2; flex-shrink: 0; }
+    .callout-content { flex: 1; font-size: 13.5px; line-height: 1.6; }
+    .callout-content strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .callout-info { border-left-color: var(--vox-cyan); background: rgba(56, 189, 248, 0.08); }
+    .callout-info strong { color: var(--vox-cyan); }
+    .callout-success { border-left-color: var(--vox-green); background: rgba(34, 197, 94, 0.08); }
+    .callout-success strong { color: var(--vox-green); }
+    .callout-warning { border-left-color: var(--vox-amber); background: rgba(245, 158, 11, 0.08); }
+    .callout-warning strong { color: var(--vox-amber); }
+    .callout-danger { border-left-color: var(--vox-rose); background: rgba(244, 63, 94, 0.08); }
+    .callout-danger strong { color: var(--vox-rose); }
+
+    /* TABELAS */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin: 24px 0;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13.5px;
+    }
+    th {
+      background: rgba(15, 20, 34, 0.8);
+      color: var(--vox-cyan);
+      font-weight: 700;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 11.5px;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td {
+      background: rgba(56, 189, 248, 0.05);
+      color: var(--text);
+    }
+
+    /* CODE BLOCKS */
+    .code-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--code-bg);
+      margin: 20px 0;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: rgba(15, 20, 34, 0.9);
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+    .code-lang-tag {
+      color: var(--vox-cyan);
+      font-weight: 700;
+    }
+    .btn-copy {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .btn-copy:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    pre {
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      background: rgba(56, 189, 248, 0.12);
+      color: #e0f2fe;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    /* FOOTER */
+    footer {
+      margin-top: 80px;
+      padding-top: 30px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    /* ==========================================================================
+       ESTILOS EXCLUSIVOS PARA IMPRESSÃO / EXPORTAÇÃO EM PDF (A4)
+       ========================================================================== */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 15mm 15mm 18mm 15mm;
+        @bottom-right {
+          content: "Página " counter(page);
+          font-family: 'Inter', sans-serif;
+          font-size: 9pt;
+          color: #64748b;
+        }
+        @bottom-left {
+          content: "Manual Oficial de Deploy Web — Vox Studio RAD";
+          font-family: 'Inter', sans-serif;
+          font-size: 9pt;
+          color: #64748b;
+        }
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 10.5pt !important;
+        line-height: 1.55 !important;
+      }
+
+      #navbar,
+      #sidebar,
+      #reading-progress,
+      .btn-action,
+      .btn-copy,
+      .sidebar-search {
+        display: none !important;
+      }
+
+      .layout-container {
+        margin-top: 0 !important;
+      }
+
+      #main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+
+      .hero-banner {
+        background: #f8fafc !important;
+        border: 2px solid #0284c7 !important;
+        color: #0f172a !important;
+        page-break-after: always;
+        break-after: page;
+        padding: 40px !important;
+        margin-top: 60px !important;
+        margin-bottom: 0 !important;
+      }
+
+      .hero-title {
+        background: none !important;
+        -webkit-text-fill-color: #0284c7 !important;
+        color: #0284c7 !important;
+        font-size: 26pt !important;
+      }
+
+      .hero-subtitle {
+        color: #334155 !important;
+        font-size: 12pt !important;
+      }
+
+      h2 {
+        color: #0369a1 !important;
+        border-bottom: 2px solid #0284c7 !important;
+        page-break-before: always;
+        break-before: page;
+        margin-top: 20pt !important;
+        font-size: 16pt !important;
+      }
+      h2:first-of-type {
+        page-break-before: avoid;
+        break-before: avoid;
+      }
+
+      h3 {
+        color: #0f172a !important;
+        font-size: 12.5pt !important;
+      }
+
+      p, li, td {
+        color: #1e293b !important;
+      }
+
+      .code-box, pre {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .code-header {
+        background: #e2e8f0 !important;
+        color: #334155 !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+      }
+
+      .card-grid,
+      .stat-card,
+      .callout,
+      .table-wrapper {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+
+      .stat-title {
+        color: #0369a1 !important;
+      }
+
+      .callout-info { border-left-color: #0284c7 !important; background: #f0f9ff !important; }
+      .callout-success { border-left-color: #16a34a !important; background: #f0fdf4 !important; }
+      .callout-warning { border-left-color: #d97706 !important; background: #fffbeb !important; }
+      .callout-danger { border-left-color: #dc2626 !important; background: #fef2f2 !important; }
+
+      th {
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
+        border-bottom: 2px solid #94a3b8 !important;
+      }
+      td {
+        border-bottom: 1px solid #e2e8f0 !important;
+      }
+
+      code {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+
+      footer {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE PROGRESSO DE LEITURA -->
+  <div id="reading-progress"></div>
+
+  <!-- NAVBAR FIXA -->
+  <header id="navbar">
+    <a href="#" class="nav-brand">
+      <div class="nav-logo-badge">🌐</div>
+      <div class="nav-title-group">
+        <h1>Vox Studio RAD <span class="badge-doc">Deploy Manual</span></h1>
+      </div>
+    </a>
+
+    <div class="nav-actions">
+      <!-- Alternar Tema Claro/Escuro -->
+      <button class="btn-action" onclick="toggleTheme()" title="Alternar Modo Claro / Escuro">
+        <span id="theme-icon">🌓</span>
+        <span id="theme-text">Tema</span>
+      </button>
+
+      <!-- Abrir IDE -->
+      <a href="http://localhost:4500" class="btn-action" title="Voltar para a IDE Vox Studio RAD">
+        <span>🚀</span>
+        <span>Abrir IDE</span>
+      </a>
+
+      <!-- Botão Imprimir / Exportar para PDF -->
+      <button class="btn-action btn-primary" onclick="exportToPdf()" title="Exportar este manual formatado para PDF">
+        <span>🖨️</span>
+        <span>Exportar para PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTAINER PRINCIPAL -->
+  <div class="layout-container">
+    
+    <!-- SIDEBAR COM ÍNDICE -->
+    <aside id="sidebar">
+      <div class="sidebar-search">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="filterInput" placeholder="Pesquisar no guia..." oninput="filterTopics(this.value)" />
+      </div>
+
+      <div class="sidebar-nav-title">Capítulos de Deploy</div>
+      <ul class="sidebar-nav-list" id="sidebarList">
+        <li><a href="#capa" class="sidebar-nav-link active"><span>📘</span> Capa & Visão Geral</a></li>
+        <li><a href="#anatomia" class="sidebar-nav-link"><span>📁</span> Anatomia de dist/web-app</a></li>
+        <li><a href="#arquitetura" class="sidebar-nav-link"><span>⚙️</span> Arquitetura do Backend REST</a></li>
+        <li><a href="#pm2" class="sidebar-nav-link"><span>🏢</span> Deploy Local/Intranet (PM2)</a></li>
+        <li><a href="#docker" class="sidebar-nav-link"><span>🐳</span> Deploy com Docker</a></li>
+        <li><a href="#vps-nginx" class="sidebar-nav-link"><span>☁️</span> VPS Linux (Nginx + SSL)</a></li>
+        <li><a href="#paas" class="sidebar-nav-link"><span>🌐</span> Nuvem PaaS (Render/Railway)</a></li>
+        <li><a href="#windows-service" class="sidebar-nav-link"><span>🪟</span> Serviço Windows (NSSM)</a></li>
+        <li><a href="#seguranca" class="sidebar-nav-link"><span>🛡️</span> Firewall, Backup & Variáveis</a></li>
+        <li><a href="#troubleshooting" class="sidebar-nav-link"><span>🔍</span> Diagnóstico & Erros Comuns</a></li>
+        <li><a href="#export-pdf" class="sidebar-nav-link"><span>📄</span> Como Exportar para PDF</a></li>
+      </ul>
+    </aside>
+
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+    <main id="main-content">
+
+      <!-- CAPA & VISÃO GERAL -->
+      <section id="capa">
+        <div class="hero-banner">
+          <div class="hero-tag">GUIA OFICIAL DE ENGENHARIA DE OPERAÇÕES (DEVOPS)</div>
+          <h1 class="hero-title">Manual Oficial de Deploy de Aplicações Web</h1>
+          <p class="hero-subtitle">
+            Guia completo de implantação, infraestrutura e publicação em produção das aplicações web corporativas geradas visualmente pelo Vox Studio RAD.
+          </p>
+
+          <div class="hero-meta-grid">
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Tecnologia Frontend</span>
+              <span class="hero-meta-val">HTML5 + CSS Delphi RAD + JS</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Backend REST</span>
+              <span class="hero-meta-val">Node.js (Built-in HTTP/REST)</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Banco de Dados</span>
+              <span class="hero-meta-val">SQLite (Portátil) / Firebird / Postgres</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Porta Padrão</span>
+              <span class="hero-meta-val">5000 (Configurável via PORT)</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Autonomia</span>
+              <span class="hero-meta-val">100% Independente da IDE</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 1: ANATOMIA DA PASTA DIST/WEB-APP -->
+      <section id="anatomia">
+        <h2><span class="section-num">1</span> Anatomia da Pasta <code>dist/web-app/</code></h2>
+        <p>
+          Quando você clica em <strong>"Compilar Aplicação Web"</strong> ou executa o projeto com o alvo <strong>Web Browser</strong> selecionado, a IDE gera uma pasta completamente autônoma em:
+        </p>
+        <p>
+          📁 <code>d:\Projetos AntiGravity\VOXIDERAD\dist\web-app\</code>
+        </p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Arquivo / Diretório</th>
+                <th>Tipo</th>
+                <th>Responsabilidade em Produção</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>index.html</code></td>
+                <td>HTML5</td>
+                <td>Interface gráfica completa: menus, painéis, DBGrid, botões e modais gerados a partir do formulário RAD.</td>
+              </tr>
+              <tr>
+                <td><code>css/app.css</code></td>
+                <td>CSS3</td>
+                <td>Design system responsivo com layout Delphi Moderno, grid de dados, tipografia e temas.</td>
+              </tr>
+              <tr>
+                <td><code>js/app.js</code></td>
+                <td>JavaScript</td>
+                <td>Lógica da aplicação web: manipuladores de eventos (<code>OnClick</code>, <code>OnChange</code>), validações e binding.</td>
+              </tr>
+              <tr>
+                <td><code>js/erp_engine.js</code></td>
+                <td>JavaScript</td>
+                <td>Motor de cálculo de impostos, regras comerciais, estoque e emissão de cupom fiscal/relatórios (quando aplicável).</td>
+              </tr>
+              <tr>
+                <td><code>server.js</code></td>
+                <td>Node.js</td>
+                <td>Servidor web e API REST de alta performance, responsável por responder requisições e consultar o banco de dados.</td>
+              </tr>
+              <tr>
+                <td><code>clientes_vox.db</code></td>
+                <td>SQLite</td>
+                <td>Banco de dados relacional local, com tabelas de clientes, produtos, notas fiscais e vendas.</td>
+              </tr>
+              <tr>
+                <td><code>package.json</code></td>
+                <td>Manifesto</td>
+                <td>Declaração do projeto Node.js com script de inicialização padrão (<code>npm start</code>).</td>
+              </tr>
+              <tr>
+                <td><code>Dockerfile</code></td>
+                <td>Docker</td>
+                <td>Instruções prontas para empacotar a aplicação em uma imagem de container Docker ultra-leve (Alpine Linux).</td>
+              </tr>
+              <tr>
+                <td><code>docker-compose.yml</code></td>
+                <td>Orquestração</td>
+                <td>Arquivo para subir a aplicação em produção com um único comando e persistência de volume do banco.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong>Aplicação 100% Desacoplada da IDE</strong>
+            Para implantar o sistema no cliente ou na nuvem, você <strong>não precisa</strong> copiar toda a IDE Vox Studio RAD. Basta copiar <em>apenas a pasta <code>dist/web-app/</code></em>! Ela contém tudo o que é necessário para rodar.
+          </div>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 2: ARQUITETURA DO BACKEND REST -->
+      <section id="arquitetura">
+        <h2><span class="section-num">2</span> Arquitetura do Backend REST Integrado</h2>
+        <p>
+          O arquivo <code>server.js</code> gerado na raiz da pasta <code>dist/web-app/</code> foi desenvolvido para ter <strong>zero dependências externas complexas</strong>. Ele utiliza exclusivamente as APIs nativas do Node.js:
+        </p>
+
+        <div class="card-grid">
+          <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-title">Node.js HTTP & SQLite</div>
+            <div class="stat-desc">Usa o módulo nativo <code>http</code> e o driver embutido <code>node:sqlite</code> (disponível a partir do Node.js v22), proporcionando velocidade máxima de I/O sem sobrecarga.</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔄</div>
+            <div class="stat-title">Endpoints REST Padronizados</div>
+            <div class="stat-desc">Fornece rotas CRUD prontas para qualquer banco: <code>GET /api/data</code>, <code>POST /api/data</code>, <code>PUT /api/data/:id</code>, <code>DELETE /api/data/:id</code> e <code>POST /api/db/query</code>.</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🌐</div>
+            <div class="stat-title">Suporte a Nuvem Dinâmica</div>
+            <div class="stat-desc">Lê automaticamente a porta definida pelo provedor via <code>process.env.PORT</code> e o caminho do banco via <code>process.env.DB_PATH</code>.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 3: DEPLOY LOCAL / INTRANET (PM2) -->
+      <section id="pm2">
+        <h2><span class="section-num">3</span> Deploy em Servidor Local ou Intranet com PM2</h2>
+        <p>
+          Este é o método mais recomendado para redes internas de empresas, escritórios e redes locais (Windows Server ou Linux). O <strong>PM2</strong> mantém a aplicação viva 24/7 e gerencia reinicializações automáticas.
+        </p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📋</div>
+          <div class="callout-content">
+            <strong>Passo 1: Instalar o Node.js no Servidor</strong>
+            Baixe e instale o Node.js (versão LTS recomendada: v20 ou v22+) no servidor a partir de <a href="https://nodejs.org" target="_blank" style="color:var(--vox-cyan);">nodejs.org</a>.
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📋</div>
+          <div class="callout-content">
+            <strong>Passo 2: Copiar os Arquivos da Aplicação</strong>
+            Copie todo o conteúdo da pasta <code>dist/web-app</code> para o diretório de destino do servidor (exemplo: <code>C:\Sistemas\MeuERP</code> no Windows ou <code>/var/www/meu-erp</code> no Linux).
+          </div>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Comandos no Terminal do Servidor (PowerShell ou Bash)</span>
+            <span class="code-lang-tag">Terminal</span>
+          </div>
+          <pre><code># 1. Instalar o PM2 globalmente na máquina
+npm install -g pm2
+
+# 2. Entrar na pasta onde os arquivos foram copiados
+cd C:\Sistemas\MeuERP    # (ou: cd /var/www/meu-erp no Linux)
+
+# 3. Iniciar o servidor da aplicação com o nome "vox-erp"
+pm2 start server.js --name "vox-erp"
+
+# 4. Salvar o estado da lista de processos para inicialização automática no boot
+pm2 save
+
+# 5. Gerar e ativar o serviço de inicialização no boot do sistema operacional
+pm2 startup</code></pre>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">✔</div>
+          <div class="callout-content">
+            <strong>Acesso na Rede Local</strong>
+            Após iniciar, qualquer computador conectado na rede local (Wi-Fi ou cabo) poderá abrir o sistema digitando no navegador:
+            <br/>
+            <code>http://&lt;IP_DO_SERVIDOR&gt;:5000</code> (ex: <code>http://192.168.1.100:5000</code>).
+          </div>
+        </div>
+
+        <h3>Comandos Úteis de Manutenção do PM2</h3>
+        <div class="code-box">
+          <div class="code-header">
+            <span>Comandos de Monitoramento</span>
+            <span class="code-lang-tag">CLI</span>
+          </div>
+          <pre><code>pm2 status             # Ver status de execução e uso de memória/CPU
+pm2 logs vox-erp       # Ver logs de acessos e erros em tempo real
+pm2 restart vox-erp    # Reiniciar a aplicação após atualizar arquivos
+pm2 stop vox-erp       # Parar a aplicação temporariamente</code></pre>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 4: DEPLOY COM DOCKER -->
+      <section id="docker">
+        <h2><span class="section-num">4</span> Deploy com Contêineres Docker (Zero Configuração)</h2>
+        <p>
+          Para quem utiliza Docker ou Kubernetes na empresa ou na nuvem, a pasta <code>dist/web-app/</code> já é gerada com o <code>Dockerfile</code> e o <code>docker-compose.yml</code> configurados!
+        </p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Subir o Contêiner com Docker Compose</span>
+            <span class="code-lang-tag">Docker</span>
+          </div>
+          <pre><code># Entrar na pasta da aplicação
+cd dist/web-app
+
+# Construir e iniciar o container em segundo plano (detached mode)
+docker compose up -d --build</code></pre>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">🐳</div>
+          <div class="callout-content">
+            <strong>Persistência de Dados Garantida</strong>
+            O arquivo <code>docker-compose.yml</code> mapeia o volume <code>./clientes_vox.db:/app/clientes_vox.db</code>, garantindo que todas as vendas, cadastros e atualizações feitas na base SQLite permaneçam salvas no disco mesmo se o contêiner for reiniciado ou recriado!
+          </div>
+        </div>
+
+        <h3>Parar ou Reiniciar o Container Docker:</h3>
+        <div class="code-box">
+          <div class="code-header">
+            <span>Comandos Docker</span>
+            <span class="code-lang-tag">Docker CLI</span>
+          </div>
+          <pre><code>docker compose logs -f    # Acompanhar logs do contêiner
+docker compose restart    # Reiniciar o serviço
+docker compose down       # Parar e remover o contêiner</code></pre>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 5: VPS LINUX (NGINX + SSL) -->
+      <section id="vps-nginx">
+        <h2><span class="section-num">5</span> Deploy em Servidor Cloud VPS (Ubuntu + Nginx + SSL Grátis)</h2>
+        <p>
+          Este cenário é ideal para colocar o sistema na internet com um <strong>domínio próprio</strong> (ex: <code>https://sistema.minhaempresa.com.br</code>) protegido por HTTPS e certificado digital Let's Encrypt.
+        </p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">1</div>
+          <div class="callout-content">
+            <strong>Preparar o Servidor Linux (Ubuntu 22.04 ou 24.04 LTS)</strong>
+            Conecte-se ao seu servidor via SSH e instale os pacotes necessários:
+          </div>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Instalação de Pacotes no Ubuntu</span>
+            <span class="code-lang-tag">Bash</span>
+          </div>
+          <pre><code>sudo apt update && sudo apt upgrade -y
+sudo apt install -y nodejs npm nginx certbot python3-certbot-nginx
+sudo npm install -g pm2</code></pre>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">2</div>
+          <div class="callout-content">
+            <strong>Copiar a Aplicação e Iniciar com PM2</strong>
+          </div>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Configuração do Diretório /var/www</span>
+            <span class="code-lang-tag">Bash</span>
+          </div>
+          <pre><code># Criar a pasta de destino
+sudo mkdir -p /var/www/vox-erp
+sudo chown -R $USER:$USER /var/www/vox-erp
+
+# (Copie os arquivos de dist/web-app para /var/www/vox-erp via SCP ou SFTP)
+
+# Iniciar com PM2
+cd /var/www/vox-erp
+pm2 start server.js --name "vox-erp"
+pm2 save
+pm2 startup</code></pre>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">3</div>
+          <div class="callout-content">
+            <strong>Configurar o Nginx como Proxy Reverso</strong>
+            Crie o arquivo de configuração do site no Nginx:
+          </div>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Arquivo /etc/nginx/sites-available/vox-erp</span>
+            <span class="code-lang-tag">Nginx Config</span>
+          </div>
+          <pre><code>server {
+    listen 80;
+    server_name sistema.minhaempresa.com.br;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</code></pre>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Ativar a Configuração no Nginx</span>
+            <span class="code-lang-tag">Bash</span>
+          </div>
+          <pre><code>sudo ln -s /etc/nginx/sites-available/vox-erp /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx</code></pre>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">🔒</div>
+          <div class="callout-content">
+            <strong>Passo 4: Gerar Certificado SSL Gratuito (HTTPS)</strong>
+            Execute o comando do Certbot para que ele configure o certificado com renovação automática:
+            <br/><br/>
+            <code>sudo certbot --nginx -d sistema.minhaempresa.com.br</code>
+            <br/><br/>
+            Seu sistema estará no ar com HTTPS e cadeado de segurança verde!
+          </div>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 6: NUVEM PAAS (RENDER, RAILWAY, ETC) -->
+      <section id="paas">
+        <h2><span class="section-num">6</span> Deploy em Nuvem PaaS (Render, Railway, Fly.io)</h2>
+        <p>
+          Se você prefere não gerenciar servidores Linux, atualizar pacotes ou configurar Nginx manualmente, você pode utilizar plataformas modernas de <strong>PaaS (Platform as a Service)</strong>:
+        </p>
+
+        <div class="card-grid">
+          <div class="stat-card">
+            <div class="stat-title">Render (render.com)</div>
+            <div class="stat-desc">Permite subir Web Services Node.js com plano gratuito ou planos a partir de $7/mês com certificado SSL automático e deploys via GitHub.</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Railway (railway.app)</div>
+            <div class="stat-desc">Detecta automaticamente o <code>package.json</code> ou <code>Dockerfile</code> e cria uma URL pública HTTPS em menos de 1 minuto.</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Fly.io (fly.io)</div>
+            <div class="stat-desc">Excelente para rodar aplicações Node.js e Docker próximas aos usuários com suporte a volumes persistentes para bancos SQLite.</div>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🚀</div>
+          <div class="callout-content">
+            <strong>Como Fazer:</strong>
+            <ol style="margin-left: 20px; margin-top: 6px;">
+              <li>Crie um repositório privado no GitHub e envie os arquivos da pasta <code>dist/web-app</code>;</li>
+              <li>Acesse o <a href="https://render.com" target="_blank" style="color:var(--vox-cyan);">Render.com</a> ou <a href="https://railway.app" target="_blank" style="color:var(--vox-cyan);">Railway.app</a>;</li>
+              <li>Clique em <strong>"New Web Service"</strong> e conecte seu repositório;</li>
+              <li>Defina o comando de build como vazio (não precisa) e o comando de start como: <code>node server.js</code>;</li>
+              <li>Clique em <strong>Deploy</strong>! O serviço fornecerá uma URL pública como <code>https://vox-erp.onrender.com</code>.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 7: SERVIÇO WINDOWS (NSSM) -->
+      <section id="windows-service">
+        <h2><span class="section-num">7</span> Deploy como Serviço Nativo do Windows (Windows Service)</h2>
+        <p>
+          Em servidores <strong>Windows Server</strong> de empresas, muitas vezes é necessário que a aplicação web inicie assim que o servidor ligar, mesmo sem nenhum usuário fazer login na Área de Trabalho.
+        </p>
+        <p>A ferramenta recomendada é o <strong>NSSM (Non-Sucking Service Manager)</strong>:</p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Criando o Serviço Windows com NSSM (Prompt de Comando como Administrador)</span>
+            <span class="code-lang-tag">CMD (Admin)</span>
+          </div>
+          <pre><code># 1. Baixar o NSSM (nssm.cc) e colocar na pasta C:\Sistemas\
+# 2. Instalar o serviço:
+nssm install VoxWebService "C:\Program Files\nodejs\node.exe" "C:\Sistemas\MeuERP\server.js"
+
+# 3. Definir a pasta de trabalho da aplicação:
+nssm set VoxWebService AppDirectory "C:\Sistemas\MeuERP"
+
+# 4. Iniciar o serviço:
+nssm start VoxWebService</code></pre>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">✔</div>
+          <div class="callout-content">
+            O serviço <code>VoxWebService</code> agora aparecerá na lista de <strong>Serviços do Windows</strong> (<code>services.msc</code>) com tipo de inicialização "Automático". Se a máquina reiniciar por falta de energia ou manutenção, o sistema web voltará sozinho!
+          </div>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 8: SEGURANÇA E FIREWALL -->
+      <section id="seguranca">
+        <h2><span class="section-num">8</span> Configurações de Segurança, Firewall & Backup</h2>
+
+        <h3>1. Liberar a Porta no Firewall do Windows</h3>
+        <p>Para que os computadores clientes consigam acessar o servidor na rede local, a porta 5000 deve ser liberada nas regras de entrada do Firewall:</p>
+        <div class="code-box">
+          <div class="code-header">
+            <span>Liberar Porta via PowerShell (Executar como Administrador)</span>
+            <span class="code-lang-tag">PowerShell</span>
+          </div>
+          <pre><code>New-NetFirewallRule -DisplayName "Vox Studio Web App (Porta 5000)" -Direction Inbound -LocalPort 5000 -Protocol TCP -Action Allow</code></pre>
+        </div>
+
+        <h3>2. Rotina de Backup Automático do Banco SQLite</h3>
+        <p>O SQLite permite fazer cópias quentes (hot backups) sem travar a aplicação em execução:</p>
+        <div class="code-box">
+          <div class="code-header">
+            <span>Comando de Backup Seguro do SQLite</span>
+            <span class="code-lang-tag">PowerShell / Bash</span>
+          </div>
+          <pre><code># No Windows:
+copy clientes_vox.db "C:\Backups\clientes_vox_%date:~-4,4%%date:~-7,2%%date:~-10,2%.db"
+
+# No Linux (com script cron diário):
+cp /var/www/vox-erp/clientes_vox.db /backups/clientes_vox_$(date +%Y%m%d).db</code></pre>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 9: DIAGNÓSTICO E TROUBLESHOOTING -->
+      <section id="troubleshooting">
+        <h2><span class="section-num">9</span> Diagnóstico & Resolução de Problemas no Deploy</h2>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Problema / Erro</th>
+                <th>Causa Raiz</th>
+                <th>Solução Recomendada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong><code>Error: listen EADDRINUSE: address already in use :::5000</code></strong></td>
+                <td>Já existe outro processo utilizando a porta 5000 na máquina.</td>
+                <td>Mate o processo anterior com <code>pm2 stop all</code> ou altere a porta rodando com <code>PORT=8080 node server.js</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Outros computadores na rede não abrem a página.</strong></td>
+                <td>O Firewall do Windows ou Linux está bloqueando conexões externas na porta 5000.</td>
+                <td>Crie uma regra de entrada liberando a porta 5000 no Firewall ou use Nginx na porta 80/443.</td>
+              </tr>
+              <tr>
+                <td><strong>Erro de permissão no arquivo SQLite (<code>EPERM</code> ou <code>read-only database</code>).</strong></td>
+                <td>O usuário do Linux/Windows que executa o Node.js não tem permissão de escrita no arquivo <code>.db</code>.</td>
+                <td>No Linux execute <code>chmod 664 clientes_vox.db</code> e no Windows garanta controle total para o usuário do serviço.</td>
+              </tr>
+              <tr>
+                <td><strong>Ao atualizar arquivos a tela continua antiga.</strong></td>
+                <td>O navegador do cliente manteve arquivos em cache estático local.</td>
+                <td>Oriente os usuários a pressionarem <code>Ctrl + F5</code> no navegador após uma atualização de versão.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- CAPÍTULO 10: EXPORTAR PARA PDF -->
+      <section id="export-pdf">
+        <h2><span class="section-num">10</span> Como Exportar este Manual para PDF</h2>
+        <p>
+          Este manual possui diagramação otimizada para impressão em papel <strong>Folha A4</strong> via CSS Paged Media (<code>@media print</code>):
+        </p>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">📄</div>
+          <div class="callout-content">
+            <strong>Instruções de Impressão:</strong>
+            <ol style="margin-left: 20px; margin-top: 8px;">
+              <li>Clique no botão verde <strong>"🖨️ Exportar para PDF"</strong> no topo direito da tela (ou tecle <code>Ctrl + P</code>);</li>
+              <li>Em <strong>Destino</strong>, selecione <strong>"Salvar como PDF"</strong>;</li>
+              <li>Em <strong>Layout</strong>, escolha <strong>Retrato (Portrait)</strong>;</li>
+              <li>Em <strong>Mais definições</strong>, marque a caixa <strong>"Gráficos de segundo plano" (Background graphics)</strong>;</li>
+              <li>Clique em <strong>Salvar</strong> e guarde seu arquivo PDF oficial.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- RODAPÉ -->
+      <footer>
+        <div>Vox Studio RAD © 2026 — DevOps & Engenharia de Implantação</div>
+        <div>Manual Oficial de Publicação Web v1.1</div>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- SCRIPT INTERATIVO (TEMA, BUSCA, LEITURA E IMPRESSÃO) -->
+  <script>
+    // 1. Barra de progresso de leitura
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      const bar = document.getElementById('reading-progress');
+      if (bar) bar.style.width = scrolled + '%';
+      highlightActiveNavLink();
+    });
+
+    // 2. Destacar link ativo no scroll
+    function highlightActiveNavLink() {
+      const sections = document.querySelectorAll('section');
+      const scrollPos = window.scrollY + 120;
+      sections.forEach(sec => {
+        const top = sec.offsetTop;
+        const height = sec.offsetHeight;
+        const id = sec.getAttribute('id');
+        if (scrollPos >= top && scrollPos < top + height) {
+          document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + id) {
+              link.classList.add('active');
+            }
+          });
+        }
+      });
+    }
+
+    // 3. Alternar Tema Claro / Escuro
+    function toggleTheme() {
+      const body = document.body;
+      const isLight = body.classList.toggle('theme-light');
+      const icon = document.getElementById('theme-icon');
+      const text = document.getElementById('theme-text');
+      if (isLight) {
+        icon.innerText = '☀️';
+        text.innerText = 'Claro';
+        localStorage.setItem('vox_deploy_doc_theme', 'light');
+      } else {
+        icon.innerText = '🌙';
+        text.innerText = 'Escuro';
+        localStorage.setItem('vox_deploy_doc_theme', 'dark');
+      }
+    }
+
+    // Carregar tema salvo
+    if (localStorage.getItem('vox_deploy_doc_theme') === 'light') {
+      document.body.classList.add('theme-light');
+      const icon = document.getElementById('theme-icon');
+      const text = document.getElementById('theme-text');
+      if (icon) icon.innerText = '☀️';
+      if (text) text.innerText = 'Claro';
+    }
+
+    // 4. Filtrar tópicos na Sidebar
+    function filterTopics(query) {
+      const q = query.toLowerCase().trim();
+      const items = document.querySelectorAll('.sidebar-nav-list li');
+      items.forEach(li => {
+        const text = li.innerText.toLowerCase();
+        if (text.includes(q)) {
+          li.style.display = 'block';
+        } else {
+          li.style.display = 'none';
+        }
+      });
+    }
+
+    // 5. Exportar para PDF / Imprimir
+    function exportToPdf() {
+      window.print();
+    }
+  </script>
+</body>
+</html>

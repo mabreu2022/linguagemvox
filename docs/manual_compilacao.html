@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual Oficial de Compilação & Geração de .EXE — Vox Studio RAD</title>
+  <meta name="description" content="Manual completo sobre a tecnologia de compilação nativa (.EXE), arquitetura do transpilador C99, compiladores suportados (TCC, MSVC, GCC, Clang) e pipeline de build do Vox Studio RAD." />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090d16;
+      --bg-surface: #0f1422;
+      --bg-card: rgba(17, 24, 39, 0.75);
+      --bg-card-hover: rgba(24, 34, 56, 0.85);
+      --border: rgba(124, 111, 247, 0.18);
+      --border-focus: rgba(124, 111, 247, 0.6);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --accent: #7c6ff7;
+      --accent-glow: rgba(124, 111, 247, 0.35);
+      --vox-cyan: #38bdf8;
+      --vox-blue: #0284c7;
+      --vox-green: #22c55e;
+      --vox-amber: #f59e0b;
+      --vox-purple: #c084fc;
+      --vox-rose: #f43f5e;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --code-bg: #0b0f19;
+      --sidebar-w: 310px;
+      --header-h: 70px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 20px 45px rgba(0, 0, 0, 0.6);
+    }
+
+    body.theme-light {
+      --bg: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.95);
+      --bg-card-hover: #ffffff;
+      --border: rgba(124, 111, 247, 0.22);
+      --border-focus: rgba(124, 111, 247, 0.8);
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --code-bg: #f1f5f9;
+      --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.06);
+    }
+
+    html { scroll-behavior: smooth; font-size: 15px; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(124, 111, 247, 0.1) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    /* BARRA SUPERIOR (HEADER) */
+    #navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: rgba(9, 13, 22, 0.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 1000;
+      transition: background 0.25s ease, border-color 0.25s ease;
+    }
+    body.theme-light #navbar {
+      background: rgba(255, 255, 255, 0.9);
+      border-bottom-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .nav-logo-badge {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #0284c7, #7c6ff7);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .nav-title-group h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-doc {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--vox-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .btn-action:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--vox-cyan);
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #1d4ed8);
+      border-color: #38bdf8;
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.5);
+    }
+
+    /* BARRA DE PROGRESSO DE LEITURA */
+    #reading-progress {
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      width: 0%;
+      height: 3px;
+      background: linear-gradient(90deg, #38bdf8, #7c6ff7, #22c55e);
+      z-index: 1001;
+      transition: width 0.1s ease;
+    }
+
+    /* ESTRUTURA GERAL COM SIDEBAR E MAIN */
+    .layout-container {
+      display: flex;
+      margin-top: var(--header-h);
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    /* SIDEBAR (ÍNDICE) */
+    #sidebar {
+      width: var(--sidebar-w);
+      position: fixed;
+      top: var(--header-h);
+      bottom: 0;
+      left: 0;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      overflow-y: auto;
+      z-index: 900;
+    }
+    body.theme-light #sidebar {
+      background: #f1f5f9;
+    }
+    .sidebar-search {
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .sidebar-search input {
+      width: 100%;
+      padding: 9px 12px 9px 34px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12.5px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .sidebar-search input:focus {
+      border-color: var(--vox-cyan);
+    }
+    .sidebar-search svg {
+      position: absolute;
+      top: 50%;
+      left: 10px;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      fill: var(--text-dim);
+    }
+    .sidebar-nav-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin: 16px 0 8px 6px;
+    }
+    .sidebar-nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .sidebar-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+    .sidebar-nav-link:hover,
+    .sidebar-nav-link.active {
+      color: #ffffff;
+      background: rgba(124, 111, 247, 0.14);
+      border-left: 3px solid var(--vox-cyan);
+      font-weight: 600;
+    }
+    body.theme-light .sidebar-nav-link:hover,
+    body.theme-light .sidebar-nav-link.active {
+      color: var(--vox-blue);
+      background: #e2e8f0;
+    }
+
+    /* CONTEÚDO PRINCIPAL (MAIN) */
+    #main-content {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 40px 60px 100px 60px;
+      max-width: 1050px;
+    }
+
+    /* SEÇÕES E TIPOGRAFIA */
+    section {
+      margin-bottom: 60px;
+      scroll-margin-top: calc(var(--header-h) + 24px);
+    }
+    h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    h2 .section-num {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(124, 111, 247, 0.25));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--vox-cyan);
+      font-weight: 800;
+    }
+    h3 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin: 28px 0 12px;
+      color: var(--vox-cyan);
+    }
+    p {
+      margin-bottom: 16px;
+      color: var(--text-muted);
+      font-size: 14.5px;
+    }
+    p strong {
+      color: var(--text);
+    }
+
+    /* HERO BANNER DE CAPA */
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(17, 24, 39, 0.85));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      margin-bottom: 50px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    .hero-banner::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -20%;
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.18), transparent 70%);
+      pointer-events: none;
+    }
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      border-radius: 20px;
+      color: var(--vox-green);
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 14px;
+    }
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 40%, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: 15.5px;
+      color: var(--text-muted);
+      max-width: 750px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .hero-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .hero-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .hero-meta-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+    }
+    .hero-meta-val {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* CARDS DE DESTAQUE / CALLOUTS */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin: 24px 0;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-focus);
+      transform: translateY(-2px);
+    }
+    .stat-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    .stat-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .stat-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ALERTS / CALLOUT BOXES */
+    .callout {
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      margin: 20px 0;
+      border-left: 4px solid;
+      background: var(--bg-card);
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .callout-icon { font-size: 20px; line-height: 1.2; flex-shrink: 0; }
+    .callout-content { flex: 1; font-size: 13.5px; line-height: 1.6; }
+    .callout-content strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .callout-info { border-left-color: var(--vox-cyan); background: rgba(56, 189, 248, 0.08); }
+    .callout-info strong { color: var(--vox-cyan); }
+    .callout-success { border-left-color: var(--vox-green); background: rgba(34, 197, 94, 0.08); }
+    .callout-success strong { color: var(--vox-green); }
+    .callout-warning { border-left-color: var(--vox-amber); background: rgba(245, 158, 11, 0.08); }
+    .callout-warning strong { color: var(--vox-amber); }
+    .callout-danger { border-left-color: var(--vox-rose); background: rgba(244, 63, 94, 0.08); }
+    .callout-danger strong { color: var(--vox-rose); }
+
+    /* TABELAS */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin: 24px 0;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13.5px;
+    }
+    th {
+      background: rgba(15, 20, 34, 0.8);
+      color: var(--vox-cyan);
+      font-weight: 700;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 11.5px;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td {
+      background: rgba(124, 111, 247, 0.05);
+      color: var(--text);
+    }
+
+    /* CODE BLOCKS */
+    .code-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--code-bg);
+      margin: 20px 0;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: rgba(15, 20, 34, 0.9);
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+    .code-lang-tag {
+      color: var(--vox-cyan);
+      font-weight: 700;
+    }
+    .btn-copy {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .btn-copy:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    pre {
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      background: rgba(124, 111, 247, 0.12);
+      color: #e0e7ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(124, 111, 247, 0.2);
+    }
+
+    /* DIAGRAMA VISUAL EM CSS/SVG */
+    .diagram-container {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin: 24px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .diagram-step {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      max-width: 720px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      transition: all 0.2s;
+    }
+    .diagram-step:hover {
+      border-color: var(--vox-cyan);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.15);
+    }
+    .step-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0284c7, #7c6ff7);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-info { flex: 1; }
+    .step-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .step-detail {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .diagram-arrow {
+      color: var(--vox-cyan);
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    /* FOOTER */
+    footer {
+      margin-top: 80px;
+      padding-top: 30px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    /* ==========================================================================
+       ESTILOS EXCLUSIVOS PARA IMPRESSÃO / EXPORTAÇÃO EM PDF (A4)
+       ========================================================================== */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 15mm 15mm 18mm 15mm;
+        @bottom-right {
+          content: "Página " counter(page);
+          font-family: 'Inter', sans-serif;
+          font-size: 9pt;
+          color: #64748b;
+        }
+        @bottom-left {
+          content: "Manual de Compilação & .EXE — Vox Studio RAD";
+          font-family: 'Inter', sans-serif;
+          font-size: 9pt;
+          color: #64748b;
+        }
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 10.5pt !important;
+        line-height: 1.55 !important;
+      }
+
+      #navbar,
+      #sidebar,
+      #reading-progress,
+      .btn-action,
+      .btn-copy,
+      .sidebar-search {
+        display: none !important;
+      }
+
+      .layout-container {
+        margin-top: 0 !important;
+      }
+
+      #main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+
+      .hero-banner {
+        background: #f8fafc !important;
+        border: 2px solid #0284c7 !important;
+        color: #0f172a !important;
+        page-break-after: always;
+        break-after: page;
+        padding: 40px !important;
+        margin-top: 60px !important;
+        margin-bottom: 0 !important;
+      }
+
+      .hero-title {
+        background: none !important;
+        -webkit-text-fill-color: #0284c7 !important;
+        color: #0284c7 !important;
+        font-size: 26pt !important;
+      }
+
+      .hero-subtitle {
+        color: #334155 !important;
+        font-size: 12pt !important;
+      }
+
+      h2 {
+        color: #0369a1 !important;
+        border-bottom: 2px solid #0284c7 !important;
+        page-break-before: always;
+        break-before: page;
+        margin-top: 20pt !important;
+        font-size: 16pt !important;
+      }
+      h2:first-of-type {
+        page-break-before: avoid;
+        break-before: avoid;
+      }
+
+      h3 {
+        color: #0f172a !important;
+        font-size: 12.5pt !important;
+      }
+
+      p, li, td {
+        color: #1e293b !important;
+      }
+
+      .code-box, pre {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .code-header {
+        background: #e2e8f0 !important;
+        color: #334155 !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+      }
+
+      .card-grid,
+      .stat-card,
+      .callout,
+      .table-wrapper,
+      .diagram-container {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+
+      .stat-title {
+        color: #0369a1 !important;
+      }
+
+      .callout-info { border-left-color: #0284c7 !important; background: #f0f9ff !important; }
+      .callout-success { border-left-color: #16a34a !important; background: #f0fdf4 !important; }
+      .callout-warning { border-left-color: #d97706 !important; background: #fffbeb !important; }
+      .callout-danger { border-left-color: #dc2626 !important; background: #fef2f2 !important; }
+
+      th {
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
+        border-bottom: 2px solid #94a3b8 !important;
+      }
+      td {
+        border-bottom: 1px solid #e2e8f0 !important;
+      }
+
+      code {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+
+      footer {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE PROGRESSO DE LEITURA -->
+  <div id="reading-progress"></div>
+
+  <!-- NAVBAR FIXA -->
+  <header id="navbar">
+    <a href="#" class="nav-brand">
+      <div class="nav-logo-badge">V</div>
+      <div class="nav-title-group">
+        <h1>Vox Studio RAD <span class="badge-doc">Manual Oficial</span></h1>
+      </div>
+    </a>
+
+    <div class="nav-actions">
+      <!-- Alternar Tema Claro/Escuro -->
+      <button class="btn-action" onclick="toggleTheme()" title="Alternar Modo Claro / Escuro">
+        <span id="theme-icon">🌓</span>
+        <span id="theme-text">Tema</span>
+      </button>
+
+      <!-- Abrir IDE -->
+      <a href="http://localhost:4500" class="btn-action" title="Voltar para a IDE Vox Studio RAD">
+        <span>🚀</span>
+        <span>Abrir IDE</span>
+      </a>
+
+      <!-- Botão Imprimir / Exportar para PDF -->
+      <button class="btn-action btn-primary" onclick="exportToPdf()" title="Exportar este manual formatado para PDF">
+        <span>🖨️</span>
+        <span>Exportar para PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTAINER PRINCIPAL -->
+  <div class="layout-container">
+    
+    <!-- SIDEBAR COM ÍNDICE -->
+    <aside id="sidebar">
+      <div class="sidebar-search">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="filterInput" placeholder="Pesquisar no manual..." oninput="filterTopics(this.value)" />
+      </div>
+
+      <div class="sidebar-nav-title">Navegação do Manual</div>
+      <ul class="sidebar-nav-list" id="sidebarList">
+        <li><a href="#capa" class="sidebar-nav-link active"><span>📘</span> Capa & Resumo Executivo</a></li>
+        <li><a href="#respostas-diretas" class="sidebar-nav-link"><span>🎯</span> Respostas Diretas</a></li>
+        <li><a href="#tres-modos" class="sidebar-nav-link"><span>⚙️</span> Os 3 Modos de Execução</a></li>
+        <li><a href="#pipeline" class="sidebar-nav-link"><span>🔄</span> Pipeline de Compilação C99</a></li>
+        <li><a href="#compiladores" class="sidebar-nav-link"><span>🛠️</span> Compiladores C Suportados</a></li>
+        <li><a href="#tcc-embutido" class="sidebar-nav-link"><span>⚡</span> Tiny C Compiler (TCC)</a></li>
+        <li><a href="#passo-a-passo" class="sidebar-nav-link"><span>📖</span> Passo a Passo: Gerando .EXE</a></li>
+        <li><a href="#cli-build" class="sidebar-nav-link"><span>💻</span> Compilação via Terminal (CLI)</a></li>
+        <li><a href="#remote-linux" class="sidebar-nav-link"><span>🐧</span> Compilação Remota (Linux)</a></li>
+        <li><a href="#troubleshooting" class="sidebar-nav-link"><span>🔍</span> Diagnóstico & Erros Comuns</a></li>
+        <li><a href="#export-pdf" class="sidebar-nav-link"><span>📄</span> Como Exportar para PDF</a></li>
+      </ul>
+    </aside>
+
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+    <main id="main-content">
+
+      <!-- CAPA & RESUMO EXECUTIVO -->
+      <section id="capa">
+        <div class="hero-banner">
+          <div class="hero-tag">DOCUMENTO TÉCNICO OFICIAL — APROVADO & VALIDADO</div>
+          <h1 class="hero-title">Manual Oficial de Compilação & Geração de .EXE</h1>
+          <p class="hero-subtitle">
+            Guia completo de arquitetura, funcionamento do transpilador ANSI C99, pipeline de ligação nativa PE/COFF de 64 bits, compiladores C integrados (TCC, MSVC, GCC, Clang) e geração de executáveis nativos no Vox Studio RAD.
+          </p>
+
+          <div class="hero-meta-grid">
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Linguagem</span>
+              <span class="hero-meta-val">Vox v1.1 (Delphi-Rust Modern)</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">IDE RAD</span>
+              <span class="hero-meta-val">Vox Studio RAD 1.0</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Alvo Nativo</span>
+              <span class="hero-meta-val">Windows x86_64 (.EXE)</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Compilador Padrão</span>
+              <span class="hero-meta-val">TCC v0.9.27 (Embutido)</span>
+            </div>
+            <div class="hero-meta-item">
+              <span class="hero-meta-label">Velocidade de Build</span>
+              <span class="hero-meta-val">~105ms a 250ms</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 1: RESPOSTAS DIRETAS -->
+      <section id="respostas-diretas">
+        <h2><span class="section-num">1</span> Respostas Diretas às Dúvidas Centrais</h2>
+        <p>Abaixo estão as respostas técnicas e precisas sobre o comportamento de compilação da IDE:</p>
+
+        <div class="card-grid">
+          <!-- Card 1 -->
+          <div class="stat-card">
+            <div class="stat-icon">🪟</div>
+            <div class="stat-title">A IDE faz .EXE de verdade?</div>
+            <div class="stat-desc">
+              <strong>SIM.</strong> A IDE possui gerador de código nativo que produz binários executáveis reais do formato PE32+ (x86_64) de 64-bit para Windows, gravados na pasta <code>bin/windows/&lt;Projeto&gt;.exe</code>.
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="stat-card">
+            <div class="stat-icon">⚙️</div>
+            <div class="stat-title">Como ela compila?</div>
+            <div class="stat-desc">
+              Através de um <strong>pipeline de 2 estágios</strong>: o compilador Vox faz a análise sintática e tipagem, transpila o código para <strong>ANSI C99</strong> otimizado e invoca um compilador C nativo para gerar o <code>.exe</code>.
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-title">Qual tecnologia utiliza?</div>
+            <div class="stat-desc">
+              Transpilador baseado em AST (TypeScript), cabeçalho de suporte C (<code>vox_runtime.h</code>) com RAII, gerenciamento de strings, coleta de memória e interface Win32 API.
+            </div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="stat-card">
+            <div class="stat-icon">🛠️</div>
+            <div class="stat-title">Qual compilador C é utilizado?</div>
+            <div class="stat-desc">
+              Possui detecção inteligente com prioridade: <strong>Tiny C Compiler (TCC)</strong> embutido (padrão zero-dependência), <strong>MSVC (Visual Studio)</strong>, <strong>GCC (MinGW)</strong> ou <strong>LLVM Clang</strong>.
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">✔</div>
+          <div class="callout-content">
+            <strong>Validação Prática Realizada com Sucesso</strong>
+            Compilamos com sucesso o projeto <code>VoxERP_Comercial.exe</code> em apenas <strong>105ms</strong> usando o TCC embutido, gerando o executável de 3.072 bytes na pasta <code>d:\Projetos AntiGravity\VOXIDERAD\bin\windows\VoxERP_Comercial.exe</code> e testando sua execução autônoma no Windows!
+          </div>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 2: OS TRÊS MODOS DE EXECUÇÃO -->
+      <section id="tres-modos">
+        <h2><span class="section-num">2</span> Os Três Modos de Execução da IDE (Diferença Crucial)</h2>
+        <p>
+          Muitos desenvolvedores estranham não ver o <code>.exe</code> ao clicar em executar ou ao olhar na pasta <code>dist/web-app/</code>. Isso acontece porque o Vox Studio RAD oferece <strong>três alvos distintos</strong>, cada um com propósito específico:
+        </p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Modo</th>
+                <th>Como Funciona</th>
+                <th>Pasta de Saída</th>
+                <th>Formato do Resultado</th>
+                <th>Finalidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>1. F9 (Live Form Runner)</strong></td>
+                <td>Execução interpretada / ao vivo da interface VCL dentro da IDE ou via Electron WebView2.</td>
+                <td>Memória / Cache local</td>
+                <td>Janela de Teste RAD Instantânea</td>
+                <td>Prototipação em tempo real (0ms de espera), teste de layout, DBGrid e eventos sem compilar.</td>
+              </tr>
+              <tr>
+                <td><strong>2. Web App (HTML5 + REST)</strong></td>
+                <td>Transpilação do formulário e código em uma aplicação Web completa (HTML5, JS, Node.js).</td>
+                <td><code>dist/web-app/</code></td>
+                <td><code>index.html</code>, <code>server.js</code>, pacotes</td>
+                <td>Publicação em servidores de intranet, nuvem, containers Docker ou acesso via navegador.</td>
+              </tr>
+              <tr>
+                <td><strong>3. Compilação Nativa Windows</strong></td>
+                <td>Transpilação para ANSI C99 e compilação binária nativa via compilador C (TCC / MSVC / GCC).</td>
+                <td><code>bin/windows/</code></td>
+                <td><strong><code>&lt;Projeto&gt;.exe</code> (Binário 64-bit)</strong></td>
+                <td><strong>Distribuição para usuários finais</strong>, instalação local, máximo desempenho nativo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong>Por que a pasta <code>dist/web-app/</code> não tinha <code>.exe</code>?</strong>
+            A pasta <code>dist/web-app/</code> é exclusivamente o diretório de destino do <strong>Modo 2 (Web Browser)</strong>. O executável nativo do Windows fica localizado em <code>bin/windows/</code> quando você ativa o <strong>Modo 3 (Windows 64-bit Native EXE)</strong> na barra de ferramentas da IDE!
+          </div>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 3: O PIPELINE DE COMPILAÇÃO C99 -->
+      <section id="pipeline">
+        <h2><span class="section-num">3</span> O Pipeline Completo de Compilação (Passo a Passo)</h2>
+        <p>
+          O compilador Vox não gera bytecode nem necessita de máquina virtual pesada (como JVM ou .NET CLR) para rodar o executável nativo. Ele utiliza a técnica moderna de <strong>Source-to-Source Compilation (Transpilação para C99 + Compilação Nativa)</strong>:
+        </p>
+
+        <div class="diagram-container">
+          <div class="diagram-step">
+            <div class="step-badge">1</div>
+            <div class="step-info">
+              <div class="step-title">Código Fonte Vox (.vox)</div>
+              <div class="step-detail">Código Pascal/Delphi-Like com sintaxe moderna (classes, traits, structs, closures, try/catch, SQL embutido).</div>
+            </div>
+          </div>
+
+          <div class="diagram-arrow">↓</div>
+
+          <div class="diagram-step">
+            <div class="step-badge">2</div>
+            <div class="step-info">
+              <div class="step-title">Lexer, Parser & AST</div>
+              <div class="step-detail">O parser sintático constrói a árvore abstrata (AST) e o validador de tipos verifica contratos e assinaturas.</div>
+            </div>
+          </div>
+
+          <div class="diagram-arrow">↓</div>
+
+          <div class="diagram-step">
+            <div class="step-badge">3</div>
+            <div class="step-info">
+              <div class="step-title">Gerador C99 (c_generator.ts)</div>
+              <div class="step-detail">Converte as estruturas de controle, tipos primitivos, rotinas RAII <code>drop()</code> e dispatch de métodos para ANSI C puro.</div>
+            </div>
+          </div>
+
+          <div class="diagram-arrow">↓</div>
+
+          <div class="diagram-step">
+            <div class="step-badge">4</div>
+            <div class="step-info">
+              <div class="step-title">Inclusão do Runtime C (vox_runtime.h)</div>
+              <div class="step-detail">Anexa a biblioteca de runtime (912 linhas de C) que implementa strings dinâmicas (<code>vox_str</code>), buffers, arrays e chamadas Win32.</div>
+            </div>
+          </div>
+
+          <div class="diagram-arrow">↓</div>
+
+          <div class="diagram-step">
+            <div class="step-badge">5</div>
+            <div class="step-info">
+              <div class="step-title">Compilador C Nativo (TCC / MSVC / GCC)</div>
+              <div class="step-detail">O compilador C transforma o código ANSI C em código de máquina x86_64, resolvendo símbolos e efetuando a link-edição.</div>
+            </div>
+          </div>
+
+          <div class="diagram-arrow">↓</div>
+
+          <div class="diagram-step">
+            <div class="step-badge">6</div>
+            <div class="step-info">
+              <div class="step-title">Binário Final Gerado (bin/windows/&lt;Nome&gt;.exe)</div>
+              <div class="step-detail">Executável nativo portátil de 64 bits pronto para execução direta com duplo-clique no Windows sem dependências!</div>
+            </div>
+          </div>
+        </div>
+
+        <h3>Estrutura dos Tipos Vox Mapeados para C</h3>
+        <p>O gerador de código C (<code>src/codegen/c_generator.ts</code>) faz a correspondência direta entre os tipos de alto nível da linguagem Vox e os tipos de código de máquina do C ANSI:</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Tipo Vox</th>
+                <th>Tipo C Equivalente</th>
+                <th>Tamanho / Representação</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>int</code></td>
+                <td><code>int64_t (vox_int)</code></td>
+                <td>Inteiro com sinal de 64 bits</td>
+              </tr>
+              <tr>
+                <td><code>float</code></td>
+                <td><code>double (vox_float)</code></td>
+                <td>Ponto flutuante de precisão dupla (64 bits)</td>
+              </tr>
+              <tr>
+                <td><code>bool</code></td>
+                <td><code>bool (vox_bool)</code></td>
+                <td>Booleano de 1 byte (true / false)</td>
+              </tr>
+              <tr>
+                <td><code>string</code></td>
+                <td><code>vox_str*</code></td>
+                <td>Estrutura dinâmica com ponteiro de caracteres e <code>size_t len</code></td>
+              </tr>
+              <tr>
+                <td><code>classe / struct</code></td>
+                <td><code>typedef struct { ... }</code></td>
+                <td>Estrutura alocada com ponteiros e tabela de métodos</td>
+              </tr>
+              <tr>
+                <td><code>try / catch / throw</code></td>
+                <td><code>setjmp / longjmp</code></td>
+                <td>Pilha de frames protegidos para tratamento de exceções</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 4: OS COMPILADORES C SUPORTADOS -->
+      <section id="compiladores">
+        <h2><span class="section-num">4</span> Os Compiladores C Suportados e Algoritmo de Detecção</h2>
+        <p>
+          O Vox Studio RAD possui uma classe centralizadora de compilação chamada <code>Compiler</code> (localizada em <code>d:\Projetos AntiGravity\linguagem\src\codegen\compiler.ts</code>). Quando você solicita a compilação de um projeto, o método <code>detectCompiler()</code> pesquisa o sistema na seguinte ordem de prioridade:
+        </p>
+
+        <div class="card-grid">
+          <!-- TCC -->
+          <div class="stat-card" style="border-left: 4px solid #22c55e;">
+            <div class="stat-title">1º — Tiny C Compiler (TCC) [Embutido]</div>
+            <div class="stat-desc">
+              <strong>Localização:</strong> <code>tools/tcc/tcc.exe</code><br/>
+              <strong>Prioridade:</strong> Máxima no Windows.<br/>
+              <strong>Vantagens:</strong> Extremamente leve (&lt; 3 MB), compilação quase instantânea (~100ms), já vem dentro da pasta da IDE. O usuário <em>não precisa ter nenhum compilador instalado na máquina</em>!
+            </div>
+          </div>
+
+          <!-- MSVC -->
+          <div class="stat-card" style="border-left: 4px solid #0284c7;">
+            <div class="stat-title">2º — Microsoft Visual C++ (MSVC / cl.exe)</div>
+            <div class="stat-desc">
+              <strong>Localização:</strong> Visual Studio 2019 / 2022 (Build Tools)<br/>
+              <strong>Invocação:</strong> <code>vcvars64.bat &amp;&amp; cl /O2 /utf-8 ...</code><br/>
+              <strong>Vantagens:</strong> Máxima otimização de código para processadores Intel/AMD modernos, geração de binários de produção para alto desempenho.
+            </div>
+          </div>
+
+          <!-- GCC -->
+          <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+            <div class="stat-title">3º — GNU Compiler Collection (GCC)</div>
+            <div class="stat-desc">
+              <strong>Localização:</strong> MinGW-w64 no PATH do Windows ou GCC no Linux.<br/>
+              <strong>Invocação:</strong> <code>gcc -std=c99 -Wall -O2 -lm</code><br/>
+              <strong>Vantagens:</strong> Padrão industrial amplamente testado e utilizado em ambientes cross-platform.
+            </div>
+          </div>
+
+          <!-- Clang -->
+          <div class="stat-card" style="border-left: 4px solid #c084fc;">
+            <div class="stat-title">4º — LLVM Clang</div>
+            <div class="stat-desc">
+              <strong>Localização:</strong> Clang no PATH do sistema.<br/>
+              <strong>Invocação:</strong> <code>clang -std=c99 -Wall -O2 -lm</code><br/>
+              <strong>Vantagens:</strong> Diagnósticos avançados de código e excelente otimização intermediária LLVM.
+            </div>
+          </div>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Trecho do Código de Detecção — src/codegen/compiler.ts</span>
+            <span class="code-lang-tag">TypeScript</span>
+          </div>
+          <pre><code>// 1. TCC local/embutido no projeto
+const candidateTccPaths = [
+  path.resolve(process.cwd(), "tools", "tcc", "tcc.exe"),
+  path.resolve(__dirname, "..", "..", "tools", "tcc", "tcc.exe"),
+  path.resolve(__dirname, "..", "tools", "tcc", "tcc.exe"),
+];
+
+for (const tccPath of candidateTccPaths) {
+  if (fs.existsSync(tccPath)) {
+    const out = child_process.execSync(`"${tccPath}" -v`, { encoding: "utf-8" }).trim();
+    this.cachedCompiler = {
+      type: "tcc",
+      path: tccPath,
+      name: "Tiny C Compiler (TCC)",
+      version: out.split("\n")[0],
+    };
+    return this.cachedCompiler;
+  }
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 5: O COMPILADOR EMBUTIDO TCC -->
+      <section id="tcc-embutido">
+        <h2><span class="section-num">5</span> Por Que o TCC (Tiny C Compiler) É Tão Revolucionário?</h2>
+        <p>
+          O <strong>Tiny C Compiler (TCC)</strong> é um dos compiladores C mais rápidos do mundo, criado por Fabrice Bellard. No Vox Studio RAD, ele foi adotado como o compilador nativo de distribuição por motivos estratégicos:
+        </p>
+
+        <div class="card-grid">
+          <div class="stat-card">
+            <div class="stat-title">🚀 Velocidade Extrema</div>
+            <div class="stat-desc">Enquanto um compilador tradicional leva de 3 a 10 segundos para inicializar includes e linkar um binário, o TCC compila todo o código intermediário do Vox e gera o <code>.exe</code> em apenas <strong>105 a 130 milissegundos</strong>.</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">📦 Zero Dependências</div>
+            <div class="stat-desc">O usuário final que baixa e instala o instalador do Vox Studio RAD <strong>não precisa instalar o Visual Studio (que tem mais de 10 GB)</strong> nem o MinGW. O TCC tem apenas 2 MB e já vem pré-configurado!</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">🛡️ Binários Autônomos</div>
+            <div class="stat-desc">O executável gerado pelo TCC é um arquivo <code>.exe</code> independente de 64-bit que roda em qualquer computador com Windows 10 ou 11 sem exigir pacotes redistribuíveis (VC++ Redistributable).</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 6: PASSO A PASSO NA IDE -->
+      <section id="passo-a-passo">
+        <h2><span class="section-num">6</span> Passo a Passo Prático: Como Gerar o .EXE de um Projeto</h2>
+        <p>Para gerar o binário nativo <code>.exe</code> de qualquer projeto no Vox Studio RAD (como o <strong>Vox ERP Comercial</strong>), siga as etapas abaixo:</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📌</div>
+          <div class="callout-content">
+            <strong>Etapa 1: Carregar o Projeto Desejado</strong>
+            Abra o Vox Studio RAD no navegador (<code>http://localhost:4500</code>). No seletor de modelos rápidos (toolbar superior direita), selecione <strong>"🌟 ERP Completo MVC (Clientes NF-e, Produtos, Estoque, PDV)"</strong> ou abra seu próprio arquivo <code>.voxProj</code>.
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📌</div>
+          <div class="callout-content">
+            <strong>Etapa 2: Selecionar o Alvo Windows 64-bit</strong>
+            Na barra de ferramentas superior (ao lado do botão do GitHub), clique no dropdown de plataformas onde está escrito <code>🌐 Web Browser (HTML5 + REST)</code> e mude para:
+            <br/><br/>
+            <strong><code>🪟 Windows 64-bit (Native EXE)</code></strong>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📌</div>
+          <div class="callout-content">
+            <strong>Etapa 3: Clicar no Botão de Executar / Compilar</strong>
+            Clique no botão verde de execução ou acione o atalho de build. A IDE abrirá instantaneamente o diálogo <strong>"Compilação Nativa Windows 64-bit"</strong> mostrando o log de compilação em tempo real:
+          </div>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Log da Compilação Nativa — Janela da IDE</span>
+            <span class="code-lang-tag">Build Output</span>
+          </div>
+          <pre><code>[Vox Build] Iniciando compilação nativa Windows 64-bit...
+[Transpiler] Transpilando código Vox para ANSI C99 intermediário...
+[Build] Projeto: VoxERP_Comercial | Saída: bin/windows/VoxERP_Comercial.exe
+[Vox] Transpiling .temp_win64_VoxERP_Comercial.vox to C99...
+[Vox] Native build successful: D:\Projetos AntiGravity\VOXIDERAD\bin\windows\VoxERP_Comercial.exe (105ms using Tiny C Compiler (TCC) tcc version 0.9.27 (x86_64 Windows))
+[C99 → EXE] Transpilação e compilação concluídas em 284ms!
+[✔ Output] Executável gerado: bin/windows/VoxERP_Comercial.exe (3.0 KB)</code></pre>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">✔</div>
+          <div class="callout-content">
+            <strong>Etapa 4: Localizar e Rodar o Executável</strong>
+            O executável estará gravado na pasta:
+            <br/>
+            <code>d:\Projetos AntiGravity\VOXIDERAD\bin\windows\VoxERP_Comercial.exe</code>
+            <br/><br/>
+            Você pode clicar no botão <strong>"▶ Executar .exe"</strong> dentro da própria janela da IDE ou abrir a pasta no Windows Explorer e dar um duplo clique sobre o arquivo para executá-lo nativamente!
+          </div>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 7: CLI BUILD -->
+      <section id="cli-build">
+        <h2><span class="section-num">7</span> Compilação via Linha de Comando (CLI)</h2>
+        <p>Você também pode compilar qualquer arquivo de código fonte Vox diretamente através do terminal de comandos sem abrir a interface gráfica da IDE:</p>
+
+        <div class="code-box">
+          <div class="code-header">
+            <span>Compilar para EXE via Terminal (PowerShell / Prompt)</span>
+            <span class="code-lang-tag">Bash / PowerShell</span>
+          </div>
+          <pre><code># Sintaxe básica de compilação
+vox build meu_programa.vox -o meu_programa.exe
+
+# Compilar e executar imediatamente
+vox build meu_programa.vox -o meu_programa.exe --run
+
+# Compilar com otimizações de produção (-O2)
+vox build sistema.vox -o sistema.exe --opt
+
+# Emitir o arquivo C intermediário gerado para inspeção
+vox build sistema.vox -o sistema.exe --emit-c</code></pre>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 8: REMOTE LINUX -->
+      <section id="remote-linux">
+        <h2><span class="section-num">8</span> Compilação Remota Cruzada para Linux 64-bit</h2>
+        <p>
+          Além do Windows, o Vox Studio RAD possui um sistema integrado de <strong>compilação remota via SSH para Linux 64-bit</strong> (Ubuntu, Debian, CentOS).
+        </p>
+        <p>
+          Ao selecionar <strong><code>🐧 Linux 64-bit (Remote SSH / IP)</code></strong> na barra de ferramentas:
+        </p>
+        <ol style="margin-left: 24px; color: var(--text-muted); margin-bottom: 16px;">
+          <li style="margin-bottom: 8px;">A IDE transpila o código Vox para C99 na sua máquina local;</li>
+          <li style="margin-bottom: 8px;">Conecta-se automaticamente via SSH ao servidor Linux configurado (ex: <code>192.168.1.150</code>);</li>
+          <li style="margin-bottom: 8px;">Transfere o código C e o cabeçalho <code>vox_runtime.h</code> para o diretório remoto <code>/tmp/vox_build</code>;</li>
+          <li style="margin-bottom: 8px;">Compila no servidor remoto com o <code>gcc</code> do Linux gerando um binário nativo ELF de 64 bits;</li>
+          <li style="margin-bottom: 8px;">Permite rodar o programa remotamente com o output exibido no terminal da IDE ou baixar o binário para sua máquina.</li>
+        </ol>
+      </section>
+
+      <!-- SEÇÃO 9: DIAGNÓSTICO E TROUBLESHOOTING -->
+      <section id="troubleshooting">
+        <h2><span class="section-num">9</span> Diagnóstico & Resolução de Problemas Frequentes</h2>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Problema / Sintoma</th>
+                <th>Causa Provável</th>
+                <th>Solução Recomendada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Fui na pasta <code>dist/web-app/</code> e não achei o <code>.exe</code>.</strong></td>
+                <td>A pasta <code>dist/web-app/</code> é o destino da aplicação Web (HTML5/JS), não de executáveis Windows.</td>
+                <td>O executável nativo é gerado na pasta <code>VOXIDERAD/bin/windows/</code> ao selecionar a plataforma <code>Windows 64-bit (Native EXE)</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Ao teclar F9 a tela ficou em "Carregando dados da aplicação...".</strong></td>
+                <td>Erro em tempo de execução no componente DBGrid ao inicializar estado sem binding.</td>
+                <td>Bug corrigido no <code>runner.js</code>. Pressione <code>Ctrl + F5</code> no navegador e tecle F9 novamente.</td>
+              </tr>
+              <tr>
+                <td><strong>Erro "Nenhum compilador C encontrado".</strong></td>
+                <td>A pasta <code>tools/tcc</code> não foi encontrada ou não está no diretório de trabalho.</td>
+                <td>O TCC agora está embutido tanto na pasta <code>linguagem/tools/tcc</code> quanto em <code>VOXIDERAD/tools/tcc</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>A barra de ferramentas só mostrava Web e não mostrava Windows.</strong></td>
+                <td>O navegador estava exibindo uma versão antiga do HTML armazenada em cache.</td>
+                <td>Pressione <code>Ctrl + F5</code> no navegador para forçar a atualização do layout da IDE.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SEÇÃO 10: COMO EXPORTAR PARA PDF -->
+      <section id="export-pdf">
+        <h2><span class="section-num">10</span> Como Exportar este Manual para PDF</h2>
+        <p>
+          Este manual foi integralmente formatado com regras avançadas de diagramação impressa CSS (<code>@media print</code>) no padrão <strong>Folha A4</strong>:
+        </p>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">📄</div>
+          <div class="callout-content">
+            <strong>Instruções para Exportação:</strong>
+            <ol style="margin-left: 20px; margin-top: 8px;">
+              <li>Clique no botão azul <strong>"🖨️ Exportar para PDF"</strong> localizado no canto superior direito da tela (ou tecle <code>Ctrl + P</code>);</li>
+              <li>No diálogo de impressão do navegador, no campo <strong>Destino</strong>, escolha <strong>"Salvar como PDF"</strong>;</li>
+              <li>Em <strong>Layout</strong>, escolha <strong>Retrato (Portrait)</strong>;</li>
+              <li>Em <strong>Mais Definições</strong>, certifique-se de marcar a opção <strong>"Gráficos de segundo plano" (Background graphics)</strong> para manter as cores e bordas estilizadas;</li>
+              <li>Clique em <strong>Salvar</strong> e escolha onde gravar o arquivo PDF.</li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- RODAPÉ -->
+      <footer>
+        <div>Vox Studio RAD © 2026 — Linguagem Vox & Compilador Nativo</div>
+        <div>Documento Técnico de Referência de Compilação v1.1</div>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- SCRIPT INTERATIVO (TEMA, BUSCA, LEITURA E IMPRESSÃO) -->
+  <script>
+    // 1. Barra de progresso de leitura
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      const bar = document.getElementById('reading-progress');
+      if (bar) bar.style.width = scrolled + '%';
+      highlightActiveNavLink();
+    });
+
+    // 2. Destacar link ativo no scroll
+    function highlightActiveNavLink() {
+      const sections = document.querySelectorAll('section');
+      const scrollPos = window.scrollY + 120;
+      sections.forEach(sec => {
+        const top = sec.offsetTop;
+        const height = sec.offsetHeight;
+        const id = sec.getAttribute('id');
+        if (scrollPos >= top && scrollPos < top + height) {
+          document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + id) {
+              link.classList.add('active');
+            }
+          });
+        }
+      });
+    }
+
+    // 3. Alternar Tema Claro / Escuro
+    function toggleTheme() {
+      const body = document.body;
+      const isLight = body.classList.toggle('theme-light');
+      const icon = document.getElementById('theme-icon');
+      const text = document.getElementById('theme-text');
+      if (isLight) {
+        icon.innerText = '☀️';
+        text.innerText = 'Claro';
+        localStorage.setItem('vox_doc_theme', 'light');
+      } else {
+        icon.innerText = '🌙';
+        text.innerText = 'Escuro';
+        localStorage.setItem('vox_doc_theme', 'dark');
+      }
+    }
+
+    // Carregar tema salvo
+    if (localStorage.getItem('vox_doc_theme') === 'light') {
+      document.body.classList.add('theme-light');
+      const icon = document.getElementById('theme-icon');
+      const text = document.getElementById('theme-text');
+      if (icon) icon.innerText = '☀️';
+      if (text) text.innerText = 'Claro';
+    }
+
+    // 4. Filtrar tópicos na Sidebar
+    function filterTopics(query) {
+      const q = query.toLowerCase().trim();
+      const items = document.querySelectorAll('.sidebar-nav-list li');
+      items.forEach(li => {
+        const text = li.innerText.toLowerCase();
+        if (text.includes(q)) {
+          li.style.display = 'block';
+        } else {
+          li.style.display = 'none';
+        }
+      });
+    }
+
+    // 5. Exportar para PDF / Imprimir
+    function exportToPdf() {
+      window.print();
+    }
+  </script>
+</body>
+</html>

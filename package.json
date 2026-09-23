@@ -19,7 +19,9 @@
     "crud:manual": "powershell -Command Start-Process clientes/manual.html",
     "livro": "powershell -Command Start-Process docs/livro_vox.html",
     "livro:build": "node tools/build_book.js",
-    "installers": "node installers/build_installers.js"
+    "installers": "node installers/build_installers.js",
+    "start": "node ../VOXIDERAD/server.js",
+    "ide": "node ../VOXIDERAD/server.js"
   },
   "keywords": [
     "compiler",
